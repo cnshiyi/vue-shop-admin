@@ -17,7 +17,7 @@ git remote -v
 
 Expected remotes:
 
-- `origin` → `https://github.com/cnshiyi/vue-vben-admin-main.git`
+- `origin` → `https://github.com/cnshiyi/vue-shop-admin.git`
 - `upstream` → `https://github.com/vbenjs/vue-vben-admin.git`
 
 ### Daily Workflow

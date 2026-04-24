@@ -17,7 +17,7 @@ git remote -v
 
 应看到两类远端：
 
-- `origin` → 你的业务仓库：`https://github.com/cnshiyi/vue-vben-admin-main.git`
+- `origin` → 你的业务仓库：`https://github.com/cnshiyi/vue-shop-admin.git`
 - `upstream` → 官方仓库：`https://github.com/vbenjs/vue-vben-admin.git`
 
 ### 日常操作

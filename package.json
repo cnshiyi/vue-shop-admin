@@ -1,5 +1,5 @@
 {
-  "name": "vben-admin-monorepo",
+  "name": "vue-shop-admin",
   "version": "5.7.0",
   "private": true,
   "keywords": [
@@ -14,9 +14,9 @@
     "vue vben admin pro",
     "vue3"
   ],
-  "homepage": "https://github.com/cnshiyi/vue-vben-admin-main",
-  "bugs": "https://github.com/cnshiyi/vue-vben-admin-main/issues",
-  "repository": "cnshiyi/vue-vben-admin-main.git",
+  "homepage": "https://github.com/cnshiyi/vue-shop-admin",
+  "bugs": "https://github.com/cnshiyi/vue-shop-admin/issues",
+  "repository": "cnshiyi/vue-shop-admin.git",
   "license": "MIT",
   "author": {
     "name": "vben",
