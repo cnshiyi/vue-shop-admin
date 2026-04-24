@@ -14,9 +14,9 @@
     "vue vben admin pro",
     "vue3"
   ],
-  "homepage": "https://github.com/vbenjs/vue-vben-admin",
-  "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
-  "repository": "vbenjs/vue-vben-admin.git",
+  "homepage": "https://github.com/cnshiyi/vue-vben-admin-main",
+  "bugs": "https://github.com/cnshiyi/vue-vben-admin-main/issues",
+  "repository": "cnshiyi/vue-vben-admin-main.git",
   "license": "MIT",
   "author": {
     "name": "vben",

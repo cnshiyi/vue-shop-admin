@@ -1,157 +1,117 @@
-<div align="center">
-  <a href="https://github.com/anncwb/vue-vben-admin">
-    <img alt="VbenAdmin Logo" width="215" src="https://unpkg.com/@vbenjs/static-source@0.1.7/source/logo-v1.webp">
-  </a>
-  <br>
-  <br>
+# Shop 管理前端
 
-[![license](https://img.shields.io/github/license/anncwb/vue-vben-admin.svg)](LICENSE)
+这是主人当前在用的 **Shop 管理后台前端仓库**，不是官方 `vue-vben-admin` 原仓库。
 
-  <h1>Vue Vben Admin</h1>
-</div>
+## 仓库定位
 
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=vbenjs_vue-vben-admin&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=vbenjs_vue-vben-admin) ![codeql](https://github.com/vbenjs/vue-vben-admin/actions/workflows/codeql.yml/badge.svg) ![build](https://github.com/vbenjs/vue-vben-admin/actions/workflows/build.yml/badge.svg) ![ci](https://github.com/vbenjs/vue-vben-admin/actions/workflows/ci.yml/badge.svg) ![deploy](https://github.com/vbenjs/vue-vben-admin/actions/workflows/deploy.yml/badge.svg)
+- 当前业务仓库：`origin`
+- 官方上游仓库：`upstream`
+- 当前代码基于 `vue-vben-admin` 二次改造，已经接入本地 `shop` Django 后端
+- 这里优先服务当前业务，不再把 README、仓库元信息伪装成官方项目
 
-**中文** | [English](./README.md) | [日本語](./README.ja-JP.md)
-
-## 简介
-
-Vue Vben Admin 是 Vue Vben Admin 的升级版本。作为一个免费开源的中后台模板，它采用了最新的 Vue 3、Vite、TypeScript 等主流技术开发，开箱即用，可用于中后台前端开发，也适合学习参考。
-
-## 升级提示
-
-该版本为最新版本 `5.0`，与其他版本不兼容，如果你是新项目，建议使用最新版本。如果你想查看旧版本，请使用 [v2 分支](https://github.com/vbenjs/vue-vben-admin/tree/v2)
-
-## 特性
-
-- **最新技术栈**：使用 Vue3/vite 等前端前沿技术开发
-- **TypeScript**：应用程序级 JavaScript 的语言
-- **主题**：提供多套主题色彩，可配置自定义主题
-- **国际化**：内置完善的国际化方案
-- **权限**：内置完善的动态路由权限生成方案
-
-## 预览
-
-- [Vben Admin](https://vben.pro/) - 完整版中文站点
-
-测试账号：vben/123456
-
-<div align="center">
-  <img alt="VbenAdmin Logo" width="100%" src="https://anncwb.github.io/anncwb/images/preview1.png">
-  <img alt="VbenAdmin Logo" width="100%" src="https://anncwb.github.io/anncwb/images/preview2.png">
-  <img alt="VbenAdmin Logo" width="100%" src="https://anncwb.github.io/anncwb/images/preview3.png">
-</div>
-
-### 使用 Gitpod
-
-在 Gitpod（适用于 GitHub 的免费在线开发环境）中打开项目，并立即开始编码。
-
-[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/vbenjs/vue-vben-admin)
-
-## 文档
-
-[文档地址](https://doc.vben.pro/)
-
-## 安装使用
-
-1. 获取项目代码
+## Git 约定
 
 ```bash
-git clone https://github.com/vbenjs/vue-vben-admin.git
+git remote -v
 ```
 
-2. 安装依赖
+应看到两类远端：
+
+- `origin` → 你的业务仓库：`https://github.com/cnshiyi/vue-vben-admin-main.git`
+- `upstream` → 官方仓库：`https://github.com/vbenjs/vue-vben-admin.git`
+
+### 日常操作
+
+推送自己的改动：
 
 ```bash
-cd vue-vben-admin
-npm i -g corepack
+git push origin main
+```
+
+查看官方更新：
+
+```bash
+git fetch upstream
+```
+
+按需合并官方更新时，先评估业务改动冲突，不要机械同步。
+
+## 本地开发
+
+### 环境要求
+
+- Node.js：`^20.19.0 || ^22.18.0 || ^24.0.0`
+- pnpm：`>=10`
+
+### 安装依赖
+
+```bash
 pnpm install
 ```
 
-3. 运行
+### 启动前端
 
 ```bash
-pnpm dev
+pnpm dev:antd
 ```
 
-4. 打包
+默认开发地址：
 
-```bash
-pnpm build
-```
+- 前端：`http://127.0.0.1:5666`
+- 后端：`http://127.0.0.1:8000`
 
-## 更新日志
+当前开发代理已经对接本地 Django，不走 mock。
 
-[CHANGELOG](https://github.com/vbenjs/vue-vben-admin/releases)
+## 业务说明
 
-## 如何贡献
+这个仓库承接的是 `shop` 项目的管理后台，不是模板演示站。当前已包含并持续维护的业务改造主要有：
 
-非常欢迎你的加入！[提一个 Issue](https://github.com/anncwb/vue-vben-admin/issues/new/choose) 或者提交一个 Pull Request。
+- 云套餐列表管理
+- 配置同步（同步云厂商在售主规格到后端 `ServerPrice`）
+- IP 生命周期日志页
+- 云套餐新增/编辑分步选择交互
+- 与 `shop` 后端接口的联调适配
 
-**Pull Request 流程：**
+### 重要语义
 
-1. Fork 代码
-2. 创建自己的分支：`git checkout -b feature/xxxx`
-3. 提交你的修改：`git commit -am 'feat(function): add xxxxx'`
-4. 推送您的分支：`git push origin feature/xxxx`
-5. 提交 `pull request`
+- `配置同步`：同步云厂商在售可售主规格/价格模板到后端价格表
+- `套餐列表`：人工维护的业务套餐，不由同步直接覆盖
 
-## Git 贡献提交规范
+## 目录关注点
 
-参考 [vue](https://github.com/vuejs/vue/blob/dev/.github/COMMIT_CONVENTION.md) 规范 ([Angular](https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-changelog-angular))
+当前主要工作目录：
 
-- `feat` 增加新功能
-- `fix` 修复问题/BUG
-- `style` 代码风格相关无影响运行结果的
-- `perf` 优化/性能提升
-- `refactor` 重构
-- `revert` 撤销修改
-- `test` 测试相关
-- `docs` 文档/注释
-- `chore` 依赖更新/脚手架配置修改等
-- `ci` 持续集成
-- `types` 类型定义文件更改
+- `apps/web-antd/src/views/dashboard/`：后台业务页面
+- `apps/web-antd/src/api/admin.ts`：后台接口定义
+- `apps/web-antd/src/router/routes/modules/admin.ts`：后台路由配置
+- `apps/web-antd/.env.development`：本地开发环境配置
+- `apps/web-antd/vite.config.ts`：本地代理配置
 
-## 浏览器支持
+## 与后端联调
 
-本地开发推荐使用 `Chrome 80+` 浏览器
+后端仓库位于：
 
-支持现代浏览器，不支持 IE
+- `/Users/aaaa/Desktop/shop`
 
-| [<img src="https://raw.githubusercontent.com/alrra/browser-logos/master/src/edge/edge_48x48.png" alt="Edge" width="24px" height="24px" />](http://godban.github.io/browsers-support-badges/)</br>Edge | [<img src="https://raw.githubusercontent.com/alrra/browser-logos/master/src/firefox/firefox_48x48.png" alt="Firefox" width="24px" height="24px" />](http://godban.github.io/browsers-support-badges/)</br>Firefox | [<img src="https://raw.githubusercontent.com/alrra/browser-logos/master/src/chrome/chrome_48x48.png" alt="Chrome" width="24px" height="24px" />](http://godban.github.io/browsers-support-badges/)</br>Chrome | [<img src="https://raw.githubusercontent.com/alrra/browser-logos/master/src/safari/safari_48x48.png" alt="Safari" width="24px" height="24px" />](http://godban.github.io/browsers-support-badges/)</br>Safari |
-| :-: | :-: | :-: | :-: |
-| last 2 versions | last 2 versions | last 2 versions | last 2 versions |
+常见联调检查：
 
-## 维护者
+1. 后端是否启动在 `8000`
+2. 前端 `.env.development` 是否指向本地 Django
+3. 新增后台页面后，是否同步更新 `admin.ts` 和路由配置
+4. 如接口已迁移，优先对接新的领域 API 行为，不继续绑定旧兼容实现
 
-[@Vben](https://github.com/anncwb)
+## 文档原则
 
-## Star 历史
+从现在开始：
 
-[![Star History Chart](https://api.star-history.com/svg?repos=vbenjs/vue-vben-admin&type=Date)](https://star-history.com/#vbenjs/vue-vben-admin&Date)
+- README 以当前业务项目为准
+- 官方模板信息只作为“上游来源”说明
+- 业务自定义改动、运行方式、联调方法优先写清楚
 
-## 捐赠
+## 上游来源
 
-如果你觉得这个项目对你有帮助，你可以帮作者买一杯咖啡表示支持！
+本项目基于以下官方仓库演进：
 
-![donate](https://unpkg.com/@vbenjs/static-source@0.1.7/source/sponsor.png)
+- `https://github.com/vbenjs/vue-vben-admin`
 
-<a style="display: block;width: 100px;height: 50px;line-height: 50px; color: #fff;text-align: center; background: #408aed;border-radius: 4px;" href="https://www.paypal.com/paypalme/cvvben">Paypal Me</a>
-
-## 贡献者
-
-<a href="https://openomy.app/github/vbenjs/vue-vben-admin" target="_blank" style="display: block; width: 100%;" align="center">
-  <img src="https://openomy.app/svg?repo=vbenjs/vue-vben-admin&chart=bubble&latestMonth=3" target="_blank" alt="Contribution Leaderboard" style="display: block; width: 100%;" />
- </a>
-
-<a href="https://github.com/vbenjs/vue-vben-admin/graphs/contributors">
-  <img alt="Contributors" src="https://contrib.rocks/image?repo=vbenjs/vue-vben-admin" />
-</a>
-
-## Discord
-
-- [Github Discussions](https://github.com/anncwb/vue-vben-admin/discussions)
-
-## 许可证
-
-[MIT © Vben-2020](./LICENSE)
+感谢原项目提供的基础框架能力。当前仓库与官方仓库已经分离维护。
