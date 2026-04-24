@@ -192,6 +192,32 @@ export interface DashboardCloudAssetGroupedResponse {
   items: DashboardCloudAssetItem[];
 }
 
+export interface DashboardCloudIpLogItem {
+  asset_id: null | number;
+  asset_name: null | string;
+  created_at: null | string;
+  event_label?: string;
+  event_type: string;
+  id: number;
+  instance_id: null | string;
+  note: null | string;
+  order_id: null | number;
+  order_no: null | string;
+  previous_public_ip: null | string;
+  provider: null | string;
+  provider_label?: string;
+  provider_resource_id: null | string;
+  public_ip: null | string;
+  region_code: null | string;
+  region_label?: null | string;
+  region_name: null | string;
+  server_id: null | number;
+  tg_user_id: null | number;
+  user_display_name: string;
+  user_id: null | number;
+  username_label: string;
+}
+
 export interface DashboardServerItem {
   account_label: null | string;
   days_left?: null | number;
@@ -491,6 +517,10 @@ export async function getDashboardCloudAssetsGroupedApi(params: DashboardListQue
 
 export async function syncDashboardCloudAssetsApi(region = 'cn-hongkong') {
   return requestClient.post('/admin/cloud-assets/sync/', { region });
+}
+
+export async function getDashboardCloudIpLogsApi(params: DashboardListQuery = {}) {
+  return requestClient.get<DashboardCloudIpLogItem[]>('/admin/cloud-assets/ip-logs/', { params });
 }
 
 export async function updateDashboardCloudAssetApi(assetId: number, payload: Record<string, any>) {

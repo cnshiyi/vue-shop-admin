@@ -79,6 +79,15 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        name: 'DashboardCloudIpLogs',
+        path: 'cloud-ip-logs',
+        component: () => import('#/views/dashboard/cloud-ip-logs/index.vue'),
+        meta: {
+          icon: 'lucide:logs',
+          title: 'IP日志',
+        },
+      },
+      {
         name: 'DashboardCloudPlans',
         path: 'cloud-plans',
         redirect: '/admin/cloud-plans/list',
