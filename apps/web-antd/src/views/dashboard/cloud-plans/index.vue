@@ -27,6 +27,7 @@ const pricing = ref<DashboardCloudPricingItem[]>([]);
 const editOpen = ref(false);
 const createMode = ref(false);
 const editingPlan = ref<DashboardCloudPlanItem | null>(null);
+const selectedRegionCode = ref<string | undefined>(undefined);
 const selectedPricingPreset = ref<string | undefined>(undefined);
 const editForm = ref<DashboardCloudPlanUpdatePayload>({
   provider: 'aws_lightsail',
@@ -81,11 +82,30 @@ const pricingColumns: TableColumnsType<DashboardCloudPricingItem> = [
 const currentColumns = computed(() => (activeTab.value === 'plans' ? planColumns : pricingColumns));
 const currentItems = computed(() => (activeTab.value === 'plans' ? plans.value : pricing.value));
 
+const regionOptions = computed(() => {
+  const seen = new Set<string>();
+  return pricing.value
+    .filter((item) => item.provider === editForm.value.provider)
+    .filter((item) => {
+      const key = `${item.provider}::${item.region_code}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    })
+    .map((item) => ({
+      label: item.region_label || item.region_name || item.region_code,
+      value: item.region_code,
+    }));
+});
+
 const pricingPresetOptions = computed(() => {
   return pricing.value
     .filter((item) => item.provider === editForm.value.provider)
+    .filter((item) => !selectedRegionCode.value || item.region_code === selectedRegionCode.value)
     .map((item) => ({
-      label: `${item.region_label || item.region_name || item.region_code} / ${item.plan_name} / ${item.cpu} ${item.memory} ${item.storage}`,
+      label: `${item.plan_name} / ${item.cpu} ${item.memory} ${item.storage}`,
       value: `${item.provider}::${item.region_code}::${item.bundle_code}`,
     }));
 });
@@ -95,6 +115,7 @@ function asDashboardCloudPlanItem(record: Record<string, any>) {
 }
 
 function resetEditForm() {
+  selectedRegionCode.value = 'ap-southeast-1';
   selectedPricingPreset.value = undefined;
   editForm.value = {
     provider: 'aws_lightsail',
@@ -139,6 +160,7 @@ function openCreate() {
 function openEdit(record: DashboardCloudPlanItem) {
   createMode.value = false;
   editingPlan.value = record;
+  selectedRegionCode.value = record.region_code;
   selectedPricingPreset.value = undefined;
   editForm.value = {
     provider: record.provider,
@@ -159,12 +181,24 @@ function openEdit(record: DashboardCloudPlanItem) {
   editOpen.value = true;
 }
 
+function applyRegion(regionCode?: string) {
+  selectedRegionCode.value = regionCode;
+  const selected = pricing.value.find((item) => item.provider === editForm.value.provider && item.region_code === regionCode);
+  editForm.value = {
+    ...editForm.value,
+    region_code: regionCode || '',
+    region_name: selected?.region_name || '',
+  };
+  selectedPricingPreset.value = undefined;
+}
+
 function applyPricingPreset(presetValue?: string) {
   selectedPricingPreset.value = presetValue;
   const selected = pricing.value.find((item) => `${item.provider}::${item.region_code}::${item.bundle_code}` === presetValue);
   if (!selected) {
     return;
   }
+  selectedRegionCode.value = selected.region_code;
   editForm.value = {
     ...editForm.value,
     provider: selected.provider,
@@ -181,8 +215,13 @@ function applyPricingPreset(presetValue?: string) {
   };
 }
 
-watch(() => editForm.value.provider, () => {
+watch(() => editForm.value.provider, (provider) => {
   selectedPricingPreset.value = undefined;
+  const firstRegion = pricing.value.find((item) => item.provider === provider)?.region_code;
+  selectedRegionCode.value = firstRegion;
+  if (createMode.value) {
+    applyRegion(firstRegion);
+  }
 });
 
 async function saveEdit() {
@@ -280,16 +319,27 @@ onMounted(loadData);
         <Select v-model:value="editForm.provider" :options="providerOptions" placeholder="选择云厂商" />
         <Select
           v-if="createMode"
-          v-model:value="selectedPricingPreset"
+          v-model:value="selectedRegionCode"
           allow-clear
           show-search
           :filter-option="(input, option) => String(option?.label || '').toLowerCase().includes(input.toLowerCase())"
+          :options="regionOptions"
+          placeholder="第二步：选择地区"
+          @change="applyRegion"
+        />
+        <Select
+          v-if="createMode"
+          v-model:value="selectedPricingPreset"
+          allow-clear
+          show-search
+          :disabled="!selectedRegionCode"
+          :filter-option="(input, option) => String(option?.label || '').toLowerCase().includes(input.toLowerCase())"
           :options="pricingPresetOptions"
-          placeholder="快捷选择在售主规格，自动带入配置"
+          placeholder="第三步：选择配置，自动带入进货价"
           @change="applyPricingPreset"
         />
-        <Input v-model:value="editForm.region_code" placeholder="地区代码，如 ap-southeast-1" />
-        <Input v-model:value="editForm.region_name" placeholder="地区名称，如 新加坡" />
+        <Input v-model:value="editForm.region_code" :disabled="createMode" placeholder="地区代码，如 ap-southeast-1" />
+        <Input v-model:value="editForm.region_name" :disabled="createMode" placeholder="地区名称，如 新加坡" />
         <Input v-model:value="editForm.plan_name" placeholder="套餐名" />
         <Input v-model:value="editForm.plan_description" placeholder="套餐描述" />
         <Input v-model:value="editForm.cpu" placeholder="CPU，如 2核" />
