@@ -216,7 +216,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <Page description="这里同步 AWS / 阿里云当前在售规格与价格模板，不会生成或修改对外售卖套餐" title="配置同步">
+  <Page description="这里同步 AWS / 阿里云当前在售主规格与价格模板；AWS 已按主套餐口径过滤，不包含 Windows / IPv6 / 优化型变体，也不会生成或修改对外售卖套餐" title="配置同步">
     <Card>
       <template #title>
         <Space>
@@ -225,11 +225,11 @@ onMounted(() => {
             v-model:value="keyword"
             allow-clear
             enter-button="搜索"
-            placeholder="搜索地区、厂商、规格名"
+            placeholder="搜索地区、厂商、主规格名"
             style="width: 360px"
             @search="loadData"
           />
-          <Button size="small" type="primary" :loading="syncing" @click="syncPricing">同步在售规格</Button>
+          <Button size="small" type="primary" :loading="syncing" @click="syncPricing">同步主规格</Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
         </Space>
@@ -239,7 +239,7 @@ onMounted(() => {
         <Card v-if="syncSummary" size="small">
           <Space wrap>
             <Tag color="blue">同步地区 {{ syncSummary.summary.region_count }}</Tag>
-            <Tag color="green">在售规格 {{ syncSummary.summary.after_pricing_count }}</Tag>
+            <Tag color="green">主规格 {{ syncSummary.summary.after_pricing_count }}</Tag>
             <Tag color="gold">人工套餐 {{ syncSummary.summary.after_plan_count }}</Tag>
             <Tag>同步结果 {{ syncSummary.synced ? '成功' : '未完成' }}</Tag>
           </Space>
@@ -261,7 +261,7 @@ onMounted(() => {
                 <Space>
                   <span>{{ region.regionName }}</span>
                   <Tag>{{ region.regionCode }}</Tag>
-                  <Tag color="green">{{ region.pricing.length }} 个在售规格</Tag>
+                  <Tag color="green">{{ region.pricing.length }} 个主规格</Tag>
                 </Space>
               </template>
 
