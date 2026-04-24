@@ -27,5 +27,12 @@
     "circular-dependency-scanner": "catalog:",
     "depcheck": "catalog:",
     "publint": "catalog:"
+  },
+  "homepage": "https://github.com/cnshiyi/vue-shop-admin/tree/main/scripts/vsh",
+  "bugs": "https://github.com/cnshiyi/vue-shop-admin/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cnshiyi/vue-shop-admin.git",
+    "directory": "scripts/vsh"
   }
 }

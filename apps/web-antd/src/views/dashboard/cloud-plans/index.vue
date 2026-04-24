@@ -181,20 +181,22 @@ function openEdit(record: DashboardCloudPlanItem) {
   editOpen.value = true;
 }
 
-function applyRegion(regionCode?: string) {
-  selectedRegionCode.value = regionCode;
-  const selected = pricing.value.find((item) => item.provider === editForm.value.provider && item.region_code === regionCode);
+function applyRegion(regionCode?: unknown) {
+  const normalizedRegionCode = typeof regionCode === 'string' ? regionCode : regionCode == null || Array.isArray(regionCode) ? undefined : String(regionCode);
+  selectedRegionCode.value = normalizedRegionCode;
+  const selected = pricing.value.find((item) => item.provider === editForm.value.provider && item.region_code === normalizedRegionCode);
   editForm.value = {
     ...editForm.value,
-    region_code: regionCode || '',
+    region_code: normalizedRegionCode || '',
     region_name: selected?.region_name || '',
   };
   selectedPricingPreset.value = undefined;
 }
 
-function applyPricingPreset(presetValue?: string) {
-  selectedPricingPreset.value = presetValue;
-  const selected = pricing.value.find((item) => `${item.provider}::${item.region_code}::${item.bundle_code}` === presetValue);
+function applyPricingPreset(presetValue?: unknown) {
+  const normalizedPresetValue = typeof presetValue === 'string' ? presetValue : presetValue == null || Array.isArray(presetValue) ? undefined : String(presetValue);
+  selectedPricingPreset.value = normalizedPresetValue;
+  const selected = pricing.value.find((item) => `${item.provider}::${item.region_code}::${item.bundle_code}` === normalizedPresetValue);
   if (!selected) {
     return;
   }

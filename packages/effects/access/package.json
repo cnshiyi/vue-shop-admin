@@ -1,12 +1,12 @@
 {
   "name": "@vben/access",
   "version": "5.7.0",
-  "homepage": "https://github.com/vbenjs/vue-vben-admin",
-  "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
+  "homepage": "https://github.com/cnshiyi/vue-shop-admin/tree/main/packages/effects/access",
+  "bugs": "https://github.com/cnshiyi/vue-shop-admin/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vbenjs/vue-vben-admin.git",
-    "directory": "packages/effects/permissions"
+    "url": "git+https://github.com/cnshiyi/vue-shop-admin.git",
+    "directory": "packages/effects/access"
   },
   "license": "MIT",
   "type": "module",

@@ -62,6 +62,8 @@ Default local endpoints:
 
 The dev proxy is already wired to the local Django backend instead of mock services.
 
+Only `apps/web-antd` remains in the active workspace. Other demo/front-end variants and mock/playground projects are preserved under `archive/frontend-extras/` and are no longer treated as active workspace packages.
+
 ## Business Scope
 
 This repo contains the admin frontend for the `shop` project. It currently includes business-specific work such as:
@@ -84,6 +86,7 @@ This repo contains the admin frontend for the `shop` project. It currently inclu
 - `apps/web-antd/src/router/routes/modules/admin.ts`
 - `apps/web-antd/.env.development`
 - `apps/web-antd/vite.config.ts`
+- `archive/frontend-extras/` keeps archived non-primary apps for reference only
 
 ## Backend Pairing
 

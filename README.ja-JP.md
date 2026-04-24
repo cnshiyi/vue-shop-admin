@@ -13,3 +13,5 @@
 - `upstream`: `https://github.com/vbenjs/vue-vben-admin.git`
 
 このリポジトリでは業務向けのカスタム実装を優先します。公式更新を取り込む場合は、差分を確認してから行ってください。
+
+現在のアクティブ workspace は `apps/web-antd` のみです。その他のデモ系フロントエンド、mock、playground は `archive/frontend-extras/` に退避し、参照・保管用として残しています。

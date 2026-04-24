@@ -62,6 +62,8 @@ pnpm dev:antd
 
 当前开发代理已经对接本地 Django，不走 mock。
 
+当前活跃工作区只保留 `apps/web-antd`。其他演示前端、mock 与 playground 已归档到 `archive/frontend-extras/`，仅保留参考与备份，不再作为日常业务工作区包参与运行。
+
 ## 业务说明
 
 这个仓库承接的是 `shop` 项目的管理后台，不是模板演示站。当前已包含并持续维护的业务改造主要有：
@@ -86,6 +88,7 @@ pnpm dev:antd
 - `apps/web-antd/src/router/routes/modules/admin.ts`：后台路由配置
 - `apps/web-antd/.env.development`：本地开发环境配置
 - `apps/web-antd/vite.config.ts`：本地代理配置
+- `archive/frontend-extras/`：归档保存的非主线前端与 playground
 
 ## 与后端联调
 

@@ -1,12 +1,12 @@
 {
   "name": "@vben-core/form-ui",
   "version": "5.7.0",
-  "homepage": "https://github.com/vbenjs/vue-vben-admin",
-  "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
+  "homepage": "https://github.com/cnshiyi/vue-shop-admin/tree/main/packages/@core/ui-kit/form-ui",
+  "bugs": "https://github.com/cnshiyi/vue-shop-admin/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vbenjs/vue-vben-admin.git",
-    "directory": "packages/@vben-core/uikit/form-ui"
+    "url": "git+https://github.com/cnshiyi/vue-shop-admin.git",
+    "directory": "packages/@core/ui-kit/form-ui"
   },
   "license": "MIT",
   "type": "module",

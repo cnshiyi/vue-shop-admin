@@ -2,11 +2,11 @@
   "name": "@vben/eslint-config",
   "version": "5.7.0",
   "private": true,
-  "homepage": "https://github.com/vbenjs/vue-vben-admin",
-  "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
+  "homepage": "https://github.com/cnshiyi/vue-shop-admin/tree/main/internal/lint-configs/eslint-config",
+  "bugs": "https://github.com/cnshiyi/vue-shop-admin/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vbenjs/vue-vben-admin.git",
+    "url": "git+https://github.com/cnshiyi/vue-shop-admin.git",
     "directory": "internal/lint-configs/eslint-config"
   },
   "license": "MIT",

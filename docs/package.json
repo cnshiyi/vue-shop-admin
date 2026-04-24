@@ -33,5 +33,12 @@
     "@vite-pwa/vitepress": "catalog:",
     "vitepress": "catalog:",
     "vue": "catalog:"
+  },
+  "homepage": "https://github.com/cnshiyi/vue-shop-admin/tree/main/docs",
+  "bugs": "https://github.com/cnshiyi/vue-shop-admin/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cnshiyi/vue-shop-admin.git",
+    "directory": "docs"
   }
 }
