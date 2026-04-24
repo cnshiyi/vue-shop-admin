@@ -81,29 +81,11 @@ const routes: RouteRecordRaw[] = [
       {
         name: 'DashboardCloudPlans',
         path: 'cloud-plans',
-        redirect: '/admin/cloud-plans/list',
+        component: () => import('#/views/dashboard/cloud-plans/index.vue'),
         meta: {
           icon: 'lucide:package-search',
           title: '套餐设置',
         },
-        children: [
-          {
-            name: 'DashboardCloudPlansList',
-            path: 'list',
-            component: () => import('#/views/dashboard/cloud-plans/index.vue'),
-            meta: {
-              title: '套餐列表',
-            },
-          },
-          {
-            name: 'DashboardCloudPricing',
-            path: 'pricing',
-            component: () => import('#/views/dashboard/cloud-pricing/index.vue'),
-            meta: {
-              title: '配置同步',
-            },
-          },
-        ],
       },
       {
         name: 'DashboardSettings',

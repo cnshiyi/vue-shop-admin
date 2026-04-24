@@ -247,26 +247,6 @@ export interface DashboardCloudPricingItem extends DashboardCloudPlanItem {
   bundle_code: string;
 }
 
-export interface DashboardCloudPlanSyncResult {
-  before_regions: Array<{ provider: string; region_code: string; region_name: string }>;
-  provider_region_summary: Array<{
-    pricing_count: number;
-    provider: string;
-    region_code: string;
-    region_name: string;
-  }>;
-  regions: Array<{ provider: string; region_code: string; region_name: string }>;
-  refreshed_regions: number;
-  summary: {
-    after_plan_count: number;
-    after_pricing_count: number;
-    before_plan_count: number;
-    before_pricing_count: number;
-    region_count: number;
-  };
-  synced: boolean;
-}
-
 export interface DashboardCloudPlanUpdatePayload {
   bandwidth?: string;
   cost_price?: number;
@@ -523,10 +503,6 @@ export async function getDashboardCloudPlansApi(params: DashboardListQuery = {})
 
 export async function getDashboardCloudPricingApi(params: DashboardListQuery = {}) {
   return requestClient.get<DashboardCloudPricingItem[]>('/admin/cloud-pricing/', { params });
-}
-
-export async function syncDashboardCloudPlansApi() {
-  return requestClient.post<DashboardCloudPlanSyncResult>('/admin/cloud-plans/sync/');
 }
 
 export async function createDashboardCloudPlanApi(payload: DashboardCloudPlanUpdatePayload) {
