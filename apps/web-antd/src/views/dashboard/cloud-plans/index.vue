@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
@@ -27,6 +27,7 @@ const pricing = ref<DashboardCloudPricingItem[]>([]);
 const editOpen = ref(false);
 const createMode = ref(false);
 const editingPlan = ref<DashboardCloudPlanItem | null>(null);
+const selectedPricingPreset = ref<string | undefined>(undefined);
 const editForm = ref<DashboardCloudPlanUpdatePayload>({
   provider: 'aws_lightsail',
   region_code: 'ap-southeast-1',
@@ -80,11 +81,21 @@ const pricingColumns: TableColumnsType<DashboardCloudPricingItem> = [
 const currentColumns = computed(() => (activeTab.value === 'plans' ? planColumns : pricingColumns));
 const currentItems = computed(() => (activeTab.value === 'plans' ? plans.value : pricing.value));
 
+const pricingPresetOptions = computed(() => {
+  return pricing.value
+    .filter((item) => item.provider === editForm.value.provider)
+    .map((item) => ({
+      label: `${item.region_label || item.region_name || item.region_code} / ${item.plan_name} / ${item.cpu} ${item.memory} ${item.storage}`,
+      value: `${item.provider}::${item.region_code}::${item.bundle_code}`,
+    }));
+});
+
 function asDashboardCloudPlanItem(record: Record<string, any>) {
   return record as DashboardCloudPlanItem;
 }
 
 function resetEditForm() {
+  selectedPricingPreset.value = undefined;
   editForm.value = {
     provider: 'aws_lightsail',
     region_code: 'ap-southeast-1',
@@ -109,7 +120,7 @@ async function loadData() {
     const params = { keyword: keyword.value.trim() };
     const [planList, pricingList] = await Promise.all([
       getDashboardCloudPlansApi(params),
-      getDashboardCloudPricingApi(params),
+      getDashboardCloudPricingApi({}),
     ]);
     plans.value = planList;
     pricing.value = pricingList;
@@ -128,6 +139,7 @@ function openCreate() {
 function openEdit(record: DashboardCloudPlanItem) {
   createMode.value = false;
   editingPlan.value = record;
+  selectedPricingPreset.value = undefined;
   editForm.value = {
     provider: record.provider,
     region_code: record.region_code,
@@ -146,6 +158,32 @@ function openEdit(record: DashboardCloudPlanItem) {
   };
   editOpen.value = true;
 }
+
+function applyPricingPreset(presetValue?: string) {
+  selectedPricingPreset.value = presetValue;
+  const selected = pricing.value.find((item) => `${item.provider}::${item.region_code}::${item.bundle_code}` === presetValue);
+  if (!selected) {
+    return;
+  }
+  editForm.value = {
+    ...editForm.value,
+    provider: selected.provider,
+    region_code: selected.region_code,
+    region_name: selected.region_name,
+    plan_name: selected.plan_name,
+    plan_description: selected.plan_description || '',
+    cpu: selected.cpu || '',
+    memory: selected.memory || '',
+    storage: selected.storage || '',
+    bandwidth: selected.bandwidth || '',
+    currency: selected.currency || 'USDT',
+    cost_price: Number(selected.cost_price || 0),
+  };
+}
+
+watch(() => editForm.value.provider, () => {
+  selectedPricingPreset.value = undefined;
+});
 
 async function saveEdit() {
   saving.value = true;
@@ -240,6 +278,16 @@ onMounted(loadData);
     <Modal v-model:open="editOpen" :title="createMode ? '新增套餐' : '编辑套餐'" :confirm-loading="saving" @ok="saveEdit">
       <Space direction="vertical" style="width: 100%">
         <Select v-model:value="editForm.provider" :options="providerOptions" placeholder="选择云厂商" />
+        <Select
+          v-if="createMode"
+          v-model:value="selectedPricingPreset"
+          allow-clear
+          show-search
+          :filter-option="(input, option) => String(option?.label || '').toLowerCase().includes(input.toLowerCase())"
+          :options="pricingPresetOptions"
+          placeholder="快捷选择在售主规格，自动带入配置"
+          @change="applyPricingPreset"
+        />
         <Input v-model:value="editForm.region_code" placeholder="地区代码，如 ap-southeast-1" />
         <Input v-model:value="editForm.region_name" placeholder="地区名称，如 新加坡" />
         <Input v-model:value="editForm.plan_name" placeholder="套餐名" />
