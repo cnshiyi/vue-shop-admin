@@ -80,7 +80,8 @@ const routes: RouteRecordRaw[] = [
           {
             name: 'DashboardCloudIpLogs',
             path: 'ip',
-            component: () => import('#/views/dashboard/cloud-ip-logs/index.vue'),
+            component: () =>
+              import('#/views/dashboard/cloud-ip-logs/index.vue'),
             meta: {
               title: 'IP日志',
             },
@@ -96,7 +97,8 @@ const routes: RouteRecordRaw[] = [
           {
             name: 'DashboardOperationLogs',
             path: 'operations',
-            component: () => import('#/views/dashboard/operation-logs/index.vue'),
+            component: () =>
+              import('#/views/dashboard/operation-logs/index.vue'),
             meta: {
               title: '操作日志',
             },
@@ -123,7 +125,8 @@ const routes: RouteRecordRaw[] = [
           {
             name: 'DashboardCloudPricing',
             path: 'pricing',
-            component: () => import('#/views/dashboard/cloud-pricing/index.vue'),
+            component: () =>
+              import('#/views/dashboard/cloud-pricing/index.vue'),
             meta: {
               title: '配置同步',
             },
@@ -160,7 +163,8 @@ const routes: RouteRecordRaw[] = [
           {
             name: 'DashboardSettingsCloudAccounts',
             path: 'cloud-accounts',
-            component: () => import('#/views/dashboard/settings/cloud-accounts.vue'),
+            component: () =>
+              import('#/views/dashboard/settings/cloud-accounts.vue'),
             meta: { title: '云账号设置' },
           },
           {
@@ -174,7 +178,8 @@ const routes: RouteRecordRaw[] = [
       {
         name: 'DashboardServerStatistics',
         path: 'server-statistics',
-        component: () => import('#/views/dashboard/server-statistics/index.vue'),
+        component: () =>
+          import('#/views/dashboard/server-statistics/index.vue'),
         meta: {
           icon: 'lucide:chart-column-increasing',
           title: '服务器统计',
@@ -208,7 +213,8 @@ const routes: RouteRecordRaw[] = [
           {
             name: 'DashboardCloudOrderDetail',
             path: ':id',
-            component: () => import('#/views/dashboard/cloud-orders/detail.vue'),
+            component: () =>
+              import('#/views/dashboard/cloud-orders/detail.vue'),
             meta: {
               hideInMenu: true,
               title: '云订单详情',

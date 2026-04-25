@@ -5,15 +5,8 @@ import { Page } from '@vben/common-ui';
 
 import { Button, Input, Space, message } from 'ant-design-vue';
 
-import {
-  getDashboardSiteConfigGroupsApi,
-  getDashboardSiteConfigsApi,
-  initDashboardSiteConfigsApi,
-  updateDashboardSiteConfigApi,
-  type DashboardSiteConfigGroup,
-  type DashboardSiteConfigGroupItem,
-  type DashboardSiteConfigItem,
-} from '#/api/admin';
+import { getDashboardSiteConfigGroupsApi, getDashboardSiteConfigsApi, initDashboardSiteConfigsApi, updateDashboardSiteConfigApi } from '#/api/admin';
+import type { DashboardSiteConfigGroup, DashboardSiteConfigGroupItem, DashboardSiteConfigItem } from '#/api/admin';
 
 const props = defineProps<{
   description?: string;
@@ -30,7 +23,10 @@ const draftMap = reactive<Record<string, string>>({});
 const sensitiveMap = reactive<Record<string, boolean>>({});
 const maskedMap = reactive<Record<string, boolean>>({});
 
-const activeGroup = computed(() => configGroups.value.find((item) => item.group === props.groupKey) || null);
+const activeGroup = computed(
+  () =>
+    configGroups.value.find((item) => item.group === props.groupKey) || null,
+);
 const items = computed(() => activeGroup.value?.items || []);
 
 function syncDrafts() {
@@ -50,7 +46,10 @@ function syncDrafts() {
 async function loadData() {
   loading.value = true;
   try {
-    const [configs, groups] = await Promise.all([getDashboardSiteConfigsApi(), getDashboardSiteConfigGroupsApi()]);
+    const [configs, groups] = await Promise.all([
+      getDashboardSiteConfigsApi(),
+      getDashboardSiteConfigGroupsApi(),
+    ]);
     siteConfigs.value = configs;
     configGroups.value = groups;
     syncDrafts();
@@ -113,7 +112,9 @@ onMounted(loadData);
 <template>
   <Page :description="description || ''" :title="title">
     <Space class="mb-4">
-      <Button type="primary" :loading="initLoading" @click="initConfigs">初始化配置</Button>
+      <Button type="primary" :loading="initLoading" @click="initConfigs"
+        >初始化配置</Button
+      >
       <Button :loading="loading" @click="loadData">刷新</Button>
     </Space>
 
@@ -124,7 +125,12 @@ onMounted(loadData);
             <div class="config-title">{{ item.description || item.key }}</div>
           </div>
           <Space>
-            <Button type="primary" :loading="savingMap[item.key]" @click="saveItem(item)">保存</Button>
+            <Button
+              type="primary"
+              :loading="savingMap[item.key]"
+              @click="saveItem(item)"
+              >保存</Button
+            >
           </Space>
         </div>
         <Input
@@ -154,17 +160,17 @@ onMounted(loadData);
 }
 
 .config-row {
-  border: 1px solid var(--ant-color-border-secondary);
-  border-radius: 12px;
   padding: 16px;
   background: var(--ant-color-bg-container);
+  border: 1px solid var(--ant-color-border-secondary);
+  border-radius: 12px;
 }
 
 .config-head {
   display: flex;
+  gap: 16px;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
   margin-bottom: 12px;
 }
 

@@ -4,13 +4,20 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Card, Descriptions, Empty, Select, Space, Tag, Typography, message } from 'ant-design-vue';
-
 import {
-  getDashboardRechargeDetailApi,
-  updateDashboardRechargeStatusApi,
-  type DashboardRechargeDetail,
-} from '#/api/admin';
+  Button,
+  Card,
+  Descriptions,
+  Empty,
+  Select,
+  Space,
+  Tag,
+  Typography,
+  message,
+} from 'ant-design-vue';
+
+import { getDashboardRechargeDetailApi, updateDashboardRechargeStatusApi } from '#/api/admin';
+import type { DashboardRechargeDetail } from '#/api/admin';
 
 const route = useRoute();
 const router = useRouter();
@@ -71,7 +78,9 @@ async function saveStatus() {
   }
   saving.value = true;
   try {
-    detail.value = await updateDashboardRechargeStatusApi(detail.value.id, { status: selectedStatus.value });
+    detail.value = await updateDashboardRechargeStatusApi(detail.value.id, {
+      status: selectedStatus.value,
+    });
     selectedStatus.value = detail.value.status || '';
     message.success('充值订单状态已更新');
   } catch (error: any) {
@@ -101,7 +110,13 @@ onMounted(loadData);
             :options="statusOptions"
             style="width: 160px"
           />
-          <Button v-if="detail" :loading="saving" size="small" type="primary" @click="saveStatus">
+          <Button
+            v-if="detail"
+            :loading="saving"
+            size="small"
+            type="primary"
+            @click="saveStatus"
+          >
             保存状态
           </Button>
         </Space>
@@ -109,36 +124,82 @@ onMounted(loadData);
 
       <template v-if="detail">
         <Descriptions bordered :column="2" size="small" title="基础信息">
-          <Descriptions.Item label="充值订单 ID">{{ detail.id }}</Descriptions.Item>
+          <Descriptions.Item label="充值订单 ID">{{
+            detail.id
+          }}</Descriptions.Item>
           <Descriptions.Item label="状态">
-            <Tag :color="statusColor(detail.status)">{{ statusLabel(detail.status) }}</Tag>
+            <Tag :color="statusColor(detail.status)">{{
+              statusLabel(detail.status)
+            }}</Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="用户">{{ empty(detail.user_display_name) }}</Descriptions.Item>
-          <Descriptions.Item label="用户名">{{ empty(detail.username_label) }}</Descriptions.Item>
-          <Descriptions.Item label="Telegram ID">{{ empty(detail.tg_user_id) }}</Descriptions.Item>
-          <Descriptions.Item label="后台用户 ID">{{ empty(detail.user_id) }}</Descriptions.Item>
+          <Descriptions.Item label="用户">{{
+            empty(detail.user_display_name)
+          }}</Descriptions.Item>
+          <Descriptions.Item label="用户名">{{
+            empty(detail.username_label)
+          }}</Descriptions.Item>
+          <Descriptions.Item label="Telegram ID">{{
+            empty(detail.tg_user_id)
+          }}</Descriptions.Item>
+          <Descriptions.Item label="后台用户 ID">{{
+            empty(detail.user_id)
+          }}</Descriptions.Item>
         </Descriptions>
 
-        <Descriptions bordered :column="2" class="mt-4" size="small" title="金额信息">
-          <Descriptions.Item label="币种">{{ empty(detail.currency) }}</Descriptions.Item>
-          <Descriptions.Item label="充值金额">{{ empty(detail.amount) }}</Descriptions.Item>
-          <Descriptions.Item label="应付金额">{{ empty(detail.pay_amount) }}</Descriptions.Item>
+        <Descriptions
+          bordered
+          :column="2"
+          class="mt-4"
+          size="small"
+          title="金额信息"
+        >
+          <Descriptions.Item label="币种">{{
+            empty(detail.currency)
+          }}</Descriptions.Item>
+          <Descriptions.Item label="充值金额">{{
+            empty(detail.amount)
+          }}</Descriptions.Item>
+          <Descriptions.Item label="应付金额">{{
+            empty(detail.pay_amount)
+          }}</Descriptions.Item>
           <Descriptions.Item label="收款地址" :span="2">
-            <Typography.Paragraph :copyable="detail.receive_address ? { text: detail.receive_address } : false" class="!mb-0 break-all">
+            <Typography.Paragraph
+              :copyable="
+                detail.receive_address
+                  ? { text: detail.receive_address }
+                  : false
+              "
+              class="!mb-0 break-all"
+            >
               {{ empty(detail.receive_address) }}
             </Typography.Paragraph>
           </Descriptions.Item>
           <Descriptions.Item label="交易哈希" :span="2">
-            <Typography.Paragraph :copyable="detail.tx_hash ? { text: detail.tx_hash } : false" class="!mb-0 break-all">
+            <Typography.Paragraph
+              :copyable="detail.tx_hash ? { text: detail.tx_hash } : false"
+              class="!mb-0 break-all"
+            >
               {{ empty(detail.tx_hash) }}
             </Typography.Paragraph>
           </Descriptions.Item>
         </Descriptions>
 
-        <Descriptions bordered :column="2" class="mt-4" size="small" title="时间信息">
-          <Descriptions.Item label="创建时间">{{ empty(detail.created_at) }}</Descriptions.Item>
-          <Descriptions.Item label="完成时间">{{ empty(detail.completed_at) }}</Descriptions.Item>
-          <Descriptions.Item label="更新时间">{{ empty(detail.updated_at) }}</Descriptions.Item>
+        <Descriptions
+          bordered
+          :column="2"
+          class="mt-4"
+          size="small"
+          title="时间信息"
+        >
+          <Descriptions.Item label="创建时间">{{
+            empty(detail.created_at)
+          }}</Descriptions.Item>
+          <Descriptions.Item label="完成时间">{{
+            empty(detail.completed_at)
+          }}</Descriptions.Item>
+          <Descriptions.Item label="更新时间">{{
+            empty(detail.updated_at)
+          }}</Descriptions.Item>
         </Descriptions>
       </template>
 

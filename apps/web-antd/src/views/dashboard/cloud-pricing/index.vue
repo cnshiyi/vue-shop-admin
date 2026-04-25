@@ -3,15 +3,21 @@ import { computed, onMounted, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Card, Collapse, Empty, Input, Space, Table, Tag, message } from 'ant-design-vue';
+import {
+  Button,
+  Card,
+  Collapse,
+  Empty,
+  Input,
+  Space,
+  Table,
+  Tag,
+  message,
+} from 'ant-design-vue';
 import type { CollapseProps, TableColumnsType } from 'ant-design-vue';
 
-import {
-  getDashboardCloudPricingApi,
-  syncDashboardCloudPlansApi,
-  type DashboardCloudPricingItem,
-  type DashboardCloudPlanSyncResult,
-} from '#/api/admin';
+import { getDashboardCloudPricingApi, syncDashboardCloudPlansApi } from '#/api/admin';
+import type { DashboardCloudPricingItem, DashboardCloudPlanSyncResult } from '#/api/admin';
 
 interface RegionGroupItem {
   currency: string;
@@ -55,8 +61,18 @@ const providerRegionDisplayMap: Record<string, Record<string, string>> = {
 
 const pricingColumns: TableColumnsType<DashboardCloudPricingItem> = [
   { title: '在售规格', dataIndex: 'plan_name', key: 'plan_name', width: 140 },
-  { title: '规格编码', dataIndex: 'bundle_code', key: 'bundle_code', width: 180 },
-  { title: '配置说明', dataIndex: 'plan_description', key: 'plan_description', width: 320 },
+  {
+    title: '规格编码',
+    dataIndex: 'bundle_code',
+    key: 'bundle_code',
+    width: 180,
+  },
+  {
+    title: '配置说明',
+    dataIndex: 'plan_description',
+    key: 'plan_description',
+    width: 320,
+  },
   { title: 'CPU', dataIndex: 'cpu', key: 'cpu', width: 90 },
   { title: '内存', dataIndex: 'memory', key: 'memory', width: 90 },
   { title: '存储', dataIndex: 'storage', key: 'storage', width: 120 },
@@ -116,7 +132,10 @@ const groupedProviders = computed<ProviderGroupItem[]>(() => {
     if (!regionMap.has(regionKey)) {
       const region = {
         provider: item.provider,
-        providerLabel: normalizeProviderLabel(item.provider, item.provider_label),
+        providerLabel: normalizeProviderLabel(
+          item.provider,
+          item.provider_label,
+        ),
         regionCode: item.region_code,
         regionName: normalizeRegionLabel(item),
         currency: item.currency || 'USDT',
@@ -137,17 +156,23 @@ const groupedProviders = computed<ProviderGroupItem[]>(() => {
       ...provider,
       regions: provider.regions
         .filter((region) => region.pricing.length > 0)
-        .sort((left, right) => {
-          const scoreDiff = getRegionSortScore(left) - getRegionSortScore(right);
+        .toSorted((left, right) => {
+          const scoreDiff =
+            getRegionSortScore(left) - getRegionSortScore(right);
           if (scoreDiff !== 0) {
             return scoreDiff;
           }
-          return `${left.regionName}${left.regionCode}`.localeCompare(`${right.regionName}${right.regionCode}`, 'zh-CN');
+          return `${left.regionName}${left.regionCode}`.localeCompare(
+            `${right.regionName}${right.regionCode}`,
+            'zh-CN',
+          );
         }),
     }))
     .filter((provider) => provider.regions.length > 0)
-    .sort((left, right) => {
-      const priorityDiff = (providerPriority[left.key] ?? 99) - (providerPriority[right.key] ?? 99);
+    .toSorted((left, right) => {
+      const priorityDiff =
+        (providerPriority[left.key] ?? 99) -
+        (providerPriority[right.key] ?? 99);
       if (priorityDiff !== 0) {
         return priorityDiff;
       }
@@ -159,17 +184,28 @@ const providerActiveKeys = ref<string[]>(['aws_lightsail']);
 const regionActiveKeys = ref<Record<string, string[]>>({});
 
 function updateProviderActiveKeys(keys: CollapseProps['activeKey']) {
-  providerActiveKeys.value = Array.isArray(keys) ? keys.map(String) : keys ? [String(keys)] : [];
+  providerActiveKeys.value = Array.isArray(keys)
+    ? keys.map(String)
+    : keys
+      ? [String(keys)]
+      : [];
 }
 
 function getRegionActiveKeys(provider: ProviderGroupItem) {
   return regionActiveKeys.value[provider.key] || [];
 }
 
-function updateRegionActiveKeys(providerKey: string, keys: CollapseProps['activeKey']) {
+function updateRegionActiveKeys(
+  providerKey: string,
+  keys: CollapseProps['activeKey'],
+) {
   regionActiveKeys.value = {
     ...regionActiveKeys.value,
-    [providerKey]: Array.isArray(keys) ? keys.map(String) : keys ? [String(keys)] : [],
+    [providerKey]: Array.isArray(keys)
+      ? keys.map(String)
+      : keys
+        ? [String(keys)]
+        : [],
   };
 }
 
@@ -193,7 +229,9 @@ async function syncPricing() {
   try {
     const result = await syncDashboardCloudPlansApi();
     syncSummary.value = result;
-    message.success(`同步完成：${result.summary.region_count} 个地区，${result.summary.after_pricing_count} 条在售规格`);
+    message.success(
+      `同步完成：${result.summary.region_count} 个地区，${result.summary.after_pricing_count} 条在售规格`,
+    );
     await loadData();
   } catch (error: any) {
     message.error(error?.message || '配置同步失败');
@@ -215,7 +253,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <Page description="这里同步 AWS / 阿里云当前在售主规格与进货价；AWS 已按主套餐口径过滤，不包含 Windows / IPv6 / 优化型变体，也不会生成或修改对外售卖套餐。" title="配置同步">
+  <Page
+    description="这里同步 AWS / 阿里云当前在售主规格与进货价；AWS 已按主套餐口径过滤，不包含 Windows / IPv6 / 优化型变体，也不会生成或修改对外售卖套餐。"
+    title="配置同步"
+  >
     <Card>
       <template #title>
         <Space>
@@ -228,7 +269,13 @@ onMounted(() => {
             style="width: 360px"
             @search="loadData"
           />
-          <Button size="small" type="primary" :loading="syncing" @click="syncPricing">同步主规格与进货价</Button>
+          <Button
+            size="small"
+            type="primary"
+            :loading="syncing"
+            @click="syncPricing"
+            >同步主规格与进货价</Button
+          >
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
         </Space>
@@ -237,25 +284,49 @@ onMounted(() => {
       <Space direction="vertical" style="width: 100%; margin-bottom: 16px">
         <Card v-if="syncSummary" size="small">
           <Space wrap>
-            <Tag color="blue">同步地区 {{ syncSummary.summary.region_count }}</Tag>
-            <Tag color="green">主规格 {{ syncSummary.summary.after_pricing_count }}</Tag>
-            <Tag color="gold">人工套餐 {{ syncSummary.summary.after_plan_count }}</Tag>
+            <Tag color="blue"
+              >同步地区 {{ syncSummary.summary.region_count }}</Tag
+            >
+            <Tag color="green"
+              >主规格 {{ syncSummary.summary.after_pricing_count }}</Tag
+            >
+            <Tag color="gold"
+              >人工套餐 {{ syncSummary.summary.after_plan_count }}</Tag
+            >
             <Tag>同步结果 {{ syncSummary.synced ? '成功' : '未完成' }}</Tag>
           </Space>
         </Card>
       </Space>
 
-      <Collapse v-if="groupedProviders.length" :active-key="providerActiveKeys" @update:activeKey="updateProviderActiveKeys">
-        <Collapse.Panel v-for="provider in groupedProviders" :key="provider.key">
+      <Collapse
+        v-if="groupedProviders.length"
+        :active-key="providerActiveKeys"
+        @update:activeKey="updateProviderActiveKeys"
+      >
+        <Collapse.Panel
+          v-for="provider in groupedProviders"
+          :key="provider.key"
+        >
           <template #header>
             <Space>
-              <Tag :color="provider.key === 'aws_lightsail' ? 'blue' : 'orange'">{{ provider.label }}</Tag>
+              <Tag
+                :color="provider.key === 'aws_lightsail' ? 'blue' : 'orange'"
+                >{{ provider.label }}</Tag
+              >
               <span>{{ provider.regions.length }} 个地区</span>
             </Space>
           </template>
 
-          <Collapse :active-key="getRegionActiveKeys(provider)" @update:activeKey="(keys) => updateRegionActiveKeys(provider.key, keys)">
-            <Collapse.Panel v-for="region in provider.regions" :key="`${provider.key}:${region.regionCode}`">
+          <Collapse
+            :active-key="getRegionActiveKeys(provider)"
+            @update:activeKey="
+              (keys) => updateRegionActiveKeys(provider.key, keys)
+            "
+          >
+            <Collapse.Panel
+              v-for="region in provider.regions"
+              :key="`${provider.key}:${region.regionCode}`"
+            >
               <template #header>
                 <Space>
                   <span>{{ region.regionName }}</span>
@@ -274,10 +345,14 @@ onMounted(() => {
               >
                 <template #bodyCell="{ column, record }">
                   <template v-if="column.key === 'cost_price'">
-                    <Tag>{{ formatMoney(record.cost_price, record.currency) }}</Tag>
+                    <Tag>{{
+                      formatMoney(record.cost_price, record.currency)
+                    }}</Tag>
                   </template>
                   <template v-else-if="column.key === 'is_active'">
-                    <Tag :color="record.is_active ? 'success' : 'default'">{{ record.is_active ? '在售' : '停用' }}</Tag>
+                    <Tag :color="record.is_active ? 'success' : 'default'">{{
+                      record.is_active ? '在售' : '停用'
+                    }}</Tag>
                   </template>
                 </template>
               </Table>

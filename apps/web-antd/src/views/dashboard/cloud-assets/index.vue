@@ -21,17 +21,8 @@ import {
   message,
 } from 'ant-design-vue';
 
-import {
-  getDashboardCloudAssetsApi,
-  getDashboardCloudAssetsGroupedApi,
-  getDashboardCloudAssetsSyncStatusApi,
-  syncDashboardCloudAssetsApi,
-  updateDashboardCloudAssetApi,
-  deleteDashboardServerApi,
-  rebuildDashboardServerPreserveLinkApi,
-  type DashboardCloudAssetGroup,
-  type DashboardCloudAssetItem,
-} from '#/api/admin';
+import { getDashboardCloudAssetsApi, getDashboardCloudAssetsGroupedApi, getDashboardCloudAssetsSyncStatusApi, syncDashboardCloudAssetsApi, updateDashboardCloudAssetApi, deleteDashboardServerApi, rebuildDashboardServerPreserveLinkApi } from '#/api/admin';
+import type { DashboardCloudAssetGroup, DashboardCloudAssetItem } from '#/api/admin';
 
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
 
@@ -93,20 +84,29 @@ function normalizeUpdatedAt(value: null | string | undefined) {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
-function compareByDaysLeft(a: DashboardCloudAssetItem, b: DashboardCloudAssetItem) {
+function compareByDaysLeft(
+  a: DashboardCloudAssetItem,
+  b: DashboardCloudAssetItem,
+) {
   const daysDiff = normalizeDaysLeft(a) - normalizeDaysLeft(b);
   if (daysDiff !== 0) {
     return daysDiff;
   }
-  const expiresDiff = normalizeExpiresAt(a.actual_expires_at) - normalizeExpiresAt(b.actual_expires_at);
+  const expiresDiff =
+    normalizeExpiresAt(a.actual_expires_at) -
+    normalizeExpiresAt(b.actual_expires_at);
   if (expiresDiff !== 0) {
     return expiresDiff;
   }
   return normalizeUpdatedAt(b.updated_at) - normalizeUpdatedAt(a.updated_at);
 }
 
-function compareByDisplayOrder(a: DashboardCloudAssetItem, b: DashboardCloudAssetItem) {
-  const deletedDiff = Number(a.status === 'deleted') - Number(b.status === 'deleted');
+function compareByDisplayOrder(
+  a: DashboardCloudAssetItem,
+  b: DashboardCloudAssetItem,
+) {
+  const deletedDiff =
+    Number(a.status === 'deleted') - Number(b.status === 'deleted');
   if (deletedDiff !== 0) {
     return deletedDiff;
   }
@@ -117,8 +117,13 @@ function compareByDisplayOrder(a: DashboardCloudAssetItem, b: DashboardCloudAsse
   return compareByDaysLeft(a, b);
 }
 
-function compareByExpiresAt(a: DashboardCloudAssetItem, b: DashboardCloudAssetItem) {
-  const expiresDiff = normalizeExpiresAt(a.actual_expires_at) - normalizeExpiresAt(b.actual_expires_at);
+function compareByExpiresAt(
+  a: DashboardCloudAssetItem,
+  b: DashboardCloudAssetItem,
+) {
+  const expiresDiff =
+    normalizeExpiresAt(a.actual_expires_at) -
+    normalizeExpiresAt(b.actual_expires_at);
   if (expiresDiff !== 0) {
     return expiresDiff;
   }
@@ -130,7 +135,7 @@ function compareByExpiresAt(a: DashboardCloudAssetItem, b: DashboardCloudAssetIt
 }
 
 function sortAssets(records: DashboardCloudAssetItem[]) {
-  return [...records].sort(compareByDisplayOrder);
+  return [...records].toSorted(compareByDisplayOrder);
 }
 
 const columns = [
@@ -142,7 +147,8 @@ const columns = [
     dataIndex: 'sort_order',
     key: 'sort_order',
     width: 90,
-    sorter: (a: DashboardCloudAssetItem, b: DashboardCloudAssetItem) => (b.sort_order || 99) - (a.sort_order || 99),
+    sorter: (a: DashboardCloudAssetItem, b: DashboardCloudAssetItem) =>
+      (b.sort_order || 99) - (a.sort_order || 99),
   },
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 140 },
   { title: '公网IP', dataIndex: 'public_ip', key: 'public_ip' },
@@ -197,19 +203,25 @@ async function loadData() {
         : getDashboardCloudAssetsApi({ keyword: keyword.value.trim() }),
     ]);
     autoSyncEverySeconds.value = syncStatus.auto_sync_every_seconds || 10 * 60;
-    lastSyncedAt.value = syncStatus.last_synced_at ? dayjs(syncStatus.last_synced_at) : null;
+    lastSyncedAt.value = syncStatus.last_synced_at
+      ? dayjs(syncStatus.last_synced_at)
+      : null;
     awsExistingCount.value = syncStatus.aws_existing_count || 0;
     aliyunExistingCount.value = syncStatus.aliyun_existing_count || 0;
 
     if (grouped.value) {
       const groupedResponse = response as any;
-      groups.value = groupedResponse.groups.map((group: DashboardCloudAssetGroup) => ({
-        ...group,
-        items: sortAssets(group.items),
-      }));
+      groups.value = groupedResponse.groups.map(
+        (group: DashboardCloudAssetGroup) => ({
+          ...group,
+          items: sortAssets(group.items),
+        }),
+      );
       items.value = sortAssets(groupedResponse.items);
       expandedGroupKeys.value = groupedResponse.groups
-        .filter((group: DashboardCloudAssetGroup) => group.default_expanded !== false)
+        .filter(
+          (group: DashboardCloudAssetGroup) => group.default_expanded !== false,
+        )
         .map((group: DashboardCloudAssetGroup) => group.user_key);
       return;
     }
@@ -234,7 +246,9 @@ async function syncAssets() {
     await syncDashboardCloudAssetsApi();
     markRecentSync();
     await loadData();
-    message.success(`代理同步完成：AWS 存在 ${awsExistingCount.value} 条，阿里云存在 ${aliyunExistingCount.value} 条`);
+    message.success(
+      `代理同步完成：AWS 存在 ${awsExistingCount.value} 条，阿里云存在 ${aliyunExistingCount.value} 条`,
+    );
   } catch (error: any) {
     message.error(error?.message || '代理同步失败');
   } finally {
@@ -244,7 +258,9 @@ async function syncAssets() {
 
 function openEdit(record: DashboardCloudAssetItem) {
   currentRow.value = record;
-  formState.actual_expires_at = record.actual_expires_at ? dayjs(record.actual_expires_at) : null;
+  formState.actual_expires_at = record.actual_expires_at
+    ? dayjs(record.actual_expires_at)
+    : null;
   formState.is_active = record.is_active;
   formState.note = record.note || '';
   formState.price = record.price || '0.00';
@@ -252,14 +268,18 @@ function openEdit(record: DashboardCloudAssetItem) {
   formState.sort_order = record.sort_order || 99;
   formState.user_query = record.user_id
     ? String(record.user_id)
-    : (record.tg_user_id ? String(record.tg_user_id) : '');
+    : record.tg_user_id
+      ? String(record.tg_user_id)
+      : '';
   editOpen.value = true;
 }
 
 function toggleLinkExpand(id: number) {
   const key = String(id);
   if (expandedLinkKeys.value.includes(key)) {
-    expandedLinkKeys.value = expandedLinkKeys.value.filter((item) => item !== key);
+    expandedLinkKeys.value = expandedLinkKeys.value.filter(
+      (item) => item !== key,
+    );
     return;
   }
   expandedLinkKeys.value = [...expandedLinkKeys.value, key];
@@ -272,7 +292,9 @@ function isLinkExpanded(id: number) {
 function toggleNoteExpand(id: number) {
   const key = String(id);
   if (expandedNoteKeys.value.includes(key)) {
-    expandedNoteKeys.value = expandedNoteKeys.value.filter((item) => item !== key);
+    expandedNoteKeys.value = expandedNoteKeys.value.filter(
+      (item) => item !== key,
+    );
     return;
   }
   expandedNoteKeys.value = [...expandedNoteKeys.value, key];
@@ -285,7 +307,9 @@ function isNoteExpanded(id: number) {
 function toggleUsernameExpand(id: number) {
   const key = String(id);
   if (expandedUsernameKeys.value.includes(key)) {
-    expandedUsernameKeys.value = expandedUsernameKeys.value.filter((item) => item !== key);
+    expandedUsernameKeys.value = expandedUsernameKeys.value.filter(
+      (item) => item !== key,
+    );
     return;
   }
   expandedUsernameKeys.value = [...expandedUsernameKeys.value, key];
@@ -298,7 +322,9 @@ function isUsernameExpanded(id: number) {
 function toggleAssetNameExpand(id: number) {
   const key = String(id);
   if (expandedAssetNameKeys.value.includes(key)) {
-    expandedAssetNameKeys.value = expandedAssetNameKeys.value.filter((item) => item !== key);
+    expandedAssetNameKeys.value = expandedAssetNameKeys.value.filter(
+      (item) => item !== key,
+    );
     return;
   }
   expandedAssetNameKeys.value = [...expandedAssetNameKeys.value, key];
@@ -345,7 +371,13 @@ function sortOrderTagColor(sortOrder?: number) {
 }
 
 function canRebuildPreserveLink(record: DashboardCloudAssetItem) {
-  return record.kind === 'server' && record.provider === 'aws_lightsail' && !!record.server_id && !!record.order_id && record.status !== 'deleted';
+  return (
+    record.kind === 'server' &&
+    record.provider === 'aws_lightsail' &&
+    !!record.server_id &&
+    !!record.order_id &&
+    record.status !== 'deleted'
+  );
 }
 
 async function rebuildPreserveLink(record: DashboardCloudAssetItem) {
@@ -355,7 +387,9 @@ async function rebuildPreserveLink(record: DashboardCloudAssetItem) {
   }
   rebuildingServerId.value = record.server_id;
   try {
-    const result = await rebuildDashboardServerPreserveLinkApi(record.server_id);
+    const result = await rebuildDashboardServerPreserveLinkApi(
+      record.server_id,
+    );
     message.success(result.message || '已发起重装迁移');
     await loadData();
   } catch (error: any) {
@@ -416,7 +450,9 @@ async function submitEdit() {
   saving.value = true;
   try {
     await updateDashboardCloudAssetApi(currentRow.value.id, {
-      actual_expires_at: formState.actual_expires_at ? dayjs(formState.actual_expires_at).format('YYYY-MM-DD') : null,
+      actual_expires_at: formState.actual_expires_at
+        ? dayjs(formState.actual_expires_at).format('YYYY-MM-DD')
+        : null,
       is_active: formState.is_active,
       note: formState.note || null,
       sort_order: Number(formState.sort_order || 99),
@@ -445,7 +481,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Page description="统一查看 MTProxy 代理资产，支持默认排序与手工排序" title="代理列表">
+  <Page
+    description="统一查看 MTProxy 代理资产，支持默认排序与手工排序"
+    title="代理列表"
+  >
     <Card>
       <template #title>
         <Space>
@@ -458,21 +497,38 @@ onBeforeUnmount(() => {
             style="width: 360px"
             @search="loadData"
           />
-          <Button size="small" :loading="syncing" @click="syncAssets">同步代理</Button>
+          <Button size="small" :loading="syncing" @click="syncAssets"
+            >同步代理</Button
+          >
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
           <Tag v-if="syncing" color="processing">同步中…</Tag>
           <Tag v-else-if="loading" color="processing">刷新中…</Tag>
-          <Tag color="blue">最后刷新：{{ formatRefreshTime(lastRefreshedAt) }}</Tag>
-          <Tag v-if="lastSyncedAt" :color="recentSyncHighlight ? 'success' : 'cyan'">后台同步：{{ formatRefreshTime(lastSyncedAt) }}</Tag>
-          <Tag color="geekblue">自动同步周期：{{ Math.floor(autoSyncEverySeconds / 60) }}分钟</Tag>
-          <Tag color="orange">数量：AWS {{ awsExistingCount }} / 阿里云 {{ aliyunExistingCount }}</Tag>
+          <Tag color="blue"
+            >最后刷新：{{ formatRefreshTime(lastRefreshedAt) }}</Tag
+          >
+          <Tag
+            v-if="lastSyncedAt"
+            :color="recentSyncHighlight ? 'success' : 'cyan'"
+            >后台同步：{{ formatRefreshTime(lastSyncedAt) }}</Tag
+          >
+          <Tag color="geekblue"
+            >自动同步周期：{{ Math.floor(autoSyncEverySeconds / 60) }}分钟</Tag
+          >
+          <Tag color="orange"
+            >数量：AWS {{ awsExistingCount }} / 阿里云
+            {{ aliyunExistingCount }}</Tag
+          >
           <Tag color="purple">下次刷新：{{ nextRefreshInSeconds }}s</Tag>
           <Switch v-model:checked="grouped" @change="loadData" />
         </Space>
       </template>
 
-      <Collapse v-if="grouped" v-model:active-key="expandedGroupKeys" class="compact-cloud-assets space-y-2">
+      <Collapse
+        v-if="grouped"
+        v-model:active-key="expandedGroupKeys"
+        class="compact-cloud-assets space-y-2"
+      >
         <Collapse.Panel v-for="group in groups" :key="group.user_key">
           <template #header>
             <Space>
@@ -493,14 +549,26 @@ onBeforeUnmount(() => {
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'username_label'">
-                <div v-if="record.username_label && record.username_label !== '-'" class="max-w-full overflow-hidden">
+                <div
+                  v-if="record.username_label && record.username_label !== '-'"
+                  class="max-w-full overflow-hidden"
+                >
                   <TypographyParagraph
-                    :ellipsis="isUsernameExpanded(record.id) ? false : { rows: 1, tooltip: record.username_label }"
+                    :ellipsis="
+                      isUsernameExpanded(record.id)
+                        ? false
+                        : { rows: 1, tooltip: record.username_label }
+                    "
                     class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
                   >
                     {{ record.username_label }}
                   </TypographyParagraph>
-                  <Button size="small" type="link" class="mt-1 h-auto px-0 py-0" @click="toggleUsernameExpand(record.id)">
+                  <Button
+                    size="small"
+                    type="link"
+                    class="mt-1 h-auto px-0 py-0"
+                    @click="toggleUsernameExpand(record.id)"
+                  >
                     {{ isUsernameExpanded(record.id) ? '收起' : '展开' }}
                   </Button>
                 </div>
@@ -509,12 +577,21 @@ onBeforeUnmount(() => {
               <template v-else-if="column.key === 'asset_name'">
                 <div class="max-w-full overflow-hidden">
                   <TypographyParagraph
-                    :ellipsis="isAssetNameExpanded(record.id) ? false : { rows: 1, tooltip: record.asset_name || '-' }"
+                    :ellipsis="
+                      isAssetNameExpanded(record.id)
+                        ? false
+                        : { rows: 1, tooltip: record.asset_name || '-' }
+                    "
                     class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
                   >
                     {{ record.asset_name || '-' }}
                   </TypographyParagraph>
-                  <Button size="small" type="link" class="mt-1 h-auto px-0 py-0" @click="toggleAssetNameExpand(record.id)">
+                  <Button
+                    size="small"
+                    type="link"
+                    class="mt-1 h-auto px-0 py-0"
+                    @click="toggleAssetNameExpand(record.id)"
+                  >
                     {{ isAssetNameExpanded(record.id) ? '收起' : '展开' }}
                   </Button>
                   <Tag :color="record.kind === 'mtproxy' ? 'purple' : 'blue'">
@@ -523,61 +600,139 @@ onBeforeUnmount(() => {
                 </div>
               </template>
               <template v-else-if="column.key === 'sort_order'">
-                <Tag :color="sortOrderTagColor(record.sort_order)">{{ record.sort_order || 99 }}</Tag>
+                <Tag :color="sortOrderTagColor(record.sort_order)">{{
+                  record.sort_order || 99
+                }}</Tag>
               </template>
               <template v-else-if="column.key === 'mtproxy_link'">
-                <div v-if="record.mtproxy_link" class="max-w-full overflow-hidden">
+                <div
+                  v-if="record.mtproxy_link"
+                  class="max-w-full overflow-hidden"
+                >
                   <TypographyParagraph
-                    :ellipsis="isLinkExpanded(record.id) ? false : { rows: 1, tooltip: record.mtproxy_link }"
+                    :ellipsis="
+                      isLinkExpanded(record.id)
+                        ? false
+                        : { rows: 1, tooltip: record.mtproxy_link }
+                    "
                     :copyable="{ text: record.mtproxy_link }"
                     class="mb-0 max-h-32 overflow-y-auto break-all font-mono text-xs leading-5"
                   >
                     {{ record.mtproxy_link }}
                   </TypographyParagraph>
-                  <Button size="small" type="link" class="mt-1 h-auto px-0 py-0" @click="toggleLinkExpand(record.id)">
+                  <Button
+                    size="small"
+                    type="link"
+                    class="mt-1 h-auto px-0 py-0"
+                    @click="toggleLinkExpand(record.id)"
+                  >
                     {{ isLinkExpanded(record.id) ? '收起' : '展开' }}
                   </Button>
                 </div>
                 <span v-else>-</span>
               </template>
               <template v-else-if="column.key === 'actual_expires_at'">
-                <span>{{ record.actual_expires_at ? dayjs(record.actual_expires_at).format('YYYY-MM-DD') : '-' }}</span>
+                <span>{{
+                  record.actual_expires_at
+                    ? dayjs(record.actual_expires_at).format('YYYY-MM-DD')
+                    : '-'
+                }}</span>
               </template>
               <template v-else-if="column.key === 'note'">
                 <div v-if="record.note" class="max-w-full overflow-hidden">
                   <TypographyParagraph
-                    :ellipsis="isNoteExpanded(record.id) ? false : { rows: 1, tooltip: record.note }"
+                    :ellipsis="
+                      isNoteExpanded(record.id)
+                        ? false
+                        : { rows: 1, tooltip: record.note }
+                    "
                     class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
                   >
                     {{ record.note }}
                   </TypographyParagraph>
-                  <Button size="small" type="link" class="mt-1 h-auto px-0 py-0" @click="toggleNoteExpand(record.id)">
+                  <Button
+                    size="small"
+                    type="link"
+                    class="mt-1 h-auto px-0 py-0"
+                    @click="toggleNoteExpand(record.id)"
+                  >
                     {{ isNoteExpanded(record.id) ? '收起' : '展开' }}
                   </Button>
                 </div>
                 <span v-else>-</span>
               </template>
               <template v-else-if="column.key === 'status'">
-                <Tag :color="(record.provider_status || '').includes('未附加固定IP') ? 'warning' : (record.status === 'deleted' ? 'default' : (record.is_active ? 'success' : (record.status === 'terminated' ? 'default' : 'warning')))">
-                  {{ (record.provider_status || '').includes('未附加固定IP') ? '未附加IP' : (record.status_label || record.status || '-') }}
+                <Tag
+                  :color="
+                    (record.provider_status || '').includes('未附加固定IP')
+                      ? 'warning'
+                      : record.status === 'deleted'
+                        ? 'default'
+                        : record.is_active
+                          ? 'success'
+                          : record.status === 'terminated'
+                            ? 'default'
+                            : 'warning'
+                  "
+                >
+                  {{
+                    (record.provider_status || '').includes('未附加固定IP')
+                      ? '未附加IP'
+                      : record.status_label || record.status || '-'
+                  }}
                 </Tag>
               </template>
               <template v-else-if="column.key === 'status_countdown'">
-                <Tag :color="countdownTagColor((record.provider_status || '').includes('未附加固定IP') ? '未附加IP' : (record.preserve_link_status || record.status_countdown || record.provider_status || '-'))">
-                  {{ (record.provider_status || '').includes('未附加固定IP') ? '未附加IP' : (record.preserve_link_status || record.status_countdown || record.provider_status || '-') }}
+                <Tag
+                  :color="
+                    countdownTagColor(
+                      (record.provider_status || '').includes('未附加固定IP')
+                        ? '未附加IP'
+                        : record.preserve_link_status ||
+                            record.status_countdown ||
+                            record.provider_status ||
+                            '-',
+                    )
+                  "
+                >
+                  {{
+                    (record.provider_status || '').includes('未附加固定IP')
+                      ? '未附加IP'
+                      : record.preserve_link_status ||
+                        record.status_countdown ||
+                        record.provider_status ||
+                        '-'
+                  }}
                 </Tag>
               </template>
               <template v-else-if="column.key === 'actions'">
                 <Space>
-                  <Button type="link" @click="openEdit(record as DashboardCloudAssetItem)">编辑</Button>
-                  <Popconfirm
-                    v-if="canRebuildPreserveLink(record as DashboardCloudAssetItem)"
-                    title="确认按 AWS 方案重装并保持链接不变吗？系统会后台创建新实例、切换固定 IP、复用 MTProxy 密钥，成功后删除旧实例。"
-                    @confirm="rebuildPreserveLink(record as DashboardCloudAssetItem)"
+                  <Button
+                    type="link"
+                    @click="openEdit(record as DashboardCloudAssetItem)"
+                    >编辑</Button
                   >
-                    <Button type="link" :loading="rebuildingServerId === (record.server_id || null)">重装</Button>
+                  <Popconfirm
+                    v-if="
+                      canRebuildPreserveLink(record as DashboardCloudAssetItem)
+                    "
+                    title="确认按 AWS 方案重装并保持链接不变吗？系统会后台创建新实例、切换固定 IP、复用 MTProxy 密钥，成功后删除旧实例。"
+                    @confirm="
+                      rebuildPreserveLink(record as DashboardCloudAssetItem)
+                    "
+                  >
+                    <Button
+                      type="link"
+                      :loading="
+                        rebuildingServerId === (record.server_id || null)
+                      "
+                      >重装</Button
+                    >
                   </Popconfirm>
-                  <Popconfirm title="确认删除该代理/服务器记录吗？" @confirm="deleteAsset(record as DashboardCloudAssetItem)">
+                  <Popconfirm
+                    title="确认删除该代理/服务器记录吗？"
+                    @confirm="deleteAsset(record as DashboardCloudAssetItem)"
+                  >
                     <Button danger type="link">删除</Button>
                   </Popconfirm>
                 </Space>
@@ -599,14 +754,26 @@ onBeforeUnmount(() => {
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'username_label'">
-            <div v-if="record.username_label && record.username_label !== '-'" class="max-w-full overflow-hidden">
+            <div
+              v-if="record.username_label && record.username_label !== '-'"
+              class="max-w-full overflow-hidden"
+            >
               <TypographyParagraph
-                :ellipsis="isUsernameExpanded(record.id) ? false : { rows: 1, tooltip: record.username_label }"
+                :ellipsis="
+                  isUsernameExpanded(record.id)
+                    ? false
+                    : { rows: 1, tooltip: record.username_label }
+                "
                 class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
               >
                 {{ record.username_label }}
               </TypographyParagraph>
-              <Button size="small" type="link" class="mt-1 h-auto px-0 py-0" @click="toggleUsernameExpand(record.id)">
+              <Button
+                size="small"
+                type="link"
+                class="mt-1 h-auto px-0 py-0"
+                @click="toggleUsernameExpand(record.id)"
+              >
                 {{ isUsernameExpanded(record.id) ? '收起' : '展开' }}
               </Button>
             </div>
@@ -615,12 +782,21 @@ onBeforeUnmount(() => {
           <template v-else-if="column.key === 'asset_name'">
             <div class="max-w-full overflow-hidden">
               <TypographyParagraph
-                :ellipsis="isAssetNameExpanded(record.id) ? false : { rows: 1, tooltip: record.asset_name || '-' }"
+                :ellipsis="
+                  isAssetNameExpanded(record.id)
+                    ? false
+                    : { rows: 1, tooltip: record.asset_name || '-' }
+                "
                 class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
               >
                 {{ record.asset_name || '-' }}
               </TypographyParagraph>
-              <Button size="small" type="link" class="mt-1 h-auto px-0 py-0" @click="toggleAssetNameExpand(record.id)">
+              <Button
+                size="small"
+                type="link"
+                class="mt-1 h-auto px-0 py-0"
+                @click="toggleAssetNameExpand(record.id)"
+              >
                 {{ isAssetNameExpanded(record.id) ? '收起' : '展开' }}
               </Button>
               <Tag :color="record.kind === 'mtproxy' ? 'purple' : 'blue'">
@@ -629,61 +805,132 @@ onBeforeUnmount(() => {
             </div>
           </template>
           <template v-else-if="column.key === 'sort_order'">
-            <Tag :color="sortOrderTagColor(record.sort_order)">{{ record.sort_order || 99 }}</Tag>
+            <Tag :color="sortOrderTagColor(record.sort_order)">{{
+              record.sort_order || 99
+            }}</Tag>
           </template>
           <template v-else-if="column.key === 'mtproxy_link'">
             <div v-if="record.mtproxy_link" class="max-w-full overflow-hidden">
               <TypographyParagraph
-                :ellipsis="isLinkExpanded(record.id) ? false : { rows: 1, tooltip: record.mtproxy_link }"
+                :ellipsis="
+                  isLinkExpanded(record.id)
+                    ? false
+                    : { rows: 1, tooltip: record.mtproxy_link }
+                "
                 :copyable="{ text: record.mtproxy_link }"
                 class="mb-0 max-h-32 overflow-y-auto break-all font-mono text-xs leading-5"
               >
                 {{ record.mtproxy_link }}
               </TypographyParagraph>
-              <Button size="small" type="link" class="mt-1 h-auto px-0 py-0" @click="toggleLinkExpand(record.id)">
+              <Button
+                size="small"
+                type="link"
+                class="mt-1 h-auto px-0 py-0"
+                @click="toggleLinkExpand(record.id)"
+              >
                 {{ isLinkExpanded(record.id) ? '收起' : '展开' }}
               </Button>
             </div>
             <span v-else>-</span>
           </template>
           <template v-else-if="column.key === 'actual_expires_at'">
-            <span>{{ record.actual_expires_at ? dayjs(record.actual_expires_at).format('YYYY-MM-DD') : '-' }}</span>
+            <span>{{
+              record.actual_expires_at
+                ? dayjs(record.actual_expires_at).format('YYYY-MM-DD')
+                : '-'
+            }}</span>
           </template>
           <template v-else-if="column.key === 'note'">
             <div v-if="record.note" class="max-w-full overflow-hidden">
               <TypographyParagraph
-                :ellipsis="isNoteExpanded(record.id) ? false : { rows: 1, tooltip: record.note }"
+                :ellipsis="
+                  isNoteExpanded(record.id)
+                    ? false
+                    : { rows: 1, tooltip: record.note }
+                "
                 class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
               >
                 {{ record.note }}
               </TypographyParagraph>
-              <Button size="small" type="link" class="mt-1 h-auto px-0 py-0" @click="toggleNoteExpand(record.id)">
+              <Button
+                size="small"
+                type="link"
+                class="mt-1 h-auto px-0 py-0"
+                @click="toggleNoteExpand(record.id)"
+              >
                 {{ isNoteExpanded(record.id) ? '收起' : '展开' }}
               </Button>
             </div>
             <span v-else>-</span>
           </template>
           <template v-else-if="column.key === 'status'">
-            <Tag :color="(record.provider_status || '').includes('未附加固定IP') ? 'warning' : (record.status === 'deleted' ? 'default' : (record.is_active ? 'success' : (record.status === 'terminated' ? 'default' : 'warning')))">
-              {{ (record.provider_status || '').includes('未附加固定IP') ? '未附加IP' : (record.status_label || record.status || '-') }}
+            <Tag
+              :color="
+                (record.provider_status || '').includes('未附加固定IP')
+                  ? 'warning'
+                  : record.status === 'deleted'
+                    ? 'default'
+                    : record.is_active
+                      ? 'success'
+                      : record.status === 'terminated'
+                        ? 'default'
+                        : 'warning'
+              "
+            >
+              {{
+                (record.provider_status || '').includes('未附加固定IP')
+                  ? '未附加IP'
+                  : record.status_label || record.status || '-'
+              }}
             </Tag>
           </template>
           <template v-else-if="column.key === 'status_countdown'">
-            <Tag :color="countdownTagColor((record.provider_status || '').includes('未附加固定IP') ? '未附加IP' : (record.preserve_link_status || record.status_countdown || record.provider_status || '-'))">
-              {{ (record.provider_status || '').includes('未附加固定IP') ? '未附加IP' : (record.preserve_link_status || record.status_countdown || record.provider_status || '-') }}
+            <Tag
+              :color="
+                countdownTagColor(
+                  (record.provider_status || '').includes('未附加固定IP')
+                    ? '未附加IP'
+                    : record.preserve_link_status ||
+                        record.status_countdown ||
+                        record.provider_status ||
+                        '-',
+                )
+              "
+            >
+              {{
+                (record.provider_status || '').includes('未附加固定IP')
+                  ? '未附加IP'
+                  : record.preserve_link_status ||
+                    record.status_countdown ||
+                    record.provider_status ||
+                    '-'
+              }}
             </Tag>
           </template>
           <template v-else-if="column.key === 'actions'">
             <Space>
-              <Button type="link" @click="openEdit(record as DashboardCloudAssetItem)">编辑</Button>
+              <Button
+                type="link"
+                @click="openEdit(record as DashboardCloudAssetItem)"
+                >编辑</Button
+              >
               <Popconfirm
                 v-if="canRebuildPreserveLink(record as DashboardCloudAssetItem)"
                 title="确认按 AWS 方案重装并保持链接不变吗？系统会后台创建新实例、切换固定 IP、复用 MTProxy 密钥，成功后删除旧实例。"
-                @confirm="rebuildPreserveLink(record as DashboardCloudAssetItem)"
+                @confirm="
+                  rebuildPreserveLink(record as DashboardCloudAssetItem)
+                "
               >
-                <Button type="link" :loading="rebuildingServerId === (record.server_id || null)">重装</Button>
+                <Button
+                  type="link"
+                  :loading="rebuildingServerId === (record.server_id || null)"
+                  >重装</Button
+                >
               </Popconfirm>
-              <Popconfirm title="确认删除该代理/服务器记录吗？" @confirm="deleteAsset(record as DashboardCloudAssetItem)">
+              <Popconfirm
+                title="确认删除该代理/服务器记录吗？"
+                @confirm="deleteAsset(record as DashboardCloudAssetItem)"
+              >
                 <Button danger type="link">删除</Button>
               </Popconfirm>
             </Space>
@@ -692,7 +939,13 @@ onBeforeUnmount(() => {
       </Table>
     </Card>
 
-    <Modal v-model:open="editOpen" :confirm-loading="saving" title="编辑代理" width="720px" @ok="submitEdit">
+    <Modal
+      v-model:open="editOpen"
+      :confirm-loading="saving"
+      title="编辑代理"
+      width="720px"
+      @ok="submitEdit"
+    >
       <Form layout="vertical">
         <Form.Item label="用户">
           <Input
@@ -706,11 +959,24 @@ onBeforeUnmount(() => {
         <Form.Item label="价格">
           <Input v-model:value="formState.price" placeholder="关联订单价格" />
         </Form.Item>
-        <Form.Item extra="这里是服务到期时间；默认值 99 表示不人工干预排序，数字越大越靠前，已删除默认沉底。" label="到期日期">
-          <DatePicker v-model:value="formState.actual_expires_at" format="YYYY-MM-DD" style="width: 100%" />
+        <Form.Item
+          extra="这里是服务到期时间；默认值 99 表示不人工干预排序，数字越大越靠前，已删除默认沉底。"
+          label="到期日期"
+        >
+          <DatePicker
+            v-model:value="formState.actual_expires_at"
+            format="YYYY-MM-DD"
+            style="width: 100%"
+          />
         </Form.Item>
         <Form.Item label="排序">
-          <InputNumber v-model:value="formState.sort_order" :min="0" :precision="0" placeholder="99=默认排序" style="width: 100%" />
+          <InputNumber
+            v-model:value="formState.sort_order"
+            :min="0"
+            :precision="0"
+            placeholder="99=默认排序"
+            style="width: 100%"
+          />
         </Form.Item>
         <Form.Item label="公网 IP">
           <Input v-model:value="formState.public_ip" placeholder="x.x.x.x" />

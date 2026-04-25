@@ -19,8 +19,18 @@ import {
 } from 'ant-design-vue';
 import type { TableColumnsType } from 'ant-design-vue';
 
-import { createDashboardCloudPlanApi, deleteDashboardCloudPlanApi, getDashboardCloudPlansApi, getDashboardCloudPricingApi, updateDashboardCloudPlanApi } from '#/api/admin';
-import type { DashboardCloudPlanItem, DashboardCloudPlanUpdatePayload, DashboardCloudPricingItem } from '#/api/admin';
+import {
+  createDashboardCloudPlanApi,
+  deleteDashboardCloudPlanApi,
+  getDashboardCloudPlansApi,
+  getDashboardCloudPricingApi,
+  updateDashboardCloudPlanApi,
+} from '#/api/admin';
+import type {
+  DashboardCloudPlanItem,
+  DashboardCloudPlanUpdatePayload,
+  DashboardCloudPricingItem,
+} from '#/api/admin';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -212,7 +222,7 @@ function applyRegion(regionCode?: unknown) {
   const normalizedRegionCode =
     typeof regionCode === 'string'
       ? regionCode
-      : regionCode == null || Array.isArray(regionCode)
+      : regionCode === null || Array.isArray(regionCode)
         ? undefined
         : String(regionCode);
   selectedRegionCode.value = normalizedRegionCode;
@@ -233,7 +243,7 @@ function applyPricingPreset(presetValue?: unknown) {
   const normalizedPresetValue =
     typeof presetValue === 'string'
       ? presetValue
-      : presetValue == null || Array.isArray(presetValue)
+      : presetValue === null || Array.isArray(presetValue)
         ? undefined
         : String(presetValue);
   selectedPricingPreset.value = normalizedPresetValue;

@@ -36,15 +36,29 @@ async function submit() {
     <Card class="password-card">
       <Form layout="vertical">
         <Form.Item label="旧密码">
-          <Input.Password v-model:value="form.old_password" :visibility-toggle="true" placeholder="请输入旧密码" />
+          <Input.Password
+            v-model:value="form.old_password"
+            :visibility-toggle="true"
+            placeholder="请输入旧密码"
+          />
         </Form.Item>
         <Form.Item label="新密码">
-          <Input.Password v-model:value="form.new_password" :visibility-toggle="true" placeholder="请输入新密码" />
+          <Input.Password
+            v-model:value="form.new_password"
+            :visibility-toggle="true"
+            placeholder="请输入新密码"
+          />
         </Form.Item>
         <Form.Item label="确认新密码">
-          <Input.Password v-model:value="form.confirm_password" :visibility-toggle="true" placeholder="再次输入新密码" />
+          <Input.Password
+            v-model:value="form.confirm_password"
+            :visibility-toggle="true"
+            placeholder="再次输入新密码"
+          />
         </Form.Item>
-        <Button type="primary" :loading="loading.value" @click="submit">保存新密码</Button>
+        <Button type="primary" :loading="loading.value" @click="submit"
+          >保存新密码</Button
+        >
       </Form>
     </Card>
   </Page>

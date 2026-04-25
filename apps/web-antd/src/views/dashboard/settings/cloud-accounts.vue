@@ -3,18 +3,23 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message } from 'ant-design-vue';
+import {
+  Button,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  message,
+} from 'ant-design-vue';
 import type { TableColumnsType } from 'ant-design-vue';
 
-import {
-  createDashboardCloudAccountApi,
-  deleteDashboardCloudAccountApi,
-  getDashboardCloudAccountsApi,
-  updateDashboardCloudAccountApi,
-  verifyDashboardCloudAccountApi,
-  type DashboardCloudAccountConfigItem,
-  type DashboardCloudAccountCreatePayload,
-} from '#/api/admin';
+import { createDashboardCloudAccountApi, deleteDashboardCloudAccountApi, getDashboardCloudAccountsApi, updateDashboardCloudAccountApi, verifyDashboardCloudAccountApi } from '#/api/admin';
+import type { DashboardCloudAccountConfigItem, DashboardCloudAccountCreatePayload } from '#/api/admin';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -55,13 +60,38 @@ const regionHintValue = computed({
 });
 
 const columns: TableColumnsType<DashboardCloudAccountConfigItem> = [
-  { title: '云厂商', dataIndex: 'provider_label', key: 'provider_label', width: 120 },
+  {
+    title: '云厂商',
+    dataIndex: 'provider_label',
+    key: 'provider_label',
+    width: 120,
+  },
   { title: '名称', dataIndex: 'name', key: 'name', width: 180 },
-  { title: '默认地区', dataIndex: 'effective_region', key: 'region_hint', width: 140 },
-  { title: 'Access Key', dataIndex: 'access_key', key: 'access_key', width: 180 },
-  { title: 'Secret Key', dataIndex: 'secret_key', key: 'secret_key', width: 180 },
+  {
+    title: '默认地区',
+    dataIndex: 'effective_region',
+    key: 'region_hint',
+    width: 140,
+  },
+  {
+    title: 'Access Key',
+    dataIndex: 'access_key',
+    key: 'access_key',
+    width: 180,
+  },
+  {
+    title: 'Secret Key',
+    dataIndex: 'secret_key',
+    key: 'secret_key',
+    width: 180,
+  },
   { title: '巡检状态', dataIndex: 'status', key: 'status', width: 120 },
-  { title: '状态说明', dataIndex: 'status_note', key: 'status_note', width: 260 },
+  {
+    title: '状态说明',
+    dataIndex: 'status_note',
+    key: 'status_note',
+    width: 260,
+  },
   { title: '启用', dataIndex: 'is_active', key: 'is_active', width: 80 },
   { title: '操作', key: 'actions', width: 220, fixed: 'right' as const },
 ];
@@ -134,8 +164,12 @@ async function save() {
 
 async function verify(record: DashboardCloudAccountConfigItem) {
   try {
-    const result = await verifyDashboardCloudAccountApi(record.id, { region: record.effective_region || record.region_hint || undefined });
-    message.success(`验证成功：${result.region}，实例数 ${result.instance_count}`);
+    const result = await verifyDashboardCloudAccountApi(record.id, {
+      region: record.effective_region || record.region_hint || undefined,
+    });
+    message.success(
+      `验证成功：${result.region}，实例数 ${result.instance_count}`,
+    );
     await loadData();
   } catch (error: any) {
     message.error(error?.message || '验证失败');
@@ -162,21 +196,51 @@ onMounted(loadData);
       <Button :loading="loading" @click="loadData">刷新</Button>
     </Space>
 
-    <Table :columns="columns" :data-source="items" :loading="loading" row-key="id" :pagination="false" :scroll="{ x: 1400 }">
+    <Table
+      :columns="columns"
+      :data-source="items"
+      :loading="loading"
+      row-key="id"
+      :pagination="false"
+      :scroll="{ x: 1400 }"
+    >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'is_active'">
-          <Tag :color="record.is_active ? 'success' : 'default'">{{ record.is_active ? '启用' : '停用' }}</Tag>
+          <Tag :color="record.is_active ? 'success' : 'default'">{{
+            record.is_active ? '启用' : '停用'
+          }}</Tag>
         </template>
         <template v-else-if="column.key === 'status'">
-          <Tag :color="record.status === 'ok' ? 'success' : (record.status === 'error' ? 'error' : 'default')">
+          <Tag
+            :color="
+              record.status === 'ok'
+                ? 'success'
+                : record.status === 'error'
+                  ? 'error'
+                  : 'default'
+            "
+          >
             {{ record.status_label || record.status || '待检查' }}
           </Tag>
         </template>
         <template v-else-if="column.key === 'actions'">
           <Space>
-            <Button type="link" size="small" @click="verify(record as DashboardCloudAccountConfigItem)">验证</Button>
-            <Button type="link" size="small" @click="openEdit(record as DashboardCloudAccountConfigItem)">编辑</Button>
-            <Popconfirm title="确认删除该云账号吗？" @confirm="remove(record as DashboardCloudAccountConfigItem)">
+            <Button
+              type="link"
+              size="small"
+              @click="verify(record as DashboardCloudAccountConfigItem)"
+              >验证</Button
+            >
+            <Button
+              type="link"
+              size="small"
+              @click="openEdit(record as DashboardCloudAccountConfigItem)"
+              >编辑</Button
+            >
+            <Popconfirm
+              title="确认删除该云账号吗？"
+              @confirm="remove(record as DashboardCloudAccountConfigItem)"
+            >
               <Button danger type="link" size="small">删除</Button>
             </Popconfirm>
           </Space>
@@ -184,16 +248,30 @@ onMounted(loadData);
       </template>
     </Table>
 
-    <Modal v-model:open="open" :confirm-loading="saving" :title="current ? '编辑云账号' : '添加云账号'" @ok="save">
+    <Modal
+      v-model:open="open"
+      :confirm-loading="saving"
+      :title="current ? '编辑云账号' : '添加云账号'"
+      @ok="save"
+    >
       <Form layout="vertical">
         <Form.Item label="云平台">
-          <Select v-model:value="form.provider" :options="[{ label: 'AWS', value: 'aws' }, { label: '阿里云', value: 'aliyun' }]" />
+          <Select
+            v-model:value="form.provider"
+            :options="[
+              { label: 'AWS', value: 'aws' },
+              { label: '阿里云', value: 'aliyun' },
+            ]"
+          />
         </Form.Item>
         <Form.Item label="账号名称">
           <Input v-model:value="form.name" placeholder="例如：生产 AWS" />
         </Form.Item>
         <Form.Item label="默认地区">
-          <Input v-model:value="regionHintValue" :placeholder="regionHintPlaceholder" />
+          <Input
+            v-model:value="regionHintValue"
+            :placeholder="regionHintPlaceholder"
+          />
           <div class="text-xs text-[var(--ant-color-text-description)] mt-1">
             未填写时自动使用：{{ effectiveRegionHint }}
           </div>
@@ -202,7 +280,11 @@ onMounted(loadData);
           <Input v-model:value="form.access_key" placeholder="Access Key" />
         </Form.Item>
         <Form.Item label="Secret Key">
-          <Input.Password v-model:value="form.secret_key" placeholder="Secret Key" :visibility-toggle="true" />
+          <Input.Password
+            v-model:value="form.secret_key"
+            placeholder="Secret Key"
+            :visibility-toggle="true"
+          />
         </Form.Item>
         <Form.Item label="启用状态">
           <Switch v-model:checked="form.is_active" />

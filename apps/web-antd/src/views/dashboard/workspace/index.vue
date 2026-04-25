@@ -14,24 +14,76 @@ import { preferences } from '@vben/preferences';
 import { useUserStore } from '@vben/stores';
 import { openWindow } from '@vben/utils';
 
-import { Button, Card, Col, Empty, List, Row, Space, Statistic, Tag } from 'ant-design-vue';
+import {
+  Button,
+  Card,
+  Col,
+  Empty,
+  List,
+  Row,
+  Space,
+  Statistic,
+  Tag,
+} from 'ant-design-vue';
 
 import { getDashboardOverviewApi } from '#/api/admin';
 
 const router = useRouter();
 const userStore = useUserStore();
 const loading = ref(false);
-const overview = ref<Awaited<ReturnType<typeof getDashboardOverviewApi>> | null>(null);
+const overview = ref<Awaited<
+  ReturnType<typeof getDashboardOverviewApi>
+> | null>(null);
 
 const quickNavItems: WorkbenchQuickNavItem[] = [
-  { color: '#1677ff', icon: 'lucide:chart-column', title: '分析页', url: '/admin/analytics' },
-  { color: '#13c2c2', icon: 'lucide:users', title: '用户列表', url: '/admin/users' },
-  { color: '#14b8a6', icon: 'lucide:list-todo', title: '任务列表', url: '/admin/tasks' },
-  { color: '#722ed1', icon: 'lucide:shopping-cart', title: '云订单', url: '/admin/cloud-orders' },
-  { color: '#14b8a6', icon: 'lucide:package-search', title: '套餐设置', url: '/admin/cloud-plans/list' },
-  { color: '#fa8c16', icon: 'lucide:wallet-cards', title: '充值列表', url: '/admin/logs/recharges' },
-  { color: '#52c41a', icon: 'lucide:boxes', title: '代理列表', url: '/admin/cloud-assets' },
-  { color: '#eb2f96', icon: 'lucide:settings-2', title: '系统设置', url: '/admin/settings' },
+  {
+    color: '#1677ff',
+    icon: 'lucide:chart-column',
+    title: '分析页',
+    url: '/admin/analytics',
+  },
+  {
+    color: '#13c2c2',
+    icon: 'lucide:users',
+    title: '用户列表',
+    url: '/admin/users',
+  },
+  {
+    color: '#14b8a6',
+    icon: 'lucide:list-todo',
+    title: '任务列表',
+    url: '/admin/tasks',
+  },
+  {
+    color: '#722ed1',
+    icon: 'lucide:shopping-cart',
+    title: '云订单',
+    url: '/admin/cloud-orders',
+  },
+  {
+    color: '#14b8a6',
+    icon: 'lucide:package-search',
+    title: '套餐设置',
+    url: '/admin/cloud-plans/list',
+  },
+  {
+    color: '#fa8c16',
+    icon: 'lucide:wallet-cards',
+    title: '充值列表',
+    url: '/admin/logs/recharges',
+  },
+  {
+    color: '#52c41a',
+    icon: 'lucide:boxes',
+    title: '代理列表',
+    url: '/admin/cloud-assets',
+  },
+  {
+    color: '#eb2f96',
+    icon: 'lucide:settings-2',
+    title: '系统设置',
+    url: '/admin/settings',
+  },
 ];
 
 const summaryCards = computed(() => {
@@ -90,9 +142,12 @@ function navTo(nav: WorkbenchQuickNavItem) {
 }
 
 function statusColor(status: string) {
-  if (['completed', 'paid', 'success', 'active'].includes(status)) return 'green';
-  if (['pending', 'creating', 'provisioning', 'renew_pending'].includes(status)) return 'orange';
-  if (['failed', 'expired', 'cancelled', 'deleted'].includes(status)) return 'red';
+  if (['completed', 'paid', 'success', 'active'].includes(status))
+    return 'green';
+  if (['pending', 'creating', 'provisioning', 'renew_pending'].includes(status))
+    return 'orange';
+  if (['failed', 'expired', 'cancelled', 'deleted'].includes(status))
+    return 'red';
   return 'blue';
 }
 
@@ -101,7 +156,9 @@ onMounted(loadOverview);
 
 <template>
   <div class="p-5">
-    <WorkbenchHeader :avatar="userStore.userInfo?.avatar || preferences.app.defaultAvatar">
+    <WorkbenchHeader
+      :avatar="userStore.userInfo?.avatar || preferences.app.defaultAvatar"
+    >
       <template #title>
         {{ userStore.userInfo?.realName || '管理员' }}，欢迎回到 Shop 工作台
       </template>
@@ -117,7 +174,12 @@ onMounted(loadOverview);
     </WorkbenchHeader>
 
     <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
-      <Card v-for="item in summaryCards" :key="item.label" :loading="loading" class="rounded-xl">
+      <Card
+        v-for="item in summaryCards"
+        :key="item.label"
+        :loading="loading"
+        class="rounded-xl"
+      >
         <Statistic :title="item.label" :value="item.value" />
       </Card>
     </div>
@@ -125,13 +187,23 @@ onMounted(loadOverview);
     <Row class="mt-5" :gutter="16">
       <Col :xl="16" :span="24">
         <Card title="最近云订单" :loading="loading">
-          <List v-if="overview?.latest_cloud_orders?.length" :data-source="overview.latest_cloud_orders">
+          <List
+            v-if="overview?.latest_cloud_orders?.length"
+            :data-source="overview.latest_cloud_orders"
+          >
             <template #renderItem="{ item }">
               <List.Item>
-                <List.Item.Meta :description="`${item.region_label || item.region_name || '-'} · ${item.plan_name || '-'}`" :title="item.order_no || `#${item.id}`" />
+                <List.Item.Meta
+                  :description="`${item.region_label || item.region_name || '-'} · ${item.plan_name || '-'}`"
+                  :title="item.order_no || `#${item.id}`"
+                />
                 <div class="text-right">
-                  <Tag :color="statusColor(item.status)">{{ item.status_label || item.status }}</Tag>
-                  <div class="mt-1 text-sm text-gray-500">{{ item.total_amount }} USDT</div>
+                  <Tag :color="statusColor(item.status)">{{
+                    item.status_label || item.status
+                  }}</Tag>
+                  <div class="mt-1 text-sm text-gray-500">
+                    {{ item.total_amount }} USDT
+                  </div>
                 </div>
               </List.Item>
             </template>
@@ -140,13 +212,23 @@ onMounted(loadOverview);
         </Card>
 
         <Card class="mt-5" title="最近充值" :loading="loading">
-          <List v-if="overview?.latest_recharges?.length" :data-source="overview.latest_recharges">
+          <List
+            v-if="overview?.latest_recharges?.length"
+            :data-source="overview.latest_recharges"
+          >
             <template #renderItem="{ item }">
               <List.Item>
-                <List.Item.Meta :description="item.tx_hash || '暂无交易哈希'" :title="`充值 #${item.id}`" />
+                <List.Item.Meta
+                  :description="item.tx_hash || '暂无交易哈希'"
+                  :title="`充值 #${item.id}`"
+                />
                 <div class="text-right">
-                  <Tag :color="statusColor(item.status)">{{ item.status_label || item.status }}</Tag>
-                  <div class="mt-1 text-sm text-gray-500">{{ item.amount }}</div>
+                  <Tag :color="statusColor(item.status)">{{
+                    item.status_label || item.status
+                  }}</Tag>
+                  <div class="mt-1 text-sm text-gray-500">
+                    {{ item.amount }}
+                  </div>
                 </div>
               </List.Item>
             </template>
@@ -156,7 +238,11 @@ onMounted(loadOverview);
       </Col>
 
       <Col :xl="8" :span="24">
-        <WorkbenchQuickNav :items="quickNavItems" title="快捷操作" @click="navTo" />
+        <WorkbenchQuickNav
+          :items="quickNavItems"
+          title="快捷操作"
+          @click="navTo"
+        />
         <WorkbenchTodo class="mt-5" :items="todoItems" title="当前待办" />
         <AnalysisChartCard class="mt-5" title="工作台定位">
           <div class="space-y-3 text-sm text-gray-500">

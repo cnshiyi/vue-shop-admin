@@ -3,17 +3,18 @@ import { computed, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Card, Input, Modal, RadioGroup, Space, message } from 'ant-design-vue';
-
 import {
-  getDashboardSiteConfigGroupsApi,
-  getDashboardSiteConfigsApi,
-  initDashboardTextConfigsApi,
-  updateDashboardSiteConfigApi,
-  type DashboardSiteConfigGroup,
-  type DashboardSiteConfigGroupItem,
-  type DashboardSiteConfigItem,
-} from '#/api/admin';
+  Button,
+  Card,
+  Input,
+  Modal,
+  RadioGroup,
+  Space,
+  message,
+} from 'ant-design-vue';
+
+import { getDashboardSiteConfigGroupsApi, getDashboardSiteConfigsApi, initDashboardTextConfigsApi, updateDashboardSiteConfigApi } from '#/api/admin';
+import type { DashboardSiteConfigGroup, DashboardSiteConfigGroupItem, DashboardSiteConfigItem } from '#/api/admin';
 
 const loading = ref(false);
 const initLoading = ref(false);
@@ -38,7 +39,10 @@ function syncDrafts() {
 async function loadData() {
   loading.value = true;
   try {
-    const [configs, groups] = await Promise.all([getDashboardSiteConfigsApi(), getDashboardSiteConfigGroupsApi()]);
+    const [configs, groups] = await Promise.all([
+      getDashboardSiteConfigsApi(),
+      getDashboardSiteConfigGroupsApi(),
+    ]);
     siteConfigs.value = configs;
     configGroups.value = groups;
     syncDrafts();
@@ -81,7 +85,9 @@ async function initTexts() {
   initLoading.value = true;
   try {
     const result = await initDashboardTextConfigsApi({ mode: initMode.value });
-    message.success(`初始化完成：新增 ${result.created} 项，更新 ${result.updated} 项`);
+    message.success(
+      `初始化完成：新增 ${result.created} 项，更新 ${result.updated} 项`,
+    );
     initOpen.value = false;
     await loadData();
   } catch (error: any) {
@@ -95,14 +101,24 @@ onMounted(loadData);
 </script>
 
 <template>
-  <Page description="初始化方案 + 人工干预方案并存：可先自动铺默认文案，再逐条人工调整" title="文案设置">
+  <Page
+    description="初始化方案 + 人工干预方案并存：可先自动铺默认文案，再逐条人工调整"
+    title="文案设置"
+  >
     <Space class="mb-3">
-      <Button type="primary" :loading="initLoading" @click="initOpen = true">初始化文案</Button>
+      <Button type="primary" :loading="initLoading" @click="initOpen = true"
+        >初始化文案</Button
+      >
       <Button :loading="loading" @click="loadData">刷新</Button>
     </Space>
 
     <div class="text-grid" v-if="textItems.length">
-      <Card v-for="item in textItems" :key="item.key" :loading="loading" class="text-card">
+      <Card
+        v-for="item in textItems"
+        :key="item.key"
+        :loading="loading"
+        class="text-card"
+      >
         <template #title>
           <div class="card-title">{{ item.description || item.key }}</div>
         </template>
@@ -111,9 +127,16 @@ onMounted(loadData);
           :auto-size="{ minRows: 4, maxRows: 8 }"
           :placeholder="item.default_value || '请输入文案内容'"
         />
-        <div class="mt-2 text-xs text-gray-400">默认文案：{{ item.default_value || '-' }}</div>
+        <div class="mt-2 text-xs text-gray-400">
+          默认文案：{{ item.default_value || '-' }}
+        </div>
         <Space class="mt-3">
-          <Button :loading="savingMap[item.key]" type="primary" @click="saveItem(item)">保存</Button>
+          <Button
+            :loading="savingMap[item.key]"
+            type="primary"
+            @click="saveItem(item)"
+            >保存</Button
+          >
           <Button @click="resetItem(item)">恢复默认</Button>
         </Space>
       </Card>
@@ -123,8 +146,15 @@ onMounted(loadData);
       <div class="text-gray-500">暂无文案项，请先点击“初始化文案”。</div>
     </Card>
 
-    <Modal v-model:open="initOpen" title="初始化文案" :confirm-loading="initLoading" @ok="initTexts">
-      <div class="mb-3 text-sm text-gray-500">支持两套方案：只补缺失/空值，或强制重置为默认文案。</div>
+    <Modal
+      v-model:open="initOpen"
+      title="初始化文案"
+      :confirm-loading="initLoading"
+      @ok="initTexts"
+    >
+      <div class="mb-3 text-sm text-gray-500">
+        支持两套方案：只补缺失/空值，或强制重置为默认文案。
+      </div>
       <RadioGroup
         v-model:value="initMode"
         :options="[
@@ -139,8 +169,8 @@ onMounted(loadData);
 <style scoped>
 .text-grid {
   display: grid;
-  gap: 16px;
   grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 16px;
 }
 
 .text-card {

@@ -3,17 +3,18 @@ import { computed, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Card, Input, Space, Switch, Tag, message } from 'ant-design-vue';
-
 import {
-  getDashboardSiteConfigGroupsApi,
-  getDashboardSiteConfigsApi,
-  initDashboardSiteConfigsApi,
-  updateDashboardSiteConfigApi,
-  type DashboardSiteConfigGroup,
-  type DashboardSiteConfigGroupItem,
-  type DashboardSiteConfigItem,
-} from '#/api/admin';
+  Button,
+  Card,
+  Input,
+  Space,
+  Switch,
+  Tag,
+  message,
+} from 'ant-design-vue';
+
+import { getDashboardSiteConfigGroupsApi, getDashboardSiteConfigsApi, initDashboardSiteConfigsApi, updateDashboardSiteConfigApi } from '#/api/admin';
+import type { DashboardSiteConfigGroup, DashboardSiteConfigGroupItem, DashboardSiteConfigItem } from '#/api/admin';
 
 const props = defineProps<{
   description?: string;
@@ -29,7 +30,10 @@ const savingMap = reactive<Record<string, boolean>>({});
 const draftMap = reactive<Record<string, string>>({});
 const sensitiveMap = reactive<Record<string, boolean>>({});
 
-const activeGroup = computed(() => configGroups.value.find((item) => item.group === props.groupKey) || null);
+const activeGroup = computed(
+  () =>
+    configGroups.value.find((item) => item.group === props.groupKey) || null,
+);
 const items = computed(() => activeGroup.value?.items || []);
 
 function syncDrafts() {
@@ -42,7 +46,10 @@ function syncDrafts() {
 async function loadData() {
   loading.value = true;
   try {
-    const [configs, groups] = await Promise.all([getDashboardSiteConfigsApi(), getDashboardSiteConfigGroupsApi()]);
+    const [configs, groups] = await Promise.all([
+      getDashboardSiteConfigsApi(),
+      getDashboardSiteConfigGroupsApi(),
+    ]);
     siteConfigs.value = configs;
     configGroups.value = groups;
     syncDrafts();
@@ -96,18 +103,27 @@ onMounted(loadData);
 <template>
   <Page :description="description || ''" :title="title">
     <Space class="mb-3">
-      <Button type="primary" :loading="initLoading" @click="initConfigs">初始化配置</Button>
+      <Button type="primary" :loading="initLoading" @click="initConfigs"
+        >初始化配置</Button
+      >
       <Button :loading="loading" @click="loadData">刷新</Button>
     </Space>
 
     <div class="config-grid" v-if="items.length">
-      <Card v-for="item in items" :key="item.key" :loading="loading" class="config-card">
+      <Card
+        v-for="item in items"
+        :key="item.key"
+        :loading="loading"
+        class="config-card"
+      >
         <template #title>
           <div class="card-title">{{ item.description || item.key }}</div>
         </template>
         <div class="mb-2 flex items-center gap-2 text-xs text-gray-500">
           <span>键名：{{ item.key }}</span>
-          <Tag :color="sensitiveMap[item.key] ? 'orange' : 'default'">{{ sensitiveMap[item.key] ? '敏感' : '普通' }}</Tag>
+          <Tag :color="sensitiveMap[item.key] ? 'orange' : 'default'">{{
+            sensitiveMap[item.key] ? '敏感' : '普通'
+          }}</Tag>
         </div>
         <Input.TextArea
           v-model:value="draftMap[item.key]"
@@ -119,7 +135,12 @@ onMounted(loadData);
             <span class="text-sm text-gray-500">敏感配置</span>
             <Switch v-model:checked="sensitiveMap[item.key]" />
           </Space>
-          <Button type="primary" :loading="savingMap[item.key]" @click="saveItem(item)">保存</Button>
+          <Button
+            type="primary"
+            :loading="savingMap[item.key]"
+            @click="saveItem(item)"
+            >保存</Button
+          >
         </div>
       </Card>
     </div>
@@ -133,8 +154,8 @@ onMounted(loadData);
 <style scoped>
 .config-grid {
   display: grid;
-  gap: 16px;
   grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 16px;
 }
 
 .config-card {

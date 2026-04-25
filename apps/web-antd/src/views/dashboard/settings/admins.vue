@@ -3,18 +3,23 @@ import { onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Card, Form, Input, Modal, Popconfirm, Space, Switch, Table, Tag, message } from 'ant-design-vue';
+import {
+  Button,
+  Card,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  message,
+} from 'ant-design-vue';
 import type { TableColumnsType } from 'ant-design-vue';
 
-import {
-  changeDashboardMyPasswordApi,
-  createDashboardAdminUserApi,
-  deleteDashboardAdminUserApi,
-  getDashboardAdminUsersApi,
-  updateDashboardAdminUserApi,
-  type DashboardAdminUserItem,
-  type DashboardAdminUserUpsertPayload,
-} from '#/api/admin';
+import { changeDashboardMyPasswordApi, createDashboardAdminUserApi, deleteDashboardAdminUserApi, getDashboardAdminUsersApi, updateDashboardAdminUserApi } from '#/api/admin';
+import type { DashboardAdminUserItem, DashboardAdminUserUpsertPayload } from '#/api/admin';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -41,7 +46,12 @@ const columns: TableColumnsType<DashboardAdminUserItem> = [
   { title: '用户名', dataIndex: 'username', key: 'username', width: 180 },
   { title: '邮箱', dataIndex: 'email', key: 'email', width: 220 },
   { title: '状态', dataIndex: 'is_active', key: 'is_active', width: 90 },
-  { title: '超级管理员', dataIndex: 'is_superuser', key: 'is_superuser', width: 110 },
+  {
+    title: '超级管理员',
+    dataIndex: 'is_superuser',
+    key: 'is_superuser',
+    width: 110,
+  },
   { title: '最近登录', dataIndex: 'last_login', key: 'last_login', width: 180 },
   { title: '操作', key: 'actions', width: 180 },
 ];
@@ -145,18 +155,36 @@ onMounted(loadData);
         </Space>
       </template>
 
-      <Table :columns="columns" :data-source="items" :loading="loading" row-key="id" :pagination="false">
+      <Table
+        :columns="columns"
+        :data-source="items"
+        :loading="loading"
+        row-key="id"
+        :pagination="false"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'is_active'">
-            <Tag :color="record.is_active ? 'success' : 'default'">{{ record.is_active ? '启用' : '停用' }}</Tag>
+            <Tag :color="record.is_active ? 'success' : 'default'">{{
+              record.is_active ? '启用' : '停用'
+            }}</Tag>
           </template>
           <template v-else-if="column.key === 'is_superuser'">
-            <Tag :color="record.is_superuser ? 'blue' : 'default'">{{ record.is_superuser ? '是' : '否' }}</Tag>
+            <Tag :color="record.is_superuser ? 'blue' : 'default'">{{
+              record.is_superuser ? '是' : '否'
+            }}</Tag>
           </template>
           <template v-else-if="column.key === 'actions'">
             <Space>
-              <Button type="link" size="small" @click="openEdit(record as DashboardAdminUserItem)">编辑</Button>
-              <Popconfirm title="确认删除该管理员吗？" @confirm="remove(record as DashboardAdminUserItem)">
+              <Button
+                type="link"
+                size="small"
+                @click="openEdit(record as DashboardAdminUserItem)"
+                >编辑</Button
+              >
+              <Popconfirm
+                title="确认删除该管理员吗？"
+                @confirm="remove(record as DashboardAdminUserItem)"
+              >
                 <Button danger type="link" size="small">删除</Button>
               </Popconfirm>
             </Space>
@@ -168,19 +196,38 @@ onMounted(loadData);
     <Card title="我的密码修改" style="max-width: 640px">
       <Form layout="vertical">
         <Form.Item label="旧密码">
-          <Input.Password v-model:value="passwordForm.old_password" :visibility-toggle="true" placeholder="请输入旧密码" />
+          <Input.Password
+            v-model:value="passwordForm.old_password"
+            :visibility-toggle="true"
+            placeholder="请输入旧密码"
+          />
         </Form.Item>
         <Form.Item label="新密码">
-          <Input.Password v-model:value="passwordForm.new_password" :visibility-toggle="true" placeholder="请输入新密码" />
+          <Input.Password
+            v-model:value="passwordForm.new_password"
+            :visibility-toggle="true"
+            placeholder="请输入新密码"
+          />
         </Form.Item>
         <Form.Item label="确认新密码">
-          <Input.Password v-model:value="passwordForm.confirm_password" :visibility-toggle="true" placeholder="再次输入新密码" />
+          <Input.Password
+            v-model:value="passwordForm.confirm_password"
+            :visibility-toggle="true"
+            placeholder="再次输入新密码"
+          />
         </Form.Item>
-        <Button type="primary" :loading="passwordSaving" @click="savePassword">保存新密码</Button>
+        <Button type="primary" :loading="passwordSaving" @click="savePassword"
+          >保存新密码</Button
+        >
       </Form>
     </Card>
 
-    <Modal v-model:open="open" :confirm-loading="saving" :title="current ? '编辑管理员' : '添加管理员'" @ok="save">
+    <Modal
+      v-model:open="open"
+      :confirm-loading="saving"
+      :title="current ? '编辑管理员' : '添加管理员'"
+      @ok="save"
+    >
       <Form layout="vertical">
         <Form.Item label="用户名">
           <Input v-model:value="form.username" placeholder="管理员用户名" />
@@ -189,7 +236,11 @@ onMounted(loadData);
           <Input v-model:value="form.email" placeholder="邮箱（可选）" />
         </Form.Item>
         <Form.Item :label="current ? '新密码（留空不改）' : '密码'">
-          <Input.Password v-model:value="form.password" :placeholder="current ? '留空不修改密码' : '请输入密码'" :visibility-toggle="true" />
+          <Input.Password
+            v-model:value="form.password"
+            :placeholder="current ? '留空不修改密码' : '请输入密码'"
+            :visibility-toggle="true"
+          />
         </Form.Item>
         <Form.Item label="启用状态">
           <Switch v-model:checked="form.is_active" />

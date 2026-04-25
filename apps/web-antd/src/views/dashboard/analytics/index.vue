@@ -10,19 +10,28 @@ import {
   AnalysisChartsTabs,
   AnalysisOverview,
 } from '@vben/common-ui';
-import {
-  SvgBellIcon,
-  SvgCardIcon,
-  SvgDownloadIcon,
-} from '@vben/icons';
+import { SvgBellIcon, SvgCardIcon, SvgDownloadIcon } from '@vben/icons';
 
-import { Button, Card, Col, Empty, List, Progress, Row, Space, Statistic, Tag } from 'ant-design-vue';
+import {
+  Button,
+  Card,
+  Col,
+  Empty,
+  List,
+  Progress,
+  Row,
+  Space,
+  Statistic,
+  Tag,
+} from 'ant-design-vue';
 
 import { getDashboardOverviewApi } from '#/api/admin';
 
 const router = useRouter();
 const loading = ref(false);
-const overview = ref<Awaited<ReturnType<typeof getDashboardOverviewApi>> | null>(null);
+const overview = ref<Awaited<
+  ReturnType<typeof getDashboardOverviewApi>
+> | null>(null);
 
 const overviewItems = computed<AnalysisOverviewItem[]>(() => {
   const summary = overview.value?.summary;
@@ -70,12 +79,17 @@ const progressItems = computed(() => {
   return [
     {
       label: '云订单处理率',
-      percent: Math.round(((cloudTotal - (summary?.cloud_pending ?? 0)) / cloudTotal) * 100),
+      percent: Math.round(
+        ((cloudTotal - (summary?.cloud_pending ?? 0)) / cloudTotal) * 100,
+      ),
       strokeColor: '#1677ff',
     },
     {
       label: '充值确认率',
-      percent: Math.round(((rechargeTotal - (summary?.recharge_pending ?? 0)) / rechargeTotal) * 100),
+      percent: Math.round(
+        ((rechargeTotal - (summary?.recharge_pending ?? 0)) / rechargeTotal) *
+          100,
+      ),
       strokeColor: '#52c41a',
     },
     {
@@ -87,9 +101,12 @@ const progressItems = computed(() => {
 });
 
 function statusColor(status: string) {
-  if (['completed', 'paid', 'success', 'active'].includes(status)) return 'green';
-  if (['pending', 'creating', 'provisioning', 'renew_pending'].includes(status)) return 'orange';
-  if (['failed', 'expired', 'cancelled', 'deleted'].includes(status)) return 'red';
+  if (['completed', 'paid', 'success', 'active'].includes(status))
+    return 'green';
+  if (['pending', 'creating', 'provisioning', 'renew_pending'].includes(status))
+    return 'orange';
+  if (['failed', 'expired', 'cancelled', 'deleted'].includes(status))
+    return 'red';
   return 'blue';
 }
 
@@ -107,10 +124,14 @@ onMounted(loadOverview);
 
 <template>
   <div class="p-5">
-    <div class="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div
+      class="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+    >
       <div>
         <div class="text-2xl font-semibold">分析页</div>
-        <div class="mt-1 text-sm text-gray-500">聚焦业务概览、处理率与最近动态，和工作台形成分工。</div>
+        <div class="mt-1 text-sm text-gray-500">
+          聚焦业务概览、处理率与最近动态，和工作台形成分工。
+        </div>
       </div>
       <Space>
         <Button @click="router.push('/admin/workspace')">返回工作台</Button>
@@ -126,10 +147,22 @@ onMounted(loadOverview);
           <Col :lg="8" :span="24">
             <Card :loading="loading" title="核心总览">
               <div class="space-y-4">
-                <Statistic title="普通订单" :value="overview?.summary?.orders_total ?? 0" />
-                <Statistic title="地址监控" :value="overview?.summary?.monitors_total ?? 0" />
-                <Statistic title="待处理云订单" :value="overview?.summary?.cloud_pending ?? 0" />
-                <Statistic title="待确认充值" :value="overview?.summary?.recharge_pending ?? 0" />
+                <Statistic
+                  title="普通订单"
+                  :value="overview?.summary?.orders_total ?? 0"
+                />
+                <Statistic
+                  title="地址监控"
+                  :value="overview?.summary?.monitors_total ?? 0"
+                />
+                <Statistic
+                  title="待处理云订单"
+                  :value="overview?.summary?.cloud_pending ?? 0"
+                />
+                <Statistic
+                  title="待确认充值"
+                  :value="overview?.summary?.recharge_pending ?? 0"
+                />
               </div>
             </Card>
           </Col>
@@ -137,11 +170,17 @@ onMounted(loadOverview);
             <Card :loading="loading" title="处理进度">
               <div class="space-y-5">
                 <div v-for="item in progressItems" :key="item.label">
-                  <div class="mb-2 flex items-center justify-between text-sm text-gray-500">
+                  <div
+                    class="mb-2 flex items-center justify-between text-sm text-gray-500"
+                  >
                     <span>{{ item.label }}</span>
                     <span>{{ item.percent }}%</span>
                   </div>
-                  <Progress :percent="item.percent" :show-info="false" :stroke-color="item.strokeColor" />
+                  <Progress
+                    :percent="item.percent"
+                    :show-info="false"
+                    :stroke-color="item.strokeColor"
+                  />
                 </div>
               </div>
             </Card>
@@ -153,11 +192,19 @@ onMounted(loadOverview);
         <Row :gutter="16">
           <Col :lg="12" :span="24">
             <Card :loading="loading" title="最近云订单动态">
-              <List v-if="overview?.latest_cloud_orders?.length" :data-source="overview.latest_cloud_orders">
+              <List
+                v-if="overview?.latest_cloud_orders?.length"
+                :data-source="overview.latest_cloud_orders"
+              >
                 <template #renderItem="{ item }">
                   <List.Item>
-                    <List.Item.Meta :description="`${item.region_label || item.region_name || '-'} · ${item.plan_name || '-'}`" :title="item.order_no || `#${item.id}`" />
-                    <Tag :color="statusColor(item.status)">{{ item.status_label || item.status }}</Tag>
+                    <List.Item.Meta
+                      :description="`${item.region_label || item.region_name || '-'} · ${item.plan_name || '-'}`"
+                      :title="item.order_no || `#${item.id}`"
+                    />
+                    <Tag :color="statusColor(item.status)">{{
+                      item.status_label || item.status
+                    }}</Tag>
                   </List.Item>
                 </template>
               </List>
@@ -166,11 +213,19 @@ onMounted(loadOverview);
           </Col>
           <Col :lg="12" :span="24">
             <Card :loading="loading" title="最近充值动态">
-              <List v-if="overview?.latest_recharges?.length" :data-source="overview.latest_recharges">
+              <List
+                v-if="overview?.latest_recharges?.length"
+                :data-source="overview.latest_recharges"
+              >
                 <template #renderItem="{ item }">
                   <List.Item>
-                    <List.Item.Meta :description="item.tx_hash || '暂无交易哈希'" :title="`充值 #${item.id} · ${item.amount}`" />
-                    <Tag :color="statusColor(item.status)">{{ item.status_label || item.status }}</Tag>
+                    <List.Item.Meta
+                      :description="item.tx_hash || '暂无交易哈希'"
+                      :title="`充值 #${item.id} · ${item.amount}`"
+                    />
+                    <Tag :color="statusColor(item.status)">{{
+                      item.status_label || item.status
+                    }}</Tag>
                   </List.Item>
                 </template>
               </List>
@@ -189,7 +244,10 @@ onMounted(loadOverview);
           <div>实时读取数据库聚合结果</div>
         </div>
       </AnalysisChartCard>
-      <AnalysisChartCard class="mt-5 md:mt-0 md:mr-4 md:w-1/3" title="分析页定位">
+      <AnalysisChartCard
+        class="mt-5 md:mt-0 md:mr-4 md:w-1/3"
+        title="分析页定位"
+      >
         <div class="space-y-3 text-sm text-gray-500">
           <div>看整体</div>
           <div>看处理率</div>

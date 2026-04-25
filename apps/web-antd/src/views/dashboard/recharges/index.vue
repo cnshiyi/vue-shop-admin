@@ -5,12 +5,18 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Card, Input, Space, Table, Tag, Typography } from 'ant-design-vue';
-
 import {
-  getDashboardRechargesApi,
-  type DashboardRechargeItem,
-} from '#/api/admin';
+  Button,
+  Card,
+  Input,
+  Space,
+  Table,
+  Tag,
+  Typography,
+} from 'ant-design-vue';
+
+import { getDashboardRechargesApi } from '#/api/admin';
+import type { DashboardRechargeItem } from '#/api/admin';
 
 const loading = ref(false);
 const keyword = ref('');
@@ -20,14 +26,29 @@ const route = useRoute();
 
 const columns = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
-  { title: '用户', dataIndex: 'user_display_name', key: 'user_display_name', width: 160 },
-  { title: '用户名', dataIndex: 'username_label', key: 'username_label', width: 160 },
+  {
+    title: '用户',
+    dataIndex: 'user_display_name',
+    key: 'user_display_name',
+    width: 160,
+  },
+  {
+    title: '用户名',
+    dataIndex: 'username_label',
+    key: 'username_label',
+    width: 160,
+  },
   { title: '币种', dataIndex: 'currency', key: 'currency', width: 100 },
   { title: '金额', dataIndex: 'amount', key: 'amount', width: 140 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 120 },
   { title: '交易哈希', dataIndex: 'tx_hash', key: 'tx_hash', width: 320 },
   { title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 170 },
-  { title: '完成时间', dataIndex: 'completed_at', key: 'completed_at', width: 170 },
+  {
+    title: '完成时间',
+    dataIndex: 'completed_at',
+    key: 'completed_at',
+    width: 170,
+  },
   { title: '操作', key: 'actions', width: 100, fixed: 'right' as const },
 ];
 
@@ -56,7 +77,9 @@ function formatTime(value?: null | string) {
 async function loadData() {
   loading.value = true;
   try {
-    items.value = await getDashboardRechargesApi({ keyword: keyword.value.trim() });
+    items.value = await getDashboardRechargesApi({
+      keyword: keyword.value.trim(),
+    });
   } finally {
     loading.value = false;
   }
@@ -68,7 +91,8 @@ function resetSearch() {
 }
 
 onMounted(() => {
-  keyword.value = typeof route.query.keyword === 'string' ? route.query.keyword : '';
+  keyword.value =
+    typeof route.query.keyword === 'string' ? route.query.keyword : '';
   loadData();
 });
 
@@ -108,10 +132,15 @@ function goToDetail(rechargeId: number) {
             <a @click="goToDetail(Number(record.id))">{{ record.id }}</a>
           </template>
           <template v-else-if="column.key === 'status'">
-            <Tag :color="statusColor(record.status)">{{ record.status_label || statusLabel(record.status) }}</Tag>
+            <Tag :color="statusColor(record.status)">{{
+              record.status_label || statusLabel(record.status)
+            }}</Tag>
           </template>
           <template v-else-if="column.key === 'tx_hash'">
-            <Typography.Paragraph :copyable="record.tx_hash ? { text: record.tx_hash } : false" class="!mb-0 break-all text-xs">
+            <Typography.Paragraph
+              :copyable="record.tx_hash ? { text: record.tx_hash } : false"
+              class="!mb-0 break-all text-xs"
+            >
               {{ record.tx_hash || '-' }}
             </Typography.Paragraph>
           </template>

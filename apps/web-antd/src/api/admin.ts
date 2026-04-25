@@ -275,14 +275,22 @@ export interface DashboardCloudPricingItem extends DashboardCloudPlanItem {
 }
 
 export interface DashboardCloudPlanSyncResult {
-  before_regions: Array<{ provider: string; region_code: string; region_name: string }>;
+  before_regions: Array<{
+    provider: string;
+    region_code: string;
+    region_name: string;
+  }>;
   provider_region_summary: Array<{
     pricing_count: number;
     provider: string;
     region_code: string;
     region_name: string;
   }>;
-  regions: Array<{ provider: string; region_code: string; region_name: string }>;
+  regions: Array<{
+    provider: string;
+    region_code: string;
+    region_name: string;
+  }>;
   refreshed_regions: number;
   summary: {
     after_plan_count: number;
@@ -384,7 +392,7 @@ export interface DashboardCloudAccountCreatePayload {
   secret_key: string;
 }
 
-export interface DashboardCloudAccountUpdatePayload extends DashboardCloudAccountCreatePayload {}
+export type DashboardCloudAccountUpdatePayload = DashboardCloudAccountCreatePayload;
 
 export interface DashboardAdminUserItem {
   date_joined: null | string;
@@ -459,11 +467,17 @@ export async function getDashboardTasksApi() {
   return requestClient.get<DashboardTaskItem[]>('/admin/tasks/');
 }
 
-export async function updateDashboardUserBalanceApi(userId: number, payload: { balance: string; balance_trx: string }) {
+export async function updateDashboardUserBalanceApi(
+  userId: number,
+  payload: { balance: string; balance_trx: string },
+) {
   return requestClient.post(`/admin/users/${userId}/balance/`, payload);
 }
 
-export async function updateDashboardUserDiscountApi(userId: number, payload: { cloud_discount_rate: string }) {
+export async function updateDashboardUserDiscountApi(
+  userId: number,
+  payload: { cloud_discount_rate: string },
+) {
   return requestClient.post(`/admin/users/${userId}/discount/`, payload);
 }
 
@@ -491,17 +505,28 @@ export interface DashboardUserBalanceDetailsResponse {
 }
 
 export async function getDashboardUserBalanceDetailsApi(userId: number) {
-  return requestClient.get<DashboardUserBalanceDetailsResponse>(`/admin/users/${userId}/balance-details/`);
+  return requestClient.get<DashboardUserBalanceDetailsResponse>(
+    `/admin/users/${userId}/balance-details/`,
+  );
 }
 
-export async function getDashboardCloudAssetsApi(params: DashboardListQuery = {}) {
-  return requestClient.get<DashboardCloudAssetItem[]>('/admin/cloud-assets/', { params });
-}
-
-export async function getDashboardCloudAssetsGroupedApi(params: DashboardListQuery = {}) {
-  return requestClient.get<DashboardCloudAssetGroupedResponse>('/admin/cloud-assets/', {
-    params: { ...params, grouped: 1 },
+export async function getDashboardCloudAssetsApi(
+  params: DashboardListQuery = {},
+) {
+  return requestClient.get<DashboardCloudAssetItem[]>('/admin/cloud-assets/', {
+    params,
   });
+}
+
+export async function getDashboardCloudAssetsGroupedApi(
+  params: DashboardListQuery = {},
+) {
+  return requestClient.get<DashboardCloudAssetGroupedResponse>(
+    '/admin/cloud-assets/',
+    {
+      params: { ...params, grouped: 1 },
+    },
+  );
 }
 
 export async function syncDashboardCloudAssetsApi(region = 'cn-hongkong') {
@@ -516,11 +541,20 @@ export interface DashboardCloudAssetsSyncStatus {
 }
 
 export async function getDashboardCloudAssetsSyncStatusApi() {
-  return requestClient.get<DashboardCloudAssetsSyncStatus>('/admin/cloud-assets/sync-status/');
+  return requestClient.get<DashboardCloudAssetsSyncStatus>(
+    '/admin/cloud-assets/sync-status/',
+  );
 }
 
-export async function getDashboardCloudIpLogsApi(params: DashboardListQuery & { log_type?: 'ip' | 'operation' | 'server' } = {}) {
-  return requestClient.get<DashboardCloudIpLogItem[]>('/admin/cloud-assets/ip-logs/', { params });
+export async function getDashboardCloudIpLogsApi(
+  params: DashboardListQuery & {
+    log_type?: 'ip' | 'operation' | 'server';
+  } = {},
+) {
+  return requestClient.get<DashboardCloudIpLogItem[]>(
+    '/admin/cloud-assets/ip-logs/',
+    { params },
+  );
 }
 
 export interface DashboardCloudAssetUpdatePayload {
@@ -533,7 +567,10 @@ export interface DashboardCloudAssetUpdatePayload {
   user_query?: null | string;
 }
 
-export async function updateDashboardCloudAssetApi(assetId: number, payload: DashboardCloudAssetUpdatePayload) {
+export async function updateDashboardCloudAssetApi(
+  assetId: number,
+  payload: DashboardCloudAssetUpdatePayload,
+) {
   return requestClient.post(`/admin/cloud-assets/${assetId}/`, payload);
 }
 
@@ -542,45 +579,85 @@ export async function deleteDashboardServerApi(serverId: number) {
 }
 
 export async function rebuildDashboardServerPreserveLinkApi(serverId: number) {
-  return requestClient.post<{ accepted: boolean; message: string; order_id: number; order_no: string; replacement_for_id: number }>(
-    `/admin/servers/${serverId}/rebuild-preserve-link/`,
-  );
+  return requestClient.post<{
+    accepted: boolean;
+    message: string;
+    order_id: number;
+    order_no: string;
+    replacement_for_id: number;
+  }>(`/admin/servers/${serverId}/rebuild-preserve-link/`);
 }
 
-export async function getDashboardCloudOrdersApi(params: DashboardListQuery = {}) {
-  return requestClient.get<DashboardCloudOrderItem[]>('/admin/cloud-orders/', { params });
+export async function getDashboardCloudOrdersApi(
+  params: DashboardListQuery = {},
+) {
+  return requestClient.get<DashboardCloudOrderItem[]>('/admin/cloud-orders/', {
+    params,
+  });
 }
 
 export async function getDashboardCloudOrderDetailApi(orderId: number) {
-  return requestClient.get<DashboardCloudOrderDetail>(`/admin/cloud-orders/${orderId}/`);
+  return requestClient.get<DashboardCloudOrderDetail>(
+    `/admin/cloud-orders/${orderId}/`,
+  );
 }
 
-export async function updateDashboardCloudOrderStatusApi(orderId: number, payload: { status: string }) {
-  return requestClient.post<DashboardCloudOrderDetail>(`/admin/cloud-orders/${orderId}/status/`, payload);
+export async function updateDashboardCloudOrderStatusApi(
+  orderId: number,
+  payload: { status: string },
+) {
+  return requestClient.post<DashboardCloudOrderDetail>(
+    `/admin/cloud-orders/${orderId}/status/`,
+    payload,
+  );
 }
 
 export async function getDashboardServersApi(params: DashboardListQuery = {}) {
-  return requestClient.get<DashboardServerItem[]>('/admin/servers/', { params });
+  return requestClient.get<DashboardServerItem[]>('/admin/servers/', {
+    params,
+  });
 }
 
-export async function getDashboardCloudPlansApi(params: DashboardListQuery = {}) {
-  return requestClient.get<DashboardCloudPlanItem[]>('/admin/cloud-plans/', { params });
+export async function getDashboardCloudPlansApi(
+  params: DashboardListQuery = {},
+) {
+  return requestClient.get<DashboardCloudPlanItem[]>('/admin/cloud-plans/', {
+    params,
+  });
 }
 
-export async function getDashboardCloudPricingApi(params: DashboardListQuery = {}) {
-  return requestClient.get<DashboardCloudPricingItem[]>('/admin/cloud-pricing/', { params });
+export async function getDashboardCloudPricingApi(
+  params: DashboardListQuery = {},
+) {
+  return requestClient.get<DashboardCloudPricingItem[]>(
+    '/admin/cloud-pricing/',
+    { params },
+  );
 }
 
 export async function syncDashboardCloudPlansApi() {
-  return requestClient.post<DashboardCloudPlanSyncResult>('/admin/cloud-plans/sync/');
+  return requestClient.post<DashboardCloudPlanSyncResult>(
+    '/admin/cloud-plans/sync/',
+  );
 }
 
-export async function createDashboardCloudPlanApi(payload: DashboardCloudPlanUpdatePayload) {
-  return requestClient.post<DashboardCloudPlanItem>('/admin/cloud-plans/create/', payload);
+export async function createDashboardCloudPlanApi(
+  payload: DashboardCloudPlanUpdatePayload,
+) {
+  return requestClient.post<DashboardCloudPlanItem>(
+    '/admin/cloud-plans/create/',
+    payload,
+  );
 }
 
-export async function updateDashboardCloudPlanApi(planId: number, payload: DashboardCloudPlanUpdatePayload) {
-  return requestClient.post<DashboardCloudPlanItem>(`/admin/cloud-plans/${planId}/`, payload);
+export async function updateDashboardCloudPlanApi(
+  planId: number,
+  payload: DashboardCloudPlanUpdatePayload,
+) {
+  return requestClient.post<DashboardCloudPlanItem>(
+    `/admin/cloud-plans/${planId}/`,
+    payload,
+  );
 }
 
 export async function deleteDashboardCloudPlanApi(planId: number) {
@@ -588,85 +665,171 @@ export async function deleteDashboardCloudPlanApi(planId: number) {
 }
 
 export async function getDashboardSiteConfigsApi() {
-  return requestClient.get<DashboardSiteConfigItem[]>('/admin/settings/site-configs/');
+  return requestClient.get<DashboardSiteConfigItem[]>(
+    '/admin/settings/site-configs/',
+  );
 }
 
 export async function getDashboardSiteConfigGroupsApi() {
-  return requestClient.get<DashboardSiteConfigGroup[]>('/admin/settings/site-configs/groups/');
+  return requestClient.get<DashboardSiteConfigGroup[]>(
+    '/admin/settings/site-configs/groups/',
+  );
 }
 
-export async function updateDashboardSiteConfigApi(configId: number, payload: DashboardSiteConfigUpdatePayload) {
-  return requestClient.post<DashboardSiteConfigItem>(`/admin/settings/site-configs/${configId}/`, payload);
+export async function updateDashboardSiteConfigApi(
+  configId: number,
+  payload: DashboardSiteConfigUpdatePayload,
+) {
+  return requestClient.post<DashboardSiteConfigItem>(
+    `/admin/settings/site-configs/${configId}/`,
+    payload,
+  );
 }
 
-export async function initDashboardSiteConfigsApi(payload: { scope?: 'all' | 'configs' } = {}) {
+export async function initDashboardSiteConfigsApi(
+  payload: { scope?: 'all' | 'configs' } = {},
+) {
   return requestClient.post('/admin/settings/site-configs/init/', payload);
 }
 
-export async function initDashboardTextConfigsApi(payload: { mode?: 'missing_only' | 'reset_defaults' } = {}) {
-  return requestClient.post<{ created: number; mode: string; updated: number }>('/admin/settings/site-configs/init-texts/', payload);
+export async function initDashboardTextConfigsApi(
+  payload: { mode?: 'missing_only' | 'reset_defaults' } = {},
+) {
+  return requestClient.post<{ created: number; mode: string; updated: number }>(
+    '/admin/settings/site-configs/init-texts/',
+    payload,
+  );
 }
 
 export async function getDashboardCloudAccountsApi() {
-  return requestClient.get<DashboardCloudAccountConfigItem[]>('/admin/settings/cloud-accounts/');
+  return requestClient.get<DashboardCloudAccountConfigItem[]>(
+    '/admin/settings/cloud-accounts/',
+  );
 }
 
-export async function createDashboardCloudAccountApi(payload: DashboardCloudAccountCreatePayload) {
-  return requestClient.post<DashboardCloudAccountConfigItem>('/admin/settings/cloud-accounts/create/', payload);
+export async function createDashboardCloudAccountApi(
+  payload: DashboardCloudAccountCreatePayload,
+) {
+  return requestClient.post<DashboardCloudAccountConfigItem>(
+    '/admin/settings/cloud-accounts/create/',
+    payload,
+  );
 }
 
-export async function updateDashboardCloudAccountApi(accountId: number, payload: DashboardCloudAccountUpdatePayload) {
-  return requestClient.post<DashboardCloudAccountConfigItem>(`/admin/settings/cloud-accounts/${accountId}/`, payload);
+export async function updateDashboardCloudAccountApi(
+  accountId: number,
+  payload: DashboardCloudAccountUpdatePayload,
+) {
+  return requestClient.post<DashboardCloudAccountConfigItem>(
+    `/admin/settings/cloud-accounts/${accountId}/`,
+    payload,
+  );
 }
 
 export async function deleteDashboardCloudAccountApi(accountId: number) {
-  return requestClient.post<boolean>(`/admin/settings/cloud-accounts/${accountId}/delete/`);
+  return requestClient.post<boolean>(
+    `/admin/settings/cloud-accounts/${accountId}/delete/`,
+  );
 }
 
-export async function verifyDashboardCloudAccountApi(accountId: number, payload: { region?: string } = {}) {
-  return requestClient.post<{ account: DashboardCloudAccountConfigItem; instance_count: number; provider: string; region: string; valid: boolean }>(`/admin/settings/cloud-accounts/${accountId}/verify/`, payload);
+export async function verifyDashboardCloudAccountApi(
+  accountId: number,
+  payload: { region?: string } = {},
+) {
+  return requestClient.post<{
+    account: DashboardCloudAccountConfigItem;
+    instance_count: number;
+    provider: string;
+    region: string;
+    valid: boolean;
+  }>(`/admin/settings/cloud-accounts/${accountId}/verify/`, payload);
 }
 
 export async function getDashboardAdminUsersApi() {
-  return requestClient.get<DashboardAdminUserItem[]>('/admin/settings/admin-users/');
+  return requestClient.get<DashboardAdminUserItem[]>(
+    '/admin/settings/admin-users/',
+  );
 }
 
-export async function createDashboardAdminUserApi(payload: DashboardAdminUserUpsertPayload) {
-  return requestClient.post<DashboardAdminUserItem>('/admin/settings/admin-users/create/', payload);
+export async function createDashboardAdminUserApi(
+  payload: DashboardAdminUserUpsertPayload,
+) {
+  return requestClient.post<DashboardAdminUserItem>(
+    '/admin/settings/admin-users/create/',
+    payload,
+  );
 }
 
-export async function updateDashboardAdminUserApi(userId: number, payload: DashboardAdminUserUpsertPayload) {
-  return requestClient.post<DashboardAdminUserItem>(`/admin/settings/admin-users/${userId}/`, payload);
+export async function updateDashboardAdminUserApi(
+  userId: number,
+  payload: DashboardAdminUserUpsertPayload,
+) {
+  return requestClient.post<DashboardAdminUserItem>(
+    `/admin/settings/admin-users/${userId}/`,
+    payload,
+  );
 }
 
 export async function deleteDashboardAdminUserApi(userId: number) {
-  return requestClient.post<boolean>(`/admin/settings/admin-users/${userId}/delete/`);
+  return requestClient.post<boolean>(
+    `/admin/settings/admin-users/${userId}/delete/`,
+  );
 }
 
-export async function changeDashboardMyPasswordApi(payload: DashboardChangePasswordPayload) {
-  return requestClient.post<boolean>('/admin/settings/password/change/', payload);
+export async function changeDashboardMyPasswordApi(
+  payload: DashboardChangePasswordPayload,
+) {
+  return requestClient.post<boolean>(
+    '/admin/settings/password/change/',
+    payload,
+  );
 }
 
-export async function getDashboardServersStatisticsApi(params: DashboardListQuery = {}) {
-  return requestClient.get<DashboardServerStatisticsResponse>('/admin/servers/statistics/', { params });
+export async function getDashboardServersStatisticsApi(
+  params: DashboardListQuery = {},
+) {
+  return requestClient.get<DashboardServerStatisticsResponse>(
+    '/admin/servers/statistics/',
+    { params },
+  );
 }
 
-export async function syncDashboardServersApi(region = 'cn-hongkong', awsRegion = 'ap-southeast-1') {
-  return requestClient.post('/admin/servers/sync/', { region, aws_region: awsRegion });
+export async function syncDashboardServersApi(
+  region = 'cn-hongkong',
+  awsRegion = 'ap-southeast-1',
+) {
+  return requestClient.post('/admin/servers/sync/', {
+    region,
+    aws_region: awsRegion,
+  });
 }
 
-export async function getDashboardRechargesApi(params: DashboardListQuery = {}) {
-  return requestClient.get<DashboardRechargeItem[]>('/admin/recharges/', { params });
+export async function getDashboardRechargesApi(
+  params: DashboardListQuery = {},
+) {
+  return requestClient.get<DashboardRechargeItem[]>('/admin/recharges/', {
+    params,
+  });
 }
 
 export async function getDashboardRechargeDetailApi(rechargeId: number) {
-  return requestClient.get<DashboardRechargeDetail>(`/admin/recharges/${rechargeId}/`);
+  return requestClient.get<DashboardRechargeDetail>(
+    `/admin/recharges/${rechargeId}/`,
+  );
 }
 
-export async function updateDashboardRechargeStatusApi(rechargeId: number, payload: { status: string }) {
-  return requestClient.post<DashboardRechargeDetail>(`/admin/recharges/${rechargeId}/status/`, payload);
+export async function updateDashboardRechargeStatusApi(
+  rechargeId: number,
+  payload: { status: string },
+) {
+  return requestClient.post<DashboardRechargeDetail>(
+    `/admin/recharges/${rechargeId}/status/`,
+    payload,
+  );
 }
 
 export async function getDashboardMonitorsApi(params: DashboardListQuery = {}) {
-  return requestClient.get<DashboardMonitorItem[]>('/admin/monitors/', { params });
+  return requestClient.get<DashboardMonitorItem[]>('/admin/monitors/', {
+    params,
+  });
 }
