@@ -82,7 +82,7 @@ async function saveStatus() {
 }
 
 function goBack() {
-  router.push('/admin/recharges').catch(() => {});
+  router.push('/admin/logs/recharges').catch(() => {});
 }
 
 onMounted(loadData);

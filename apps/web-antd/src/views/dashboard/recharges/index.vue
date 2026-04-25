@@ -73,7 +73,7 @@ onMounted(() => {
 });
 
 function goToDetail(rechargeId: number) {
-  router.push(`/admin/recharges/${rechargeId}`).catch(() => {});
+  router.push(`/admin/logs/recharges/${rechargeId}`).catch(() => {});
 }
 </script>
 

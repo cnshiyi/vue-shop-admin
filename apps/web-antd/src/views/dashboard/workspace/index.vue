@@ -28,9 +28,8 @@ const quickNavItems: WorkbenchQuickNavItem[] = [
   { color: '#13c2c2', icon: 'lucide:users', title: '用户列表', url: '/admin/users' },
   { color: '#14b8a6', icon: 'lucide:list-todo', title: '任务列表', url: '/admin/tasks' },
   { color: '#722ed1', icon: 'lucide:shopping-cart', title: '云订单', url: '/admin/cloud-orders' },
-  { color: '#0ea5e9', icon: 'lucide:package', title: '商品管理', url: '/admin/products' },
   { color: '#14b8a6', icon: 'lucide:package-search', title: '套餐设置', url: '/admin/cloud-plans/list' },
-  { color: '#fa8c16', icon: 'lucide:wallet-cards', title: '充值列表', url: '/admin/recharges' },
+  { color: '#fa8c16', icon: 'lucide:wallet-cards', title: '充值列表', url: '/admin/logs/recharges' },
   { color: '#52c41a', icon: 'lucide:boxes', title: '代理列表', url: '/admin/cloud-assets' },
   { color: '#eb2f96', icon: 'lucide:settings-2', title: '系统设置', url: '/admin/settings' },
 ];
@@ -39,11 +38,11 @@ const summaryCards = computed(() => {
   const summary = overview.value?.summary;
   return [
     { label: '用户总量', value: summary?.users_total ?? 0 },
-    { label: '商品数量', value: summary?.products_total ?? 0 },
     { label: '云订单', value: summary?.cloud_orders_total ?? 0 },
     { label: '待处理云订单', value: summary?.cloud_pending ?? 0 },
     { label: '充值记录', value: summary?.recharges_total ?? 0 },
     { label: '待确认充值', value: summary?.recharge_pending ?? 0 },
+    { label: '地址监控', value: summary?.monitors_total ?? 0 },
   ];
 });
 
@@ -63,10 +62,10 @@ const todoItems = computed<WorkbenchTodoItem[]>(() => {
       title: '充值待办',
     },
     {
-      completed: (summary?.products_total ?? 0) > 0,
-      content: `当前商品数 ${summary?.products_total ?? 0}，如订阅页无商品请先去商品管理补齐。`,
-      date: '配置',
-      title: '商品配置',
+      completed: (summary?.monitors_total ?? 0) > 0,
+      content: `当前地址监控数 ${summary?.monitors_total ?? 0}，如资源巡检异常可去监控列表排查。`,
+      date: '巡检',
+      title: '监控配置',
     },
   ];
 });

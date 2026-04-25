@@ -3,19 +3,24 @@ import { computed, onMounted, ref, watch } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Card, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message } from 'ant-design-vue';
+import {
+  Button,
+  Card,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  message,
+} from 'ant-design-vue';
 import type { TableColumnsType } from 'ant-design-vue';
 
-import {
-  createDashboardCloudPlanApi,
-  deleteDashboardCloudPlanApi,
-  getDashboardCloudPlansApi,
-  getDashboardCloudPricingApi,
-  updateDashboardCloudPlanApi,
-  type DashboardCloudPlanItem,
-  type DashboardCloudPlanUpdatePayload,
-  type DashboardCloudPricingItem,
-} from '#/api/admin';
+import { createDashboardCloudPlanApi, deleteDashboardCloudPlanApi, getDashboardCloudPlansApi, getDashboardCloudPricingApi, updateDashboardCloudPlanApi } from '#/api/admin';
+import type { DashboardCloudPlanItem, DashboardCloudPlanUpdatePayload, DashboardCloudPricingItem } from '#/api/admin';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -55,7 +60,12 @@ const planColumns: TableColumnsType<DashboardCloudPlanItem> = [
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 140 },
   { title: '厂商', dataIndex: 'provider', key: 'provider', width: 120 },
   { title: '套餐名', dataIndex: 'plan_name', key: 'plan_name', width: 160 },
-  { title: '配置', dataIndex: 'plan_description', key: 'plan_description', width: 280 },
+  {
+    title: '配置',
+    dataIndex: 'plan_description',
+    key: 'plan_description',
+    width: 280,
+  },
   { title: 'CPU', dataIndex: 'cpu', key: 'cpu', width: 90 },
   { title: '内存', dataIndex: 'memory', key: 'memory', width: 90 },
   { title: '存储', dataIndex: 'storage', key: 'storage', width: 110 },
@@ -71,16 +81,29 @@ const pricingColumns: TableColumnsType<DashboardCloudPricingItem> = [
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 140 },
   { title: '厂商', dataIndex: 'provider', key: 'provider', width: 120 },
   { title: '套餐名', dataIndex: 'plan_name', key: 'plan_name', width: 140 },
-  { title: '规格编码', dataIndex: 'bundle_code', key: 'bundle_code', width: 180 },
-  { title: '配置', dataIndex: 'plan_description', key: 'plan_description', width: 280 },
+  {
+    title: '规格编码',
+    dataIndex: 'bundle_code',
+    key: 'bundle_code',
+    width: 180,
+  },
+  {
+    title: '配置',
+    dataIndex: 'plan_description',
+    key: 'plan_description',
+    width: 280,
+  },
   { title: '进货价', dataIndex: 'cost_price', key: 'cost_price', width: 110 },
-  { title: '出售价', dataIndex: 'price', key: 'price', width: 110 },
   { title: '排序', dataIndex: 'sort_order', key: 'sort_order', width: 90 },
   { title: '状态', dataIndex: 'is_active', key: 'is_active', width: 90 },
 ];
 
-const currentColumns = computed(() => (activeTab.value === 'plans' ? planColumns : pricingColumns));
-const currentItems = computed(() => (activeTab.value === 'plans' ? plans.value : pricing.value));
+const currentColumns = computed(() =>
+  activeTab.value === 'plans' ? planColumns : pricingColumns,
+);
+const currentItems = computed(() =>
+  activeTab.value === 'plans' ? plans.value : pricing.value,
+);
 
 const regionOptions = computed(() => {
   const seen = new Set<string>();
@@ -103,7 +126,11 @@ const regionOptions = computed(() => {
 const pricingPresetOptions = computed(() => {
   return pricing.value
     .filter((item) => item.provider === editForm.value.provider)
-    .filter((item) => !selectedRegionCode.value || item.region_code === selectedRegionCode.value)
+    .filter(
+      (item) =>
+        !selectedRegionCode.value ||
+        item.region_code === selectedRegionCode.value,
+    )
     .map((item) => ({
       label: `${item.plan_name} / ${item.cpu} ${item.memory} ${item.storage}`,
       value: `${item.provider}::${item.region_code}::${item.bundle_code}`,
@@ -182,9 +209,18 @@ function openEdit(record: DashboardCloudPlanItem) {
 }
 
 function applyRegion(regionCode?: unknown) {
-  const normalizedRegionCode = typeof regionCode === 'string' ? regionCode : regionCode == null || Array.isArray(regionCode) ? undefined : String(regionCode);
+  const normalizedRegionCode =
+    typeof regionCode === 'string'
+      ? regionCode
+      : regionCode == null || Array.isArray(regionCode)
+        ? undefined
+        : String(regionCode);
   selectedRegionCode.value = normalizedRegionCode;
-  const selected = pricing.value.find((item) => item.provider === editForm.value.provider && item.region_code === normalizedRegionCode);
+  const selected = pricing.value.find(
+    (item) =>
+      item.provider === editForm.value.provider &&
+      item.region_code === normalizedRegionCode,
+  );
   editForm.value = {
     ...editForm.value,
     region_code: normalizedRegionCode || '',
@@ -194,9 +230,18 @@ function applyRegion(regionCode?: unknown) {
 }
 
 function applyPricingPreset(presetValue?: unknown) {
-  const normalizedPresetValue = typeof presetValue === 'string' ? presetValue : presetValue == null || Array.isArray(presetValue) ? undefined : String(presetValue);
+  const normalizedPresetValue =
+    typeof presetValue === 'string'
+      ? presetValue
+      : presetValue == null || Array.isArray(presetValue)
+        ? undefined
+        : String(presetValue);
   selectedPricingPreset.value = normalizedPresetValue;
-  const selected = pricing.value.find((item) => `${item.provider}::${item.region_code}::${item.bundle_code}` === normalizedPresetValue);
+  const selected = pricing.value.find(
+    (item) =>
+      `${item.provider}::${item.region_code}::${item.bundle_code}` ===
+      normalizedPresetValue,
+  );
   if (!selected) {
     return;
   }
@@ -213,18 +258,23 @@ function applyPricingPreset(presetValue?: unknown) {
     storage: selected.storage || '',
     bandwidth: selected.bandwidth || '',
     currency: selected.currency || 'USDT',
-    cost_price: Number(selected.cost_price || 0),
+    cost_price: Number(selected.cost_price || selected.price || 0),
   };
 }
 
-watch(() => editForm.value.provider, (provider) => {
-  selectedPricingPreset.value = undefined;
-  const firstRegion = pricing.value.find((item) => item.provider === provider)?.region_code;
-  selectedRegionCode.value = firstRegion;
-  if (createMode.value) {
-    applyRegion(firstRegion);
-  }
-});
+watch(
+  () => editForm.value.provider,
+  (provider) => {
+    selectedPricingPreset.value = undefined;
+    const firstRegion = pricing.value.find(
+      (item) => item.provider === provider,
+    )?.region_code;
+    selectedRegionCode.value = firstRegion;
+    if (createMode.value) {
+      applyRegion(firstRegion);
+    }
+  },
+);
 
 async function saveEdit() {
   saving.value = true;
@@ -239,7 +289,9 @@ async function saveEdit() {
     editOpen.value = false;
     await loadData();
   } catch (error: any) {
-    message.error(error?.message || (createMode.value ? '套餐创建失败' : '套餐更新失败'));
+    message.error(
+      error?.message || (createMode.value ? '套餐创建失败' : '套餐更新失败'),
+    );
   } finally {
     saving.value = false;
   }
@@ -267,11 +319,14 @@ onMounted(loadData);
 </script>
 
 <template>
-  <Page description="套餐改为后台手动创建和维护，已移除同步入口" title="套餐列表">
+  <Page
+    description="套餐与售价改为后台手动创建和维护；主规格与进货价请在配置同步页查看。"
+    title="套餐列表"
+  >
     <Card>
       <template #title>
         <Space>
-          <span>套餐与价格</span>
+          <span>套餐与售价</span>
           <Input.Search
             v-model:value="keyword"
             allow-clear
@@ -280,35 +335,84 @@ onMounted(loadData);
             style="width: 360px"
             @search="loadData"
           />
-          <Button size="small" :type="activeTab === 'plans' ? 'primary' : 'default'" @click="activeTab = 'plans'">套餐列表</Button>
-          <Button size="small" :type="activeTab === 'pricing' ? 'primary' : 'default'" @click="activeTab = 'pricing'">价格列表</Button>
-          <Button v-if="activeTab === 'plans'" size="small" type="primary" @click="openCreate">新增套餐</Button>
+          <Button
+            size="small"
+            :type="activeTab === 'plans' ? 'primary' : 'default'"
+            @click="activeTab = 'plans'"
+            >套餐列表</Button
+          >
+          <Button
+            size="small"
+            :type="activeTab === 'pricing' ? 'primary' : 'default'"
+            @click="activeTab = 'pricing'"
+            >价格列表</Button
+          >
+          <Button
+            v-if="activeTab === 'plans'"
+            size="small"
+            type="primary"
+            @click="openCreate"
+            >新增套餐</Button
+          >
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
         </Space>
       </template>
-      <Table :columns="currentColumns" :data-source="currentItems" :loading="loading" row-key="id" :pagination="{ pageSize: 20 }" :scroll="{ x: 1700 }">
+      <Table
+        :columns="currentColumns"
+        :data-source="currentItems"
+        :loading="loading"
+        row-key="id"
+        :pagination="{ pageSize: 20 }"
+        :scroll="{ x: 1700 }"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'provider'">
-            <Tag color="blue">{{ record.provider_label || record.provider || '-' }}</Tag>
+            <Tag color="blue">{{
+              record.provider_label || record.provider || '-'
+            }}</Tag>
           </template>
           <template v-else-if="column.key === 'cost_price'">
-            <Tag color="default">{{ record.cost_price || '0' }} {{ record.currency || 'USDT' }}</Tag>
+            <Tag color="default"
+              >{{ record.cost_price || '0' }}
+              {{ record.currency || 'USDT' }}</Tag
+            >
           </template>
           <template v-else-if="column.key === 'price'">
-            <Tag color="gold">{{ record.price }} {{ record.currency || 'USDT' }}</Tag>
+            <Tag color="gold"
+              >{{ record.price }} {{ record.currency || 'USDT' }}</Tag
+            >
           </template>
           <template v-else-if="column.key === 'is_active'">
-            <Tag :color="record.is_active ? 'success' : 'default'">{{ record.is_active ? '启用' : '停用' }}</Tag>
+            <Tag :color="record.is_active ? 'success' : 'default'">{{
+              record.is_active ? '启用' : '停用'
+            }}</Tag>
           </template>
           <template v-else-if="column.key === 'plan_description'">
-            <span>{{ record.plan_description || `${record.cpu} / ${record.memory} / ${record.storage} / ${record.bandwidth}` }}</span>
+            <span>{{
+              record.plan_description ||
+              `${record.cpu} / ${record.memory} / ${record.storage} / ${record.bandwidth}`
+            }}</span>
           </template>
           <template v-else-if="column.key === 'actions'">
             <Space>
-              <Button type="link" size="small" @click="openEdit(asDashboardCloudPlanItem(record))">编辑</Button>
-              <Popconfirm title="确认删除该套餐？" @confirm="removePlan(record.id)">
-                <Button type="link" danger size="small" :loading="deletingId === record.id">删除</Button>
+              <Button
+                type="link"
+                size="small"
+                @click="openEdit(asDashboardCloudPlanItem(record))"
+                >编辑</Button
+              >
+              <Popconfirm
+                title="确认删除该套餐？"
+                @confirm="removePlan(record.id)"
+              >
+                <Button
+                  type="link"
+                  danger
+                  size="small"
+                  :loading="deletingId === record.id"
+                  >删除</Button
+                >
               </Popconfirm>
             </Space>
           </template>
@@ -316,15 +420,29 @@ onMounted(loadData);
       </Table>
     </Card>
 
-    <Modal v-model:open="editOpen" :title="createMode ? '新增套餐' : '编辑套餐'" :confirm-loading="saving" @ok="saveEdit">
+    <Modal
+      v-model:open="editOpen"
+      :title="createMode ? '新增套餐' : '编辑套餐'"
+      :confirm-loading="saving"
+      @ok="saveEdit"
+    >
       <Space direction="vertical" style="width: 100%">
-        <Select v-model:value="editForm.provider" :options="providerOptions" placeholder="选择云厂商" />
+        <Select
+          v-model:value="editForm.provider"
+          :options="providerOptions"
+          placeholder="选择云厂商"
+        />
         <Select
           v-if="createMode"
           v-model:value="selectedRegionCode"
           allow-clear
           show-search
-          :filter-option="(input, option) => String(option?.label || '').toLowerCase().includes(input.toLowerCase())"
+          :filter-option="
+            (input, option) =>
+              String(option?.label || '')
+                .toLowerCase()
+                .includes(input.toLowerCase())
+          "
           :options="regionOptions"
           placeholder="第二步：选择地区"
           @change="applyRegion"
@@ -335,23 +453,62 @@ onMounted(loadData);
           allow-clear
           show-search
           :disabled="!selectedRegionCode"
-          :filter-option="(input, option) => String(option?.label || '').toLowerCase().includes(input.toLowerCase())"
+          :filter-option="
+            (input, option) =>
+              String(option?.label || '')
+                .toLowerCase()
+                .includes(input.toLowerCase())
+          "
           :options="pricingPresetOptions"
-          placeholder="第三步：选择配置，自动带入进货价"
+          placeholder="第三步：选择配置，自动带入进货价（同步价）"
           @change="applyPricingPreset"
         />
-        <Input v-model:value="editForm.region_code" :disabled="createMode" placeholder="地区代码，如 ap-southeast-1" />
-        <Input v-model:value="editForm.region_name" :disabled="createMode" placeholder="地区名称，如 新加坡" />
+        <Input
+          v-model:value="editForm.region_code"
+          :disabled="createMode"
+          placeholder="地区代码，如 ap-southeast-1"
+        />
+        <Input
+          v-model:value="editForm.region_name"
+          :disabled="createMode"
+          placeholder="地区名称，如 新加坡"
+        />
         <Input v-model:value="editForm.plan_name" placeholder="套餐名" />
-        <Input v-model:value="editForm.plan_description" placeholder="套餐描述" />
+        <Input
+          v-model:value="editForm.plan_description"
+          placeholder="套餐描述"
+        />
         <Input v-model:value="editForm.cpu" placeholder="CPU，如 2核" />
         <Input v-model:value="editForm.memory" placeholder="内存，如 2GB" />
-        <Input v-model:value="editForm.storage" placeholder="存储，如 60GB SSD" />
-        <Input v-model:value="editForm.bandwidth" placeholder="带宽，如 3TB / 30Mbps" />
+        <Input
+          v-model:value="editForm.storage"
+          placeholder="存储，如 60GB SSD"
+        />
+        <Input
+          v-model:value="editForm.bandwidth"
+          placeholder="带宽，如 3TB / 30Mbps"
+        />
         <Input v-model:value="editForm.currency" placeholder="币种" />
-        <InputNumber v-model:value="editForm.cost_price" style="width: 100%" :min="0" :step="0.01" addon-before="进货价" />
-        <InputNumber v-model:value="editForm.price" style="width: 100%" :min="0" :step="0.01" addon-before="出售价" />
-        <InputNumber v-model:value="editForm.sort_order" style="width: 100%" :step="1" addon-before="排序" />
+        <InputNumber
+          v-model:value="editForm.cost_price"
+          style="width: 100%"
+          :min="0"
+          :step="0.01"
+          addon-before="进货价"
+        />
+        <InputNumber
+          v-model:value="editForm.price"
+          style="width: 100%"
+          :min="0"
+          :step="0.01"
+          addon-before="出售价"
+        />
+        <InputNumber
+          v-model:value="editForm.sort_order"
+          style="width: 100%"
+          :step="1"
+          addon-before="排序"
+        />
         <Space>
           <span>启用</span>
           <Switch v-model:checked="editForm.is_active" />

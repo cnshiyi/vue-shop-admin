@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import dayjs from 'dayjs';
-import { onMounted, reactive, ref } from 'vue';
+import { onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
@@ -11,6 +11,7 @@ import {
   DatePicker,
   Form,
   Input,
+  InputNumber,
   Modal,
   Popconfirm,
   Space,
@@ -23,18 +24,30 @@ import {
 import {
   getDashboardCloudAssetsApi,
   getDashboardCloudAssetsGroupedApi,
+  getDashboardCloudAssetsSyncStatusApi,
   syncDashboardCloudAssetsApi,
   updateDashboardCloudAssetApi,
   deleteDashboardServerApi,
+  rebuildDashboardServerPreserveLinkApi,
   type DashboardCloudAssetGroup,
   type DashboardCloudAssetItem,
 } from '#/api/admin';
 
+const AUTO_REFRESH_MS = 10 * 60 * 1000;
+
 const loading = ref(false);
 const saving = ref(false);
 const syncing = ref(false);
+const rebuildingServerId = ref<number | null>(null);
 const keyword = ref('');
 const grouped = ref(true);
+const lastRefreshedAt = ref<dayjs.Dayjs | null>(null);
+const lastSyncedAt = ref<dayjs.Dayjs | null>(null);
+const nextRefreshInSeconds = ref(Math.floor(AUTO_REFRESH_MS / 1000));
+const recentSyncHighlight = ref(false);
+const autoSyncEverySeconds = ref(10 * 60);
+const awsExistingCount = ref(0);
+const aliyunExistingCount = ref(0);
 const items = ref<DashboardCloudAssetItem[]>([]);
 const groups = ref<DashboardCloudAssetGroup[]>([]);
 const expandedGroupKeys = ref<string[]>([]);
@@ -47,45 +60,166 @@ const currentRow = ref<DashboardCloudAssetItem | null>(null);
 const formState = reactive({
   actual_expires_at: null as any,
   is_active: true,
-  mtproxy_link: '',
   note: '',
   price: '',
   public_ip: '',
+  sort_order: 99,
   user_query: '',
 });
+let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
+let countdownTimer: ReturnType<typeof setInterval> | null = null;
+let syncHighlightTimer: ReturnType<typeof setTimeout> | null = null;
+
+function normalizeDaysLeft(record: DashboardCloudAssetItem) {
+  if (typeof record.days_left !== 'number' || Number.isNaN(record.days_left)) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return record.days_left;
+}
+
+function normalizeExpiresAt(value: null | string | undefined) {
+  if (!value) {
+    return Number.POSITIVE_INFINITY;
+  }
+  const timestamp = dayjs(value).valueOf();
+  return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp;
+}
+
+function normalizeUpdatedAt(value: null | string | undefined) {
+  if (!value) {
+    return 0;
+  }
+  const timestamp = dayjs(value).valueOf();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function compareByDaysLeft(a: DashboardCloudAssetItem, b: DashboardCloudAssetItem) {
+  const daysDiff = normalizeDaysLeft(a) - normalizeDaysLeft(b);
+  if (daysDiff !== 0) {
+    return daysDiff;
+  }
+  const expiresDiff = normalizeExpiresAt(a.actual_expires_at) - normalizeExpiresAt(b.actual_expires_at);
+  if (expiresDiff !== 0) {
+    return expiresDiff;
+  }
+  return normalizeUpdatedAt(b.updated_at) - normalizeUpdatedAt(a.updated_at);
+}
+
+function compareByDisplayOrder(a: DashboardCloudAssetItem, b: DashboardCloudAssetItem) {
+  const deletedDiff = Number(a.status === 'deleted') - Number(b.status === 'deleted');
+  if (deletedDiff !== 0) {
+    return deletedDiff;
+  }
+  const sortDiff = (b.sort_order || 99) - (a.sort_order || 99);
+  if (sortDiff !== 0) {
+    return sortDiff;
+  }
+  return compareByDaysLeft(a, b);
+}
+
+function compareByExpiresAt(a: DashboardCloudAssetItem, b: DashboardCloudAssetItem) {
+  const expiresDiff = normalizeExpiresAt(a.actual_expires_at) - normalizeExpiresAt(b.actual_expires_at);
+  if (expiresDiff !== 0) {
+    return expiresDiff;
+  }
+  const daysDiff = normalizeDaysLeft(a) - normalizeDaysLeft(b);
+  if (daysDiff !== 0) {
+    return daysDiff;
+  }
+  return normalizeUpdatedAt(b.updated_at) - normalizeUpdatedAt(a.updated_at);
+}
+
+function sortAssets(records: DashboardCloudAssetItem[]) {
+  return [...records].sort(compareByDisplayOrder);
+}
 
 const columns = [
   { title: '用户', dataIndex: 'user_display_name', key: 'user_display_name' },
   { title: '用户名', dataIndex: 'username_label', key: 'username_label' },
   { title: '资产名称', dataIndex: 'asset_name', key: 'asset_name' },
+  {
+    title: '排序',
+    dataIndex: 'sort_order',
+    key: 'sort_order',
+    width: 90,
+    sorter: (a: DashboardCloudAssetItem, b: DashboardCloudAssetItem) => (b.sort_order || 99) - (a.sort_order || 99),
+  },
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 140 },
   { title: '公网IP', dataIndex: 'public_ip', key: 'public_ip' },
   { title: '代理链接', dataIndex: 'mtproxy_link', key: 'mtproxy_link' },
   { title: '价格', dataIndex: 'price', key: 'price', width: 100 },
-  { title: '到期日期', dataIndex: 'actual_expires_at', key: 'actual_expires_at', width: 120 },
+  {
+    title: '到期日期',
+    dataIndex: 'actual_expires_at',
+    key: 'actual_expires_at',
+    width: 120,
+    sorter: compareByExpiresAt,
+  },
   { title: '备注', dataIndex: 'note', key: 'note' },
   { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
-  { title: '剩余天数', dataIndex: 'status_countdown', key: 'status_countdown', width: 140 },
+  {
+    title: '剩余天数',
+    dataIndex: 'status_countdown',
+    key: 'status_countdown',
+    width: 140,
+    sorter: compareByDaysLeft,
+    defaultSortOrder: 'ascend' as const,
+  },
   { title: '操作', key: 'actions', fixed: 'right' as const, width: 150 },
 ];
+
+function formatRefreshTime(value: dayjs.Dayjs | null) {
+  return value ? value.format('MM-DD HH:mm:ss') : '-';
+}
+
+function resetRefreshCountdown() {
+  nextRefreshInSeconds.value = Math.floor(AUTO_REFRESH_MS / 1000);
+}
+
+function markRecentSync() {
+  recentSyncHighlight.value = true;
+  if (syncHighlightTimer) {
+    clearTimeout(syncHighlightTimer);
+  }
+  syncHighlightTimer = setTimeout(() => {
+    recentSyncHighlight.value = false;
+    syncHighlightTimer = null;
+  }, 10_000);
+}
 
 async function loadData() {
   loading.value = true;
   try {
+    const [syncStatus, response] = await Promise.all([
+      getDashboardCloudAssetsSyncStatusApi(),
+      grouped.value
+        ? getDashboardCloudAssetsGroupedApi({ keyword: keyword.value.trim() })
+        : getDashboardCloudAssetsApi({ keyword: keyword.value.trim() }),
+    ]);
+    autoSyncEverySeconds.value = syncStatus.auto_sync_every_seconds || 10 * 60;
+    lastSyncedAt.value = syncStatus.last_synced_at ? dayjs(syncStatus.last_synced_at) : null;
+    awsExistingCount.value = syncStatus.aws_existing_count || 0;
+    aliyunExistingCount.value = syncStatus.aliyun_existing_count || 0;
+
     if (grouped.value) {
-      const response = await getDashboardCloudAssetsGroupedApi({ keyword: keyword.value.trim() });
-      groups.value = response.groups;
-      items.value = response.items;
-      expandedGroupKeys.value = response.groups
-        .filter((group) => group.default_expanded !== false)
-        .map((group) => group.user_key);
+      const groupedResponse = response as any;
+      groups.value = groupedResponse.groups.map((group: DashboardCloudAssetGroup) => ({
+        ...group,
+        items: sortAssets(group.items),
+      }));
+      items.value = sortAssets(groupedResponse.items);
+      expandedGroupKeys.value = groupedResponse.groups
+        .filter((group: DashboardCloudAssetGroup) => group.default_expanded !== false)
+        .map((group: DashboardCloudAssetGroup) => group.user_key);
       return;
     }
-    items.value = await getDashboardCloudAssetsApi({ keyword: keyword.value.trim() });
+    items.value = sortAssets(response as DashboardCloudAssetItem[]);
     groups.value = [];
     expandedGroupKeys.value = [];
   } finally {
     loading.value = false;
+    lastRefreshedAt.value = dayjs();
+    resetRefreshCountdown();
   }
 }
 
@@ -98,8 +232,9 @@ async function syncAssets() {
   syncing.value = true;
   try {
     await syncDashboardCloudAssetsApi();
-    message.success('代理同步完成');
+    markRecentSync();
     await loadData();
+    message.success(`代理同步完成：AWS 存在 ${awsExistingCount.value} 条，阿里云存在 ${aliyunExistingCount.value} 条`);
   } catch (error: any) {
     message.error(error?.message || '代理同步失败');
   } finally {
@@ -111,10 +246,10 @@ function openEdit(record: DashboardCloudAssetItem) {
   currentRow.value = record;
   formState.actual_expires_at = record.actual_expires_at ? dayjs(record.actual_expires_at) : null;
   formState.is_active = record.is_active;
-  formState.mtproxy_link = record.mtproxy_link || '';
   formState.note = record.note || '';
   formState.price = record.price || '0.00';
   formState.public_ip = record.public_ip || '';
+  formState.sort_order = record.sort_order || 99;
   formState.user_query = record.user_id
     ? String(record.user_id)
     : (record.tg_user_id ? String(record.tg_user_id) : '');
@@ -173,6 +308,63 @@ function isAssetNameExpanded(id: number) {
   return expandedAssetNameKeys.value.includes(String(id));
 }
 
+function countdownTagColor(label?: null | string) {
+  if (!label || label === '-') {
+    return 'default';
+  }
+  if (label.includes('未附加IP') || label.includes('未附加固定IP')) {
+    return 'warning';
+  }
+  if (label.includes('仍使用旧机')) {
+    return 'warning';
+  }
+  if (label.includes('迁移中') || label.includes('切换到新机')) {
+    return 'processing';
+  }
+  if (label.includes('已删除')) {
+    return 'default';
+  }
+  if (label.includes('已过期')) {
+    return 'error';
+  }
+  if (label.includes('小时')) {
+    return 'warning';
+  }
+  const matched = label.match(/剩余\s*(\d+)\s*天/);
+  if (matched) {
+    const days = Number(matched[1]);
+    if (days <= 3) {
+      return 'gold';
+    }
+  }
+  return 'processing';
+}
+
+function sortOrderTagColor(sortOrder?: number) {
+  return (sortOrder || 99) !== 99 ? 'success' : 'default';
+}
+
+function canRebuildPreserveLink(record: DashboardCloudAssetItem) {
+  return record.kind === 'server' && record.provider === 'aws_lightsail' && !!record.server_id && !!record.order_id && record.status !== 'deleted';
+}
+
+async function rebuildPreserveLink(record: DashboardCloudAssetItem) {
+  if (!record.server_id) {
+    message.error('当前记录缺少服务器ID');
+    return;
+  }
+  rebuildingServerId.value = record.server_id;
+  try {
+    const result = await rebuildDashboardServerPreserveLinkApi(record.server_id);
+    message.success(result.message || '已发起重装迁移');
+    await loadData();
+  } catch (error: any) {
+    message.error(error?.message || '发起重装迁移失败');
+  } finally {
+    rebuildingServerId.value = null;
+  }
+}
+
 async function deleteAsset(record: DashboardCloudAssetItem) {
   try {
     const serverId = record.server_id || record.id;
@@ -184,6 +376,41 @@ async function deleteAsset(record: DashboardCloudAssetItem) {
   }
 }
 
+function startAutoRefresh() {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+  }
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+  }
+  resetRefreshCountdown();
+  autoRefreshTimer = setInterval(() => {
+    if (!editOpen.value && !loading.value && !saving.value && !syncing.value) {
+      loadData();
+    }
+  }, AUTO_REFRESH_MS);
+  countdownTimer = setInterval(() => {
+    if (!editOpen.value && !loading.value && !saving.value && !syncing.value) {
+      nextRefreshInSeconds.value = Math.max(0, nextRefreshInSeconds.value - 1);
+    }
+  }, 1000);
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+  if (syncHighlightTimer) {
+    clearTimeout(syncHighlightTimer);
+    syncHighlightTimer = null;
+  }
+}
+
 async function submitEdit() {
   if (!currentRow.value) return;
   saving.value = true;
@@ -191,8 +418,8 @@ async function submitEdit() {
     await updateDashboardCloudAssetApi(currentRow.value.id, {
       actual_expires_at: formState.actual_expires_at ? dayjs(formState.actual_expires_at).format('YYYY-MM-DD') : null,
       is_active: formState.is_active,
-      mtproxy_link: formState.mtproxy_link || null,
       note: formState.note || null,
+      sort_order: Number(formState.sort_order || 99),
       price: formState.price || null,
       public_ip: formState.public_ip || null,
       user_query: formState.user_query.trim() || null,
@@ -207,11 +434,18 @@ async function submitEdit() {
   }
 }
 
-onMounted(loadData);
+onMounted(() => {
+  loadData();
+  startAutoRefresh();
+});
+
+onBeforeUnmount(() => {
+  stopAutoRefresh();
+});
 </script>
 
 <template>
-  <Page description="统一查看 MTProxy 代理资产，支持分组与编辑" title="代理列表">
+  <Page description="统一查看 MTProxy 代理资产，支持默认排序与手工排序" title="代理列表">
     <Card>
       <template #title>
         <Space>
@@ -227,7 +461,13 @@ onMounted(loadData);
           <Button size="small" :loading="syncing" @click="syncAssets">同步代理</Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
-          <span>按用户分组</span>
+          <Tag v-if="syncing" color="processing">同步中…</Tag>
+          <Tag v-else-if="loading" color="processing">刷新中…</Tag>
+          <Tag color="blue">最后刷新：{{ formatRefreshTime(lastRefreshedAt) }}</Tag>
+          <Tag v-if="lastSyncedAt" :color="recentSyncHighlight ? 'success' : 'cyan'">后台同步：{{ formatRefreshTime(lastSyncedAt) }}</Tag>
+          <Tag color="geekblue">自动同步周期：{{ Math.floor(autoSyncEverySeconds / 60) }}分钟</Tag>
+          <Tag color="orange">数量：AWS {{ awsExistingCount }} / 阿里云 {{ aliyunExistingCount }}</Tag>
+          <Tag color="purple">下次刷新：{{ nextRefreshInSeconds }}s</Tag>
           <Switch v-model:checked="grouped" @change="loadData" />
         </Space>
       </template>
@@ -282,6 +522,9 @@ onMounted(loadData);
                   </Tag>
                 </div>
               </template>
+              <template v-else-if="column.key === 'sort_order'">
+                <Tag :color="sortOrderTagColor(record.sort_order)">{{ record.sort_order || 99 }}</Tag>
+              </template>
               <template v-else-if="column.key === 'mtproxy_link'">
                 <div v-if="record.mtproxy_link" class="max-w-full overflow-hidden">
                   <TypographyParagraph
@@ -315,16 +558,25 @@ onMounted(loadData);
                 <span v-else>-</span>
               </template>
               <template v-else-if="column.key === 'status'">
-                <Tag :color="record.is_active ? 'success' : (record.status === 'deleted' || record.status === 'terminated' ? 'default' : 'warning')">
-                  {{ record.status_label || record.status || '-' }}
+                <Tag :color="(record.provider_status || '').includes('未附加固定IP') ? 'warning' : (record.status === 'deleted' ? 'default' : (record.is_active ? 'success' : (record.status === 'terminated' ? 'default' : 'warning')))">
+                  {{ (record.provider_status || '').includes('未附加固定IP') ? '未附加IP' : (record.status_label || record.status || '-') }}
                 </Tag>
               </template>
               <template v-else-if="column.key === 'status_countdown'">
-                <Tag color="processing">{{ record.status_countdown || record.provider_status || '-' }}</Tag>
+                <Tag :color="countdownTagColor((record.provider_status || '').includes('未附加固定IP') ? '未附加IP' : (record.preserve_link_status || record.status_countdown || record.provider_status || '-'))">
+                  {{ (record.provider_status || '').includes('未附加固定IP') ? '未附加IP' : (record.preserve_link_status || record.status_countdown || record.provider_status || '-') }}
+                </Tag>
               </template>
               <template v-else-if="column.key === 'actions'">
                 <Space>
                   <Button type="link" @click="openEdit(record as DashboardCloudAssetItem)">编辑</Button>
+                  <Popconfirm
+                    v-if="canRebuildPreserveLink(record as DashboardCloudAssetItem)"
+                    title="确认按 AWS 方案重装并保持链接不变吗？系统会后台创建新实例、切换固定 IP、复用 MTProxy 密钥，成功后删除旧实例。"
+                    @confirm="rebuildPreserveLink(record as DashboardCloudAssetItem)"
+                  >
+                    <Button type="link" :loading="rebuildingServerId === (record.server_id || null)">重装</Button>
+                  </Popconfirm>
                   <Popconfirm title="确认删除该代理/服务器记录吗？" @confirm="deleteAsset(record as DashboardCloudAssetItem)">
                     <Button danger type="link">删除</Button>
                   </Popconfirm>
@@ -376,6 +628,9 @@ onMounted(loadData);
               </Tag>
             </div>
           </template>
+          <template v-else-if="column.key === 'sort_order'">
+            <Tag :color="sortOrderTagColor(record.sort_order)">{{ record.sort_order || 99 }}</Tag>
+          </template>
           <template v-else-if="column.key === 'mtproxy_link'">
             <div v-if="record.mtproxy_link" class="max-w-full overflow-hidden">
               <TypographyParagraph
@@ -409,16 +664,25 @@ onMounted(loadData);
             <span v-else>-</span>
           </template>
           <template v-else-if="column.key === 'status'">
-            <Tag :color="record.is_active ? 'success' : (record.status === 'deleted' || record.status === 'terminated' ? 'default' : 'warning')">
-              {{ record.status_label || record.status || '-' }}
+            <Tag :color="(record.provider_status || '').includes('未附加固定IP') ? 'warning' : (record.status === 'deleted' ? 'default' : (record.is_active ? 'success' : (record.status === 'terminated' ? 'default' : 'warning')))">
+              {{ (record.provider_status || '').includes('未附加固定IP') ? '未附加IP' : (record.status_label || record.status || '-') }}
             </Tag>
           </template>
           <template v-else-if="column.key === 'status_countdown'">
-            <Tag color="processing">{{ record.status_countdown || record.provider_status || '-' }}</Tag>
+            <Tag :color="countdownTagColor((record.provider_status || '').includes('未附加固定IP') ? '未附加IP' : (record.preserve_link_status || record.status_countdown || record.provider_status || '-'))">
+              {{ (record.provider_status || '').includes('未附加固定IP') ? '未附加IP' : (record.preserve_link_status || record.status_countdown || record.provider_status || '-') }}
+            </Tag>
           </template>
           <template v-else-if="column.key === 'actions'">
             <Space>
               <Button type="link" @click="openEdit(record as DashboardCloudAssetItem)">编辑</Button>
+              <Popconfirm
+                v-if="canRebuildPreserveLink(record as DashboardCloudAssetItem)"
+                title="确认按 AWS 方案重装并保持链接不变吗？系统会后台创建新实例、切换固定 IP、复用 MTProxy 密钥，成功后删除旧实例。"
+                @confirm="rebuildPreserveLink(record as DashboardCloudAssetItem)"
+              >
+                <Button type="link" :loading="rebuildingServerId === (record.server_id || null)">重装</Button>
+              </Popconfirm>
               <Popconfirm title="确认删除该代理/服务器记录吗？" @confirm="deleteAsset(record as DashboardCloudAssetItem)">
                 <Button danger type="link">删除</Button>
               </Popconfirm>
@@ -430,26 +694,26 @@ onMounted(loadData);
 
     <Modal v-model:open="editOpen" :confirm-loading="saving" title="编辑代理" width="720px" @ok="submitEdit">
       <Form layout="vertical">
-        <Form.Item label="用户显示名">
-          <Input :value="currentRow?.user_display_name || ''" disabled />
-        </Form.Item>
-        <Form.Item label="用户绑定">
+        <Form.Item label="用户">
           <Input
             v-model:value="formState.user_query"
-            placeholder="输入后台用户ID / Telegram ID / 用户名，自动识别"
+            placeholder="输入后台用户ID / Telegram ID / 用户名，自动识别并绑定，逻辑与之前一致"
           />
         </Form.Item>
-        <Form.Item label="公网 IP">
-          <Input v-model:value="formState.public_ip" placeholder="x.x.x.x" />
+        <Form.Item label="当前显示用户">
+          <Input :value="currentRow?.user_display_name || ''" disabled />
         </Form.Item>
         <Form.Item label="价格">
           <Input v-model:value="formState.price" placeholder="关联订单价格" />
         </Form.Item>
-        <Form.Item label="到期日期">
+        <Form.Item extra="这里是服务到期时间；默认值 99 表示不人工干预排序，数字越大越靠前，已删除默认沉底。" label="到期日期">
           <DatePicker v-model:value="formState.actual_expires_at" format="YYYY-MM-DD" style="width: 100%" />
         </Form.Item>
-        <Form.Item label="代理链接">
-          <Input v-model:value="formState.mtproxy_link" placeholder="tg://proxy?..." />
+        <Form.Item label="排序">
+          <InputNumber v-model:value="formState.sort_order" :min="0" :precision="0" placeholder="99=默认排序" style="width: 100%" />
+        </Form.Item>
+        <Form.Item label="公网 IP">
+          <Input v-model:value="formState.public_ip" placeholder="x.x.x.x" />
         </Form.Item>
         <Form.Item label="备注">
           <Input v-model:value="formState.note" placeholder="备注信息" />

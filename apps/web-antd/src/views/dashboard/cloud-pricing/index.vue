@@ -62,7 +62,6 @@ const pricingColumns: TableColumnsType<DashboardCloudPricingItem> = [
   { title: '存储', dataIndex: 'storage', key: 'storage', width: 120 },
   { title: '带宽', dataIndex: 'bandwidth', key: 'bandwidth', width: 100 },
   { title: '进货价', dataIndex: 'cost_price', key: 'cost_price', width: 120 },
-  { title: '同步原价', dataIndex: 'price', key: 'price', width: 120 },
   { title: '币种', dataIndex: 'currency', key: 'currency', width: 100 },
   { title: '排序', dataIndex: 'sort_order', key: 'sort_order', width: 90 },
   { title: '状态', dataIndex: 'is_active', key: 'is_active', width: 90 },
@@ -216,11 +215,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <Page description="这里同步 AWS / 阿里云当前在售主规格与价格模板；AWS 已按主套餐口径过滤，不包含 Windows / IPv6 / 优化型变体，也不会生成或修改对外售卖套餐" title="配置同步">
+  <Page description="这里同步 AWS / 阿里云当前在售主规格与进货价；AWS 已按主套餐口径过滤，不包含 Windows / IPv6 / 优化型变体，也不会生成或修改对外售卖套餐。" title="配置同步">
     <Card>
       <template #title>
         <Space>
-          <span>配置同步</span>
+          <span>主规格与进货价同步</span>
           <Input.Search
             v-model:value="keyword"
             allow-clear
@@ -229,7 +228,7 @@ onMounted(() => {
             style="width: 360px"
             @search="loadData"
           />
-          <Button size="small" type="primary" :loading="syncing" @click="syncPricing">同步主规格</Button>
+          <Button size="small" type="primary" :loading="syncing" @click="syncPricing">同步主规格与进货价</Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
         </Space>
@@ -271,14 +270,11 @@ onMounted(() => {
                 :pagination="false"
                 row-key="id"
                 size="small"
-                :scroll="{ x: 1500 }"
+                :scroll="{ x: 1380 }"
               >
                 <template #bodyCell="{ column, record }">
                   <template v-if="column.key === 'cost_price'">
                     <Tag>{{ formatMoney(record.cost_price, record.currency) }}</Tag>
-                  </template>
-                  <template v-else-if="column.key === 'price'">
-                    <Tag color="gold">{{ formatMoney(record.price, record.currency) }}</Tag>
                   </template>
                   <template v-else-if="column.key === 'is_active'">
                     <Tag :color="record.is_active ? 'success' : 'default'">{{ record.is_active ? '在售' : '停用' }}</Tag>

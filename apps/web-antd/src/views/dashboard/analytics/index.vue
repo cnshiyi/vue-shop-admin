@@ -12,7 +12,6 @@ import {
 } from '@vben/common-ui';
 import {
   SvgBellIcon,
-  SvgCakeIcon,
   SvgCardIcon,
   SvgDownloadIcon,
 } from '@vben/icons';
@@ -36,13 +35,6 @@ const overviewItems = computed<AnalysisOverviewItem[]>(() => {
       value: summary?.users_total ?? 0,
     },
     {
-      icon: SvgCakeIcon,
-      title: '商品总量',
-      totalTitle: '已配置商品',
-      totalValue: summary?.products_total ?? 0,
-      value: summary?.products_total ?? 0,
-    },
-    {
       icon: SvgDownloadIcon,
       title: '云订单总量',
       totalTitle: '云服务器订单',
@@ -55,6 +47,13 @@ const overviewItems = computed<AnalysisOverviewItem[]>(() => {
       totalTitle: '充值记录',
       totalValue: summary?.recharges_total ?? 0,
       value: summary?.recharge_pending ?? 0,
+    },
+    {
+      icon: SvgCardIcon,
+      title: '监控总量',
+      totalTitle: '地址监控',
+      totalValue: summary?.monitors_total ?? 0,
+      value: summary?.monitors_total ?? 0,
     },
   ];
 });
@@ -80,8 +79,8 @@ const progressItems = computed(() => {
       strokeColor: '#52c41a',
     },
     {
-      label: '商品配置完成度',
-      percent: summary?.products_total ? 100 : 0,
+      label: '地址监控覆盖度',
+      percent: summary?.monitors_total ? 100 : 0,
       strokeColor: '#722ed1',
     },
   ];
@@ -201,7 +200,7 @@ onMounted(loadOverview);
         <div class="space-y-3 text-sm text-gray-500">
           <div>待办处理去工作台</div>
           <div>订单异常去云订单</div>
-          <div>配置缺口去系统设置/商品管理</div>
+          <div>配置缺口去系统设置/套餐设置</div>
         </div>
       </AnalysisChartCard>
     </div>

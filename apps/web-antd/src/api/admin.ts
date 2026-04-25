@@ -10,7 +10,6 @@ export interface DashboardSummary {
   cloud_pending: number;
   monitors_total: number;
   orders_total: number;
-  products_total: number;
   recharge_pending: number;
   recharges_total: number;
   users_total: number;
@@ -147,6 +146,7 @@ export interface DashboardCloudAssetItem {
   currency: string;
   days_left?: null | number;
   id: number;
+  sort_order: number;
   instance_id: null | string;
   is_active: boolean;
   server_id?: null | number;
@@ -154,6 +154,7 @@ export interface DashboardCloudAssetItem {
   status_countdown?: string;
   status_label?: string;
   provider_status?: null | string;
+  preserve_link_status?: null | string;
   kind: string;
   mtproxy_host: null | string;
   mtproxy_link: null | string;
@@ -313,6 +314,7 @@ export interface DashboardCloudPlanUpdatePayload {
 export interface DashboardSiteConfigUpdatePayload {
   is_sensitive: boolean;
   key: string;
+  preserve_existing?: boolean;
   value: string;
 }
 
@@ -342,37 +344,9 @@ export interface DashboardTaskItem {
   updated_at: null | string;
 }
 
-export interface DashboardProductItem {
-  content_image: null | string;
-  content_text: null | string;
-  content_type: string;
-  content_video: null | string;
-  created_at: null | string;
-  description: null | string;
-  id: number;
-  is_active: boolean;
-  name: string;
-  price: string;
-  sort_order: number;
-  stock: number;
-  updated_at: null | string;
-}
-
-export interface DashboardProductPayload {
-  content_image?: null | string;
-  content_text?: null | string;
-  content_type: string;
-  content_video?: null | string;
-  description?: null | string;
-  is_active: boolean;
-  name: string;
-  price: string;
-  sort_order: number;
-  stock: number;
-}
-
 export interface DashboardCloudAccountConfigItem {
   access_key: string;
+  effective_region?: null | string;
   id: number;
   is_active: boolean;
   last_checked_at?: null | string;
@@ -387,11 +361,13 @@ export interface DashboardCloudAccountConfigItem {
 }
 
 export interface DashboardSiteConfigGroupItem {
+  default_value?: string;
   description?: string;
   id: null | number;
   is_sensitive: boolean;
   key: string;
   value: string;
+  value_preview?: string;
 }
 
 export interface DashboardSiteConfigGroup {
@@ -409,6 +385,31 @@ export interface DashboardCloudAccountCreatePayload {
 }
 
 export interface DashboardCloudAccountUpdatePayload extends DashboardCloudAccountCreatePayload {}
+
+export interface DashboardAdminUserItem {
+  date_joined: null | string;
+  email: string;
+  id: number;
+  is_active: boolean;
+  is_staff: boolean;
+  is_superuser: boolean;
+  last_login: null | string;
+  username: string;
+}
+
+export interface DashboardAdminUserUpsertPayload {
+  email?: string;
+  is_active?: boolean;
+  is_superuser?: boolean;
+  password?: string;
+  username?: string;
+}
+
+export interface DashboardChangePasswordPayload {
+  confirm_password: string;
+  new_password: string;
+  old_password: string;
+}
 
 export interface DashboardServerStatisticsRegion {
   region_code: string;
@@ -456,18 +457,6 @@ export async function getDashboardUsersApi(params: DashboardListQuery = {}) {
 
 export async function getDashboardTasksApi() {
   return requestClient.get<DashboardTaskItem[]>('/admin/tasks/');
-}
-
-export async function getDashboardProductsApi(params: DashboardListQuery = {}) {
-  return requestClient.get<DashboardProductItem[]>('/admin/products/', { params });
-}
-
-export async function createDashboardProductApi(payload: DashboardProductPayload) {
-  return requestClient.post<{ id: number }>('/admin/products/create/', payload);
-}
-
-export async function updateDashboardProductApi(productId: number, payload: DashboardProductPayload) {
-  return requestClient.post<{ id: number }>(`/admin/products/${productId}/`, payload);
 }
 
 export async function updateDashboardUserBalanceApi(userId: number, payload: { balance: string; balance_trx: string }) {
@@ -519,16 +508,43 @@ export async function syncDashboardCloudAssetsApi(region = 'cn-hongkong') {
   return requestClient.post('/admin/cloud-assets/sync/', { region });
 }
 
-export async function getDashboardCloudIpLogsApi(params: DashboardListQuery = {}) {
+export interface DashboardCloudAssetsSyncStatus {
+  aliyun_existing_count: number;
+  auto_sync_every_seconds: number;
+  aws_existing_count: number;
+  last_synced_at: null | string;
+}
+
+export async function getDashboardCloudAssetsSyncStatusApi() {
+  return requestClient.get<DashboardCloudAssetsSyncStatus>('/admin/cloud-assets/sync-status/');
+}
+
+export async function getDashboardCloudIpLogsApi(params: DashboardListQuery & { log_type?: 'ip' | 'operation' | 'server' } = {}) {
   return requestClient.get<DashboardCloudIpLogItem[]>('/admin/cloud-assets/ip-logs/', { params });
 }
 
-export async function updateDashboardCloudAssetApi(assetId: number, payload: Record<string, any>) {
+export interface DashboardCloudAssetUpdatePayload {
+  actual_expires_at?: null | string;
+  is_active?: boolean;
+  note?: null | string;
+  price?: null | string;
+  public_ip?: null | string;
+  sort_order?: number;
+  user_query?: null | string;
+}
+
+export async function updateDashboardCloudAssetApi(assetId: number, payload: DashboardCloudAssetUpdatePayload) {
   return requestClient.post(`/admin/cloud-assets/${assetId}/`, payload);
 }
 
 export async function deleteDashboardServerApi(serverId: number) {
   return requestClient.post<boolean>(`/admin/servers/${serverId}/delete/`);
+}
+
+export async function rebuildDashboardServerPreserveLinkApi(serverId: number) {
+  return requestClient.post<{ accepted: boolean; message: string; order_id: number; order_no: string; replacement_for_id: number }>(
+    `/admin/servers/${serverId}/rebuild-preserve-link/`,
+  );
 }
 
 export async function getDashboardCloudOrdersApi(params: DashboardListQuery = {}) {
@@ -583,8 +599,12 @@ export async function updateDashboardSiteConfigApi(configId: number, payload: Da
   return requestClient.post<DashboardSiteConfigItem>(`/admin/settings/site-configs/${configId}/`, payload);
 }
 
-export async function initDashboardSiteConfigsApi() {
-  return requestClient.post('/admin/settings/site-configs/init/');
+export async function initDashboardSiteConfigsApi(payload: { scope?: 'all' | 'configs' } = {}) {
+  return requestClient.post('/admin/settings/site-configs/init/', payload);
+}
+
+export async function initDashboardTextConfigsApi(payload: { mode?: 'missing_only' | 'reset_defaults' } = {}) {
+  return requestClient.post<{ created: number; mode: string; updated: number }>('/admin/settings/site-configs/init-texts/', payload);
 }
 
 export async function getDashboardCloudAccountsApi() {
@@ -605,6 +625,26 @@ export async function deleteDashboardCloudAccountApi(accountId: number) {
 
 export async function verifyDashboardCloudAccountApi(accountId: number, payload: { region?: string } = {}) {
   return requestClient.post<{ account: DashboardCloudAccountConfigItem; instance_count: number; provider: string; region: string; valid: boolean }>(`/admin/settings/cloud-accounts/${accountId}/verify/`, payload);
+}
+
+export async function getDashboardAdminUsersApi() {
+  return requestClient.get<DashboardAdminUserItem[]>('/admin/settings/admin-users/');
+}
+
+export async function createDashboardAdminUserApi(payload: DashboardAdminUserUpsertPayload) {
+  return requestClient.post<DashboardAdminUserItem>('/admin/settings/admin-users/create/', payload);
+}
+
+export async function updateDashboardAdminUserApi(userId: number, payload: DashboardAdminUserUpsertPayload) {
+  return requestClient.post<DashboardAdminUserItem>(`/admin/settings/admin-users/${userId}/`, payload);
+}
+
+export async function deleteDashboardAdminUserApi(userId: number) {
+  return requestClient.post<boolean>(`/admin/settings/admin-users/${userId}/delete/`);
+}
+
+export async function changeDashboardMyPasswordApi(payload: DashboardChangePasswordPayload) {
+  return requestClient.post<boolean>('/admin/settings/password/change/', payload);
 }
 
 export async function getDashboardServersStatisticsApi(params: DashboardListQuery = {}) {

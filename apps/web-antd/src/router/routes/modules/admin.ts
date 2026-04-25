@@ -52,24 +52,6 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
-        name: 'DashboardTasks',
-        path: 'tasks',
-        component: () => import('#/views/dashboard/tasks/index.vue'),
-        meta: {
-          icon: 'lucide:list-todo',
-          title: '任务列表',
-        },
-      },
-      {
-        name: 'DashboardProducts',
-        path: 'products',
-        component: () => import('#/views/dashboard/products/index.vue'),
-        meta: {
-          icon: 'lucide:package',
-          title: '商品管理',
-        },
-      },
-      {
         name: 'DashboardCloudAssets',
         path: 'cloud-assets',
         component: () => import('#/views/dashboard/cloud-assets/index.vue'),
@@ -79,13 +61,47 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
-        name: 'DashboardCloudIpLogs',
-        path: 'cloud-ip-logs',
-        component: () => import('#/views/dashboard/cloud-ip-logs/index.vue'),
+        name: 'DashboardLogs',
+        path: 'logs',
+        redirect: '/admin/logs/ip',
         meta: {
           icon: 'lucide:logs',
-          title: 'IP日志',
+          title: '日志',
         },
+        children: [
+          {
+            name: 'DashboardRecharges',
+            path: 'recharges',
+            component: () => import('#/views/dashboard/recharges/index.vue'),
+            meta: {
+              title: '充值列表',
+            },
+          },
+          {
+            name: 'DashboardCloudIpLogs',
+            path: 'ip',
+            component: () => import('#/views/dashboard/cloud-ip-logs/index.vue'),
+            meta: {
+              title: 'IP日志',
+            },
+          },
+          {
+            name: 'DashboardServerLogs',
+            path: 'servers',
+            component: () => import('#/views/dashboard/server-logs/index.vue'),
+            meta: {
+              title: '服务器日志',
+            },
+          },
+          {
+            name: 'DashboardOperationLogs',
+            path: 'operations',
+            component: () => import('#/views/dashboard/operation-logs/index.vue'),
+            meta: {
+              title: '操作日志',
+            },
+          },
+        ],
       },
       {
         name: 'DashboardCloudPlans',
@@ -117,11 +133,43 @@ const routes: RouteRecordRaw[] = [
       {
         name: 'DashboardSettings',
         path: 'settings',
-        component: () => import('#/views/dashboard/settings/index.vue'),
+        redirect: '/admin/settings/system',
         meta: {
           icon: 'lucide:settings-2',
-          title: '系统设置',
+          title: '设置',
         },
+        children: [
+          {
+            name: 'DashboardSettingsSystem',
+            path: 'system',
+            component: () => import('#/views/dashboard/settings/system.vue'),
+            meta: { title: '系统设置' },
+          },
+          {
+            name: 'DashboardSettingsDatabase',
+            path: 'database',
+            component: () => import('#/views/dashboard/settings/database.vue'),
+            meta: { title: '数据库设置' },
+          },
+          {
+            name: 'DashboardSettingsTexts',
+            path: 'texts',
+            component: () => import('#/views/dashboard/settings/texts.vue'),
+            meta: { title: '文案设置' },
+          },
+          {
+            name: 'DashboardSettingsCloudAccounts',
+            path: 'cloud-accounts',
+            component: () => import('#/views/dashboard/settings/cloud-accounts.vue'),
+            meta: { title: '云账号设置' },
+          },
+          {
+            name: 'DashboardSettingsPassword',
+            path: 'password',
+            component: () => import('#/views/dashboard/settings/password.vue'),
+            meta: { title: '密码修改' },
+          },
+        ],
       },
       {
         name: 'DashboardServerStatistics',
@@ -133,39 +181,48 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
-        name: 'DashboardCloudOrderDetail',
-        path: 'cloud-orders/:id',
-        component: () => import('#/views/dashboard/cloud-orders/detail.vue'),
-        meta: {
-          hideInMenu: true,
-          title: '云订单详情',
-        },
-      },
-      {
         name: 'DashboardCloudOrders',
         path: 'cloud-orders',
-        component: () => import('#/views/dashboard/cloud-orders/index.vue'),
+        redirect: '/admin/cloud-orders/list',
         meta: {
           icon: 'lucide:shopping-cart',
           title: '云订单',
         },
+        children: [
+          {
+            name: 'DashboardCloudOrdersList',
+            path: 'list',
+            component: () => import('#/views/dashboard/cloud-orders/index.vue'),
+            meta: {
+              title: '订单列表',
+            },
+          },
+          {
+            name: 'DashboardTasks',
+            path: 'tasks',
+            component: () => import('#/views/dashboard/tasks/index.vue'),
+            meta: {
+              title: '任务列表',
+            },
+          },
+          {
+            name: 'DashboardCloudOrderDetail',
+            path: ':id',
+            component: () => import('#/views/dashboard/cloud-orders/detail.vue'),
+            meta: {
+              hideInMenu: true,
+              title: '云订单详情',
+            },
+          },
+        ],
       },
       {
         name: 'DashboardRechargeDetail',
-        path: 'recharges/:id',
+        path: 'logs/recharges/:id',
         component: () => import('#/views/dashboard/recharges/detail.vue'),
         meta: {
           hideInMenu: true,
           title: '充值详情',
-        },
-      },
-      {
-        name: 'DashboardRecharges',
-        path: 'recharges',
-        component: () => import('#/views/dashboard/recharges/index.vue'),
-        meta: {
-          icon: 'lucide:wallet',
-          title: '充值列表',
         },
       },
       {
