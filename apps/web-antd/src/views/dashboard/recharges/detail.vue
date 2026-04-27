@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { DashboardRechargeDetail } from '#/api/admin';
+
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -9,18 +11,17 @@ import {
   Card,
   Descriptions,
   Empty,
+  message,
   Select,
   Space,
   Tag,
   Typography,
-  message,
 } from 'ant-design-vue';
 
 import {
   getDashboardRechargeDetailApi,
   updateDashboardRechargeStatusApi,
 } from '#/api/admin';
-import type { DashboardRechargeDetail } from '#/api/admin';
 
 const route = useRoute();
 const router = useRouter();
@@ -39,7 +40,7 @@ const statusOptions = [
 function statusColor(status?: string) {
   if (['completed'].includes(status || '')) return 'green';
   if (['pending'].includes(status || '')) return 'orange';
-  if (['expired', 'failed', 'cancelled'].includes(status || '')) return 'red';
+  if (['cancelled', 'expired', 'failed'].includes(status || '')) return 'red';
   return 'blue';
 }
 
@@ -127,26 +128,38 @@ onMounted(loadData);
 
       <template v-if="detail">
         <Descriptions bordered :column="2" size="small" title="基础信息">
-          <Descriptions.Item label="充值订单 ID">{{
+          <Descriptions.Item label="充值订单 ID">
+{{
             detail.id
-          }}</Descriptions.Item>
+          }}
+</Descriptions.Item>
           <Descriptions.Item label="状态">
-            <Tag :color="statusColor(detail.status)">{{
+            <Tag :color="statusColor(detail.status)">
+{{
               statusLabel(detail.status)
-            }}</Tag>
+            }}
+</Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="用户">{{
+          <Descriptions.Item label="用户">
+{{
             empty(detail.user_display_name)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="用户名">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="用户名">
+{{
             empty(detail.username_label)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="Telegram ID">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="Telegram ID">
+{{
             empty(detail.tg_user_id)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="后台用户 ID">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="后台用户 ID">
+{{
             empty(detail.user_id)
-          }}</Descriptions.Item>
+          }}
+</Descriptions.Item>
         </Descriptions>
 
         <Descriptions
@@ -156,15 +169,21 @@ onMounted(loadData);
           size="small"
           title="金额信息"
         >
-          <Descriptions.Item label="币种">{{
+          <Descriptions.Item label="币种">
+{{
             empty(detail.currency)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="充值金额">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="充值金额">
+{{
             empty(detail.amount)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="应付金额">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="应付金额">
+{{
             empty(detail.pay_amount)
-          }}</Descriptions.Item>
+          }}
+</Descriptions.Item>
           <Descriptions.Item label="收款地址" :span="2">
             <Typography.Paragraph
               :copyable="
@@ -194,15 +213,21 @@ onMounted(loadData);
           size="small"
           title="时间信息"
         >
-          <Descriptions.Item label="创建时间">{{
+          <Descriptions.Item label="创建时间">
+{{
             empty(detail.created_at)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="完成时间">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="完成时间">
+{{
             empty(detail.completed_at)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="更新时间">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="更新时间">
+{{
             empty(detail.updated_at)
-          }}</Descriptions.Item>
+          }}
+</Descriptions.Item>
         </Descriptions>
       </template>
 

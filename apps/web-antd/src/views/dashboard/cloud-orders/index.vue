@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { DashboardCloudOrderItem } from '#/api/admin';
+
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -7,7 +9,6 @@ import { Page } from '@vben/common-ui';
 import { Button, Card, Input, Space, Table, Tag } from 'ant-design-vue';
 
 import { getDashboardCloudOrdersApi } from '#/api/admin';
-import type { DashboardCloudOrderItem } from '#/api/admin';
 
 const loading = ref(false);
 const keyword = ref('');
@@ -33,9 +34,9 @@ const columns = [
 
 function statusColor(status: string) {
   if (['completed', 'paid'].includes(status)) return 'green';
-  if (['pending', 'provisioning', 'renew_pending', 'expiring'].includes(status))
+  if (['expiring', 'pending', 'provisioning', 'renew_pending'].includes(status))
     return 'orange';
-  if (['failed', 'cancelled', 'expired', 'deleted'].includes(status))
+  if (['cancelled', 'deleted', 'expired', 'failed'].includes(status))
     return 'red';
   return 'blue';
 }
@@ -118,16 +119,19 @@ function goToDetail(orderId: number) {
             <a @click="goToDetail(Number(record.id))">{{ record.order_no }}</a>
           </template>
           <template v-else-if="column.key === 'status'">
-            <Tag :color="statusColor(record.status)">{{
+            <Tag :color="statusColor(record.status)">
+{{
               record.status_label || statusLabel(record.status)
-            }}</Tag>
+            }}
+</Tag>
           </template>
           <template v-else-if="column.key === 'execution_status'">
             <Tag
               v-if="record.execution_status_label"
               :color="executionStatusColor(record.execution_status)"
-              >{{ record.execution_status_label }}</Tag
-            >
+              >
+{{ record.execution_status_label }}
+</Tag>
             <span v-else>-</span>
           </template>
           <template v-else-if="column.key === 'total_amount'">

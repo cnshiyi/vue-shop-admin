@@ -1,4 +1,11 @@
 <script lang="ts" setup>
+import type {
+  DashboardTelegramAccountsOverview,
+  DashboardTelegramChatUserItem,
+  DashboardTelegramLoginAccountCreatePayload,
+  DashboardTelegramMessageItem,
+} from '#/api/admin';
+
 import { onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
@@ -11,23 +18,17 @@ import {
   Form,
   Input,
   List,
+  message,
   Modal,
   Row,
   Space,
   Tag,
-  message,
 } from 'ant-design-vue';
 
 import {
   createDashboardTelegramAccountApi,
   getDashboardTelegramAccountsApi,
   getDashboardTelegramMessagesApi,
-} from '#/api/admin';
-import type {
-  DashboardTelegramAccountsOverview,
-  DashboardTelegramChatUserItem,
-  DashboardTelegramLoginAccountCreatePayload,
-  DashboardTelegramMessageItem,
 } from '#/api/admin';
 
 const loading = ref(false);
@@ -114,9 +115,9 @@ onMounted(loadData);
           style="width: 420px"
           @search="loadData"
         />
-        <Button type="primary" @click="openCreate"
-          >添加 Telegram 登录账号</Button
-        >
+        <Button type="primary" @click="openCreate">
+添加 Telegram 登录账号
+</Button>
         <Button :loading="loading" @click="loadData">刷新</Button>
       </Space>
       <div class="mt-2 text-xs text-[var(--ant-color-text-description)]">
@@ -129,13 +130,13 @@ onMounted(loadData);
       <Col :xl="7" :span="24">
         <Card :loading="loading" title="登录账号登记">
           <List
-            v-if="overview.accounts.length"
+            v-if="overview.accounts.length > 0"
             :data-source="overview.accounts"
           >
             <template #renderItem="{ item }">
               <List.Item>
                 <List.Item.Meta
-                  :description="`${item.phone || '-'} · ${item.username ? '@' + item.username : '-'}`"
+                  :description="`${item.phone || '-'} · ${item.username ? `@${ item.username}` : '-'}`"
                   :title="item.label"
                 />
                 <Tag color="blue">{{ item.status }}</Tag>
@@ -148,7 +149,7 @@ onMounted(loadData);
 
       <Col :xl="7" :span="24">
         <Card :loading="loading" title="用户入口">
-          <List v-if="overview.users.length" :data-source="overview.users">
+          <List v-if="overview.users.length > 0" :data-source="overview.users">
             <template #renderItem="{ item }">
               <List.Item class="cursor-pointer" @click="selectUser(item)">
                 <List.Item.Meta
@@ -158,8 +159,9 @@ onMounted(loadData);
                 <Tag
                   v-if="selectedUser?.tg_user_id === item.tg_user_id"
                   color="green"
-                  >当前</Tag
-                >
+                  >
+当前
+</Tag>
               </List.Item>
             </template>
           </List>
@@ -177,7 +179,7 @@ onMounted(loadData);
           "
         >
           <List
-            v-if="(selectedUser ? messages : overview.messages).length"
+            v-if="(selectedUser ? messages : overview.messages).length > 0"
             :data-source="selectedUser ? messages : overview.messages"
           >
             <template #renderItem="{ item }">
@@ -194,7 +196,7 @@ onMounted(loadData);
                     {{ item.direction_label }} ·
                     {{
                       item.username_snapshot
-                        ? '@' + item.username_snapshot
+                        ? `@${ item.username_snapshot}`
                         : item.tg_user_id
                     }}
                     · {{ item.created_at || '-' }}

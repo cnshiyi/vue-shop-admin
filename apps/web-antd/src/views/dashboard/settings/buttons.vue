@@ -1,4 +1,9 @@
 <script lang="ts" setup>
+import type {
+  DashboardButtonConfig,
+  DashboardButtonConfigItem,
+} from '#/api/admin';
+
 import { onMounted, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
@@ -9,22 +14,18 @@ import {
   Form,
   Input,
   InputNumber,
+  message,
   Popconfirm,
   Space,
   Switch,
   Table,
   Tag,
-  message,
 } from 'ant-design-vue';
 
 import {
   getDashboardButtonConfigApi,
   initDashboardButtonConfigApi,
   updateDashboardButtonConfigApi,
-} from '#/api/admin';
-import type {
-  DashboardButtonConfig,
-  DashboardButtonConfigItem,
 } from '#/api/admin';
 
 const loading = ref(false);
@@ -132,9 +133,9 @@ onMounted(loadData);
       </Form>
 
       <Space class="mb-3">
-        <Button type="primary" :loading="saving" @click="saveConfig"
-          >保存设置</Button
-        >
+        <Button type="primary" :loading="saving" @click="saveConfig">
+保存设置
+</Button>
         <Button @click="addLinkButton">添加自定义键盘</Button>
         <Button :loading="loading" @click="loadData">刷新</Button>
         <Button :loading="loading" @click="initConfig">初始化默认按钮</Button>
@@ -160,9 +161,7 @@ onMounted(loadData);
           </template>
 
           <template v-else-if="column.key === 'button_label'">
-            <span v-if="record.type === 'business'" class="text-gray-400"
-              >-</span
-            >
+            <span v-if="record.type === 'business'" class="text-gray-400">-</span>
             <Input
               v-else
               v-model:value="record.button_label"
@@ -171,9 +170,7 @@ onMounted(loadData);
           </template>
 
           <template v-else-if="column.key === 'url'">
-            <span v-if="record.type === 'business'" class="text-gray-400"
-              >业务按钮不支持链接编辑</span
-            >
+            <span v-if="record.type === 'business'" class="text-gray-400">业务按钮不支持链接编辑</span>
             <Input
               v-else
               v-model:value="record.url"
@@ -182,9 +179,7 @@ onMounted(loadData);
           </template>
 
           <template v-else-if="column.key === 'message'">
-            <span v-if="record.type === 'business'" class="text-gray-400"
-              >-</span
-            >
+            <span v-if="record.type === 'business'" class="text-gray-400">-</span>
             <Input.TextArea
               v-else
               v-model:value="record.message"

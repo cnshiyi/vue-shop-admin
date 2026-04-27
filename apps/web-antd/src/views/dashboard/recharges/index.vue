@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import dayjs from 'dayjs';
+import type { DashboardRechargeItem } from '#/api/admin';
+
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -14,9 +15,9 @@ import {
   Tag,
   Typography,
 } from 'ant-design-vue';
+import dayjs from 'dayjs';
 
 import { getDashboardRechargesApi } from '#/api/admin';
-import type { DashboardRechargeItem } from '#/api/admin';
 
 const loading = ref(false);
 const keyword = ref('');
@@ -132,9 +133,11 @@ function goToDetail(rechargeId: number) {
             <a @click="goToDetail(Number(record.id))">{{ record.id }}</a>
           </template>
           <template v-else-if="column.key === 'status'">
-            <Tag :color="statusColor(record.status)">{{
+            <Tag :color="statusColor(record.status)">
+{{
               record.status_label || statusLabel(record.status)
-            }}</Tag>
+            }}
+</Tag>
           </template>
           <template v-else-if="column.key === 'tx_hash'">
             <Typography.Paragraph

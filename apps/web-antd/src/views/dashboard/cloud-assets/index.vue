@@ -1,5 +1,9 @@
 <script lang="ts" setup>
-import dayjs from 'dayjs';
+import type {
+  DashboardCloudAssetGroup,
+  DashboardCloudAssetItem,
+} from '#/api/admin';
+
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -13,27 +17,24 @@ import {
   Form,
   Input,
   InputNumber,
+  message,
   Modal,
   Popconfirm,
   Space,
   Table,
   Tag,
   TypographyParagraph,
-  message,
 } from 'ant-design-vue';
+import dayjs from 'dayjs';
 
 import {
+  deleteDashboardServerApi,
   getDashboardCloudAssetsApi,
   getDashboardCloudAssetsGroupedApi,
   getDashboardCloudAssetsSyncStatusApi,
+  rebuildDashboardServerPreserveLinkApi,
   syncDashboardCloudAssetsApi,
   updateDashboardCloudAssetApi,
-  deleteDashboardServerApi,
-  rebuildDashboardServerPreserveLinkApi,
-} from '#/api/admin';
-import type {
-  DashboardCloudAssetGroup,
-  DashboardCloudAssetItem,
 } from '#/api/admin';
 
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
@@ -42,7 +43,7 @@ const router = useRouter();
 const loading = ref(false);
 const saving = ref(false);
 const syncing = ref(false);
-const rebuildingServerId = ref<number | null>(null);
+const rebuildingServerId = ref<null | number>(null);
 const keyword = ref('');
 const grouped = ref(true);
 const lastRefreshedAt = ref<dayjs.Dayjs | null>(null);
@@ -70,9 +71,9 @@ const formState = reactive({
   sort_order: 99,
   user_query: '',
 });
-let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
-let countdownTimer: ReturnType<typeof setInterval> | null = null;
-let syncHighlightTimer: ReturnType<typeof setTimeout> | null = null;
+let autoRefreshTimer: null | ReturnType<typeof setInterval> = null;
+let countdownTimer: null | ReturnType<typeof setInterval> = null;
+let syncHighlightTimer: null | ReturnType<typeof setTimeout> = null;
 
 function normalizeDaysLeft(record: DashboardCloudAssetItem) {
   if (typeof record.days_left !== 'number' || Number.isNaN(record.days_left)) {
@@ -120,12 +121,12 @@ function isDeletedAsset(record: DashboardCloudAssetItem) {
     [
       'deleted',
       'deleting',
+      'expired',
       'terminated',
       'terminating',
-      'expired',
       'unknown',
     ].includes(record.status) ||
-    ['已删除', '删除中', '已终止', '终止中', '已过期', '未知状态'].includes(
+    ['删除中', '已删除', '已终止', '已过期', '未知状态', '终止中'].includes(
       record.status_label || '',
     )
   );
@@ -300,9 +301,9 @@ function openEdit(record: DashboardCloudAssetItem) {
   formState.sort_order = record.sort_order || 99;
   formState.user_query = record.user_id
     ? String(record.user_id)
-    : record.tg_user_id
+    : (record.tg_user_id
       ? String(record.tg_user_id)
-      : '';
+      : '');
   editOpen.value = true;
 }
 
@@ -399,7 +400,7 @@ function countdownTagColor(label?: null | string) {
 }
 
 function sortOrderTagColor(sortOrder?: number) {
-  return (sortOrder || 99) !== 99 ? 'success' : 'default';
+  return (sortOrder || 99) === 99 ? 'default' : 'success';
 }
 
 function canRebuildPreserveLink(record: DashboardCloudAssetItem) {
@@ -529,28 +530,29 @@ onBeforeUnmount(() => {
             style="width: 360px"
             @search="loadData"
           />
-          <Button size="small" :loading="syncing" @click="syncAssets"
-            >同步代理</Button
-          >
+          <Button size="small" :loading="syncing" @click="syncAssets">
+同步代理
+</Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
           <Tag v-if="syncing" color="processing">同步中…</Tag>
           <Tag v-else-if="loading" color="processing">刷新中…</Tag>
-          <Tag color="blue"
-            >最后刷新：{{ formatRefreshTime(lastRefreshedAt) }}</Tag
-          >
+          <Tag color="blue">
+最后刷新：{{ formatRefreshTime(lastRefreshedAt) }}
+</Tag>
           <Tag
             v-if="lastSyncedAt"
             :color="recentSyncHighlight ? 'success' : 'cyan'"
-            >后台同步：{{ formatRefreshTime(lastSyncedAt) }}</Tag
-          >
-          <Tag color="geekblue"
-            >自动同步周期：{{ Math.floor(autoSyncEverySeconds / 60) }}分钟</Tag
-          >
-          <Tag color="orange"
-            >数量：AWS {{ awsExistingCount }} / 阿里云
-            {{ aliyunExistingCount }}</Tag
-          >
+            >
+后台同步：{{ formatRefreshTime(lastSyncedAt) }}
+</Tag>
+          <Tag color="geekblue">
+自动同步周期：{{ Math.floor(autoSyncEverySeconds / 60) }}分钟
+</Tag>
+          <Tag color="orange">
+数量：AWS {{ awsExistingCount }} / 阿里云
+            {{ aliyunExistingCount }}
+</Tag>
           <Tag color="purple">下次刷新：{{ nextRefreshInSeconds }}s</Tag>
           <Switch v-model:checked="grouped" @change="loadData" />
         </Space>
@@ -632,9 +634,11 @@ onBeforeUnmount(() => {
                 </div>
               </template>
               <template v-else-if="column.key === 'sort_order'">
-                <Tag :color="sortOrderTagColor(record.sort_order)">{{
+                <Tag :color="sortOrderTagColor(record.sort_order)">
+{{
                   record.sort_order || 99
-                }}</Tag>
+                }}
+</Tag>
               </template>
               <template v-else-if="column.key === 'account_label'">
                 <TypographyParagraph
@@ -748,13 +752,15 @@ onBeforeUnmount(() => {
                   <Button
                     type="link"
                     @click="openDetail(record as DashboardCloudAssetItem)"
-                    >详情</Button
-                  >
+                    >
+详情
+</Button>
                   <Button
                     type="link"
                     @click="openEdit(record as DashboardCloudAssetItem)"
-                    >编辑</Button
-                  >
+                    >
+编辑
+</Button>
                   <Popconfirm
                     v-if="
                       canRebuildPreserveLink(record as DashboardCloudAssetItem)
@@ -769,8 +775,9 @@ onBeforeUnmount(() => {
                       :loading="
                         rebuildingServerId === (record.server_id || null)
                       "
-                      >重装</Button
-                    >
+                      >
+重装
+</Button>
                   </Popconfirm>
                   <Popconfirm
                     title="确认删除该代理/服务器记录吗？"
@@ -848,9 +855,11 @@ onBeforeUnmount(() => {
             </div>
           </template>
           <template v-else-if="column.key === 'sort_order'">
-            <Tag :color="sortOrderTagColor(record.sort_order)">{{
+            <Tag :color="sortOrderTagColor(record.sort_order)">
+{{
               record.sort_order || 99
-            }}</Tag>
+            }}
+</Tag>
           </template>
           <template v-else-if="column.key === 'account_label'">
             <TypographyParagraph
@@ -961,13 +970,15 @@ onBeforeUnmount(() => {
               <Button
                 type="link"
                 @click="openDetail(record as DashboardCloudAssetItem)"
-                >详情</Button
-              >
+                >
+详情
+</Button>
               <Button
                 type="link"
                 @click="openEdit(record as DashboardCloudAssetItem)"
-                >编辑</Button
-              >
+                >
+编辑
+</Button>
               <Popconfirm
                 v-if="canRebuildPreserveLink(record as DashboardCloudAssetItem)"
                 title="确认按 AWS 方案重装并保持链接不变吗？系统会后台创建新实例、切换固定 IP、复用 MTProxy 密钥，成功后删除旧实例。"
@@ -978,8 +989,9 @@ onBeforeUnmount(() => {
                 <Button
                   type="link"
                   :loading="rebuildingServerId === (record.server_id || null)"
-                  >重装</Button
-                >
+                  >
+重装
+</Button>
               </Popconfirm>
               <Popconfirm
                 title="确认删除该代理/服务器记录吗？"

@@ -1,4 +1,11 @@
 <script lang="ts" setup>
+import type { TableColumnsType } from 'ant-design-vue';
+
+import type {
+  DashboardCloudAccountConfigItem,
+  DashboardCloudAccountCreatePayload,
+} from '#/api/admin';
+
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 import { Page } from '@vben/common-ui';
@@ -7,6 +14,7 @@ import {
   Button,
   Form,
   Input,
+  message,
   Modal,
   Popconfirm,
   Select,
@@ -14,9 +22,7 @@ import {
   Switch,
   Table,
   Tag,
-  message,
 } from 'ant-design-vue';
-import type { TableColumnsType } from 'ant-design-vue';
 
 import {
   createDashboardCloudAccountApi,
@@ -24,10 +30,6 @@ import {
   getDashboardCloudAccountsApi,
   updateDashboardCloudAccountApi,
   verifyDashboardCloudAccountApi,
-} from '#/api/admin';
-import type {
-  DashboardCloudAccountConfigItem,
-  DashboardCloudAccountCreatePayload,
 } from '#/api/admin';
 
 const loading = ref(false);
@@ -63,7 +65,7 @@ const regionHintPlaceholder = computed(() => {
 
 const regionHintValue = computed({
   get: () => form.region_hint ?? '',
-  set: (value: string | number) => {
+  set: (value: number | string) => {
     regionHintTouched.value = true;
     form.region_hint = String(value || '');
   },
@@ -231,9 +233,11 @@ onMounted(loadData);
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'is_active'">
-          <Tag :color="record.is_active ? 'success' : 'default'">{{
+          <Tag :color="record.is_active ? 'success' : 'default'">
+{{
             record.is_active ? '启用' : '停用'
-          }}</Tag>
+          }}
+</Tag>
         </template>
         <template v-else-if="column.key === 'status'">
           <Tag
@@ -254,14 +258,16 @@ onMounted(loadData);
               type="link"
               size="small"
               @click="verify(record as DashboardCloudAccountConfigItem)"
-              >验证</Button
-            >
+              >
+验证
+</Button>
             <Button
               type="link"
               size="small"
               @click="openEdit(record as DashboardCloudAccountConfigItem)"
-              >编辑</Button
-            >
+              >
+编辑
+</Button>
             <Popconfirm
               title="确认删除该云账号吗？"
               @confirm="remove(record as DashboardCloudAccountConfigItem)"

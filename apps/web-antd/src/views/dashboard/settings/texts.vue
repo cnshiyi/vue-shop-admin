@@ -1,4 +1,10 @@
 <script lang="ts" setup>
+import type {
+  DashboardSiteConfigGroup,
+  DashboardSiteConfigGroupItem,
+  DashboardSiteConfigItem,
+} from '#/api/admin';
+
 import { computed, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
@@ -8,10 +14,10 @@ import {
   Card,
   Input,
   InputNumber,
+  message,
   Modal,
   RadioGroup,
   Space,
-  message,
 } from 'ant-design-vue';
 
 import {
@@ -19,11 +25,6 @@ import {
   getDashboardSiteConfigsApi,
   initDashboardTextConfigsApi,
   updateDashboardSiteConfigApi,
-} from '#/api/admin';
-import type {
-  DashboardSiteConfigGroup,
-  DashboardSiteConfigGroupItem,
-  DashboardSiteConfigItem,
 } from '#/api/admin';
 
 const loading = ref(false);
@@ -119,13 +120,13 @@ onMounted(loadData);
     title="文案设置"
   >
     <Space class="mb-3">
-      <Button type="primary" :loading="initLoading" @click="initOpen = true"
-        >初始化文案</Button
-      >
+      <Button type="primary" :loading="initLoading" @click="initOpen = true">
+初始化文案
+</Button>
       <Button :loading="loading" @click="loadData">刷新</Button>
     </Space>
 
-    <div class="text-grid" v-if="textItems.length">
+    <div class="text-grid" v-if="textItems.length > 0">
       <Card
         v-for="item in textItems"
         :key="item.key"
@@ -159,8 +160,9 @@ onMounted(loadData);
             :loading="savingMap[item.key]"
             type="primary"
             @click="saveItem(item)"
-            >保存</Button
-          >
+            >
+保存
+</Button>
           <Button @click="resetItem(item)">恢复默认</Button>
         </Space>
       </Card>

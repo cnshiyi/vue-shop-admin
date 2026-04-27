@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { DashboardUserItem } from '#/api/admin';
+
 import { onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -15,8 +17,11 @@ import {
   Table,
 } from 'ant-design-vue';
 
-import { getDashboardUsersApi, updateDashboardUserBalanceApi, updateDashboardUserDiscountApi } from '#/api/admin';
-import type { DashboardUserItem } from '#/api/admin';
+import {
+  getDashboardUsersApi,
+  updateDashboardUserBalanceApi,
+  updateDashboardUserDiscountApi,
+} from '#/api/admin';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -166,11 +171,12 @@ onMounted(loadData);
               <Button
                 type="link"
                 @click="openBalanceDetail(record as DashboardUserItem)"
-                >余额明细</Button
-              >
-              <Button type="link" @click="openEdit(record as DashboardUserItem)"
-                >编辑</Button
-              >
+                >
+余额明细
+</Button>
+              <Button type="link" @click="openEdit(record as DashboardUserItem)">
+编辑
+</Button>
             </Space>
           </template>
         </template>

@@ -1,4 +1,9 @@
 <script lang="ts" setup>
+import type {
+  DashboardServerStatisticsItem,
+  DashboardServerStatisticsRegion,
+} from '#/api/admin';
+
 import { computed, onMounted, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
@@ -6,10 +11,6 @@ import { Page } from '@vben/common-ui';
 import { Button, Card, Input, Space, Switch, Table } from 'ant-design-vue';
 
 import { getDashboardServersStatisticsApi } from '#/api/admin';
-import type {
-  DashboardServerStatisticsItem,
-  DashboardServerStatisticsRegion,
-} from '#/api/admin';
 
 const loading = ref(false);
 const keyword = ref('');
@@ -108,9 +109,7 @@ onMounted(loadData);
           />
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
-          <span class="text-sm text-[var(--ant-color-text-secondary)]"
-            >显示零数量地区</span
-          >
+          <span class="text-sm text-[var(--ant-color-text-secondary)]">显示零数量地区</span>
           <Switch v-model:checked="showAllRegions" size="small" />
         </Space>
       </template>

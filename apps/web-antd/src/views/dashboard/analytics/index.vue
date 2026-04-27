@@ -1,10 +1,11 @@
 <script lang="ts" setup>
 import type { EchartsUIType } from '@vben/plugins/echarts';
+
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 import { SvgBellIcon, SvgCardIcon, SvgDownloadIcon } from '@vben/icons';
+import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 
 import { Button, Card, Col, Row, Space, Statistic } from 'ant-design-vue';
 

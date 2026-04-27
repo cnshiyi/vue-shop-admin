@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { DashboardTelegramAccountsOverview } from '#/api/admin';
+
 import { onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
@@ -10,12 +12,12 @@ import {
   Form,
   Input,
   List,
+  message,
   Modal,
   Space,
   Steps,
   Switch,
   Tag,
-  message,
 } from 'ant-design-vue';
 
 import {
@@ -25,7 +27,6 @@ import {
   submitDashboardTelegramLoginPasswordApi,
   updateDashboardTelegramAccountNotifyApi,
 } from '#/api/admin';
-import type { DashboardTelegramAccountsOverview } from '#/api/admin';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -38,7 +39,7 @@ const overview = ref<DashboardTelegramAccountsOverview>({
   users: [],
 });
 
-const accountId = ref<number | null>(null);
+const accountId = ref<null | number>(null);
 const form = reactive({
   code: '',
   password: '',
@@ -186,17 +187,15 @@ onMounted(loadData);
     </Card>
 
     <Card :loading="loading" title="账号列表">
-      <List v-if="overview.accounts.length" :data-source="overview.accounts">
+      <List v-if="overview.accounts.length > 0" :data-source="overview.accounts">
         <template #renderItem="{ item }">
           <List.Item>
             <List.Item.Meta
-              :description="`${item.phone || '-'} · ${item.username ? '@' + item.username : '-'} · ${item.note || ''}`"
+              :description="`${item.phone || '-'} · ${item.username ? `@${ item.username}` : '-'} · ${item.note || ''}`"
               :title="item.label"
             />
             <Space>
-              <span class="text-xs text-[var(--ant-color-text-description)]"
-                >通知</span
-              >
+              <span class="text-xs text-[var(--ant-color-text-description)]">通知</span>
               <Switch
                 size="small"
                 :checked="item.notify_enabled"

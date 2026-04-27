@@ -1,4 +1,11 @@
 <script lang="ts" setup>
+import type { CollapseProps, TableColumnsType } from 'ant-design-vue';
+
+import type {
+  DashboardCloudPlanSyncResult,
+  DashboardCloudPricingItem,
+} from '#/api/admin';
+
 import { computed, onMounted, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
@@ -9,20 +16,15 @@ import {
   Collapse,
   Empty,
   Input,
+  message,
   Space,
   Table,
   Tag,
-  message,
 } from 'ant-design-vue';
-import type { CollapseProps, TableColumnsType } from 'ant-design-vue';
 
 import {
   getDashboardCloudPricingApi,
   syncDashboardCloudPlansApi,
-} from '#/api/admin';
-import type {
-  DashboardCloudPricingItem,
-  DashboardCloudPlanSyncResult,
 } from '#/api/admin';
 
 interface RegionGroupItem {
@@ -198,9 +200,9 @@ const regionActiveKeys = ref<Record<string, string[]>>({});
 function updateProviderActiveKeys(keys: CollapseProps['activeKey']) {
   providerActiveKeys.value = Array.isArray(keys)
     ? keys.map(String)
-    : keys
+    : (keys
       ? [String(keys)]
-      : [];
+      : []);
 }
 
 function getRegionActiveKeys(provider: ProviderGroupItem) {
@@ -215,9 +217,9 @@ function updateRegionActiveKeys(
     ...regionActiveKeys.value,
     [providerKey]: Array.isArray(keys)
       ? keys.map(String)
-      : keys
+      : (keys
         ? [String(keys)]
-        : [],
+        : []),
   };
 }
 
@@ -286,8 +288,9 @@ onMounted(() => {
             type="primary"
             :loading="syncing"
             @click="syncPricing"
-            >同步主规格与进货价</Button
-          >
+            >
+同步主规格与进货价
+</Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
         </Space>
@@ -296,24 +299,24 @@ onMounted(() => {
       <Space direction="vertical" style="width: 100%; margin-bottom: 16px">
         <Card v-if="syncSummary" size="small">
           <Space wrap>
-            <Tag color="blue"
-              >同步地区 {{ syncSummary.summary.region_count }}</Tag
-            >
-            <Tag color="green"
-              >主规格 {{ syncSummary.summary.after_pricing_count }}</Tag
-            >
-            <Tag color="gold"
-              >人工套餐 {{ syncSummary.summary.after_plan_count }}</Tag
-            >
+            <Tag color="blue">
+同步地区 {{ syncSummary.summary.region_count }}
+</Tag>
+            <Tag color="green">
+主规格 {{ syncSummary.summary.after_pricing_count }}
+</Tag>
+            <Tag color="gold">
+人工套餐 {{ syncSummary.summary.after_plan_count }}
+</Tag>
             <Tag>同步结果 {{ syncSummary.synced ? '成功' : '未完成' }}</Tag>
           </Space>
         </Card>
       </Space>
 
       <Collapse
-        v-if="groupedProviders.length"
+        v-if="groupedProviders.length > 0"
         :active-key="providerActiveKeys"
-        @update:activeKey="updateProviderActiveKeys"
+        @update:active-key="updateProviderActiveKeys"
       >
         <Collapse.Panel
           v-for="provider in groupedProviders"
@@ -323,15 +326,16 @@ onMounted(() => {
             <Space>
               <Tag
                 :color="provider.key === 'aws_lightsail' ? 'blue' : 'orange'"
-                >{{ provider.label }}</Tag
-              >
+                >
+{{ provider.label }}
+</Tag>
               <span>{{ provider.regions.length }} 个地区</span>
             </Space>
           </template>
 
           <Collapse
             :active-key="getRegionActiveKeys(provider)"
-            @update:activeKey="
+            @update:active-key="
               (keys) => updateRegionActiveKeys(provider.key, keys)
             "
           >
@@ -357,14 +361,18 @@ onMounted(() => {
               >
                 <template #bodyCell="{ column, record }">
                   <template v-if="column.key === 'cost_price'">
-                    <Tag>{{
+                    <Tag>
+{{
                       formatMoney(record.cost_price, record.currency)
-                    }}</Tag>
+                    }}
+</Tag>
                   </template>
                   <template v-else-if="column.key === 'is_active'">
-                    <Tag :color="record.is_active ? 'success' : 'default'">{{
+                    <Tag :color="record.is_active ? 'success' : 'default'">
+{{
                       record.is_active ? '在售' : '停用'
-                    }}</Tag>
+                    }}
+</Tag>
                   </template>
                 </template>
               </Table>

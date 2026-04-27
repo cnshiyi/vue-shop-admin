@@ -1,14 +1,16 @@
 <script lang="ts" setup>
-import dayjs from 'dayjs';
+import type { TableColumnsType } from 'ant-design-vue';
+
+import type { DashboardBotOperationLogItem } from '#/api/admin';
+
 import { onMounted, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
 import { Button, Card, Input, Space, Table, Tag } from 'ant-design-vue';
-import type { TableColumnsType } from 'ant-design-vue';
+import dayjs from 'dayjs';
 
 import { getDashboardBotOperationLogsApi } from '#/api/admin';
-import type { DashboardBotOperationLogItem } from '#/api/admin';
 
 const loading = ref(false);
 const keyword = ref('');
@@ -98,9 +100,11 @@ onMounted(loadData);
             }}</span>
           </template>
           <template v-else-if="column.key === 'action_type'">
-            <Tag :color="actionColor(record.action_type)">{{
+            <Tag :color="actionColor(record.action_type)">
+{{
               record.action_label || record.action_type
-            }}</Tag>
+            }}
+</Tag>
           </template>
           <template v-else-if="column.key === 'payload'">
             <span class="whitespace-pre-wrap break-all">{{

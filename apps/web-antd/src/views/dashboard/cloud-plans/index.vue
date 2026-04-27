@@ -1,4 +1,12 @@
 <script lang="ts" setup>
+import type { TableColumnsType } from 'ant-design-vue';
+
+import type {
+  DashboardCloudPlanItem,
+  DashboardCloudPlanUpdatePayload,
+  DashboardCloudPricingItem,
+} from '#/api/admin';
+
 import { computed, onMounted, ref, watch } from 'vue';
 
 import { Page } from '@vben/common-ui';
@@ -8,6 +16,7 @@ import {
   Card,
   Input,
   InputNumber,
+  message,
   Modal,
   Popconfirm,
   Select,
@@ -15,9 +24,7 @@ import {
   Switch,
   Table,
   Tag,
-  message,
 } from 'ant-design-vue';
-import type { TableColumnsType } from 'ant-design-vue';
 
 import {
   createDashboardCloudPlanApi,
@@ -26,15 +33,10 @@ import {
   getDashboardCloudPricingApi,
   updateDashboardCloudPlanApi,
 } from '#/api/admin';
-import type {
-  DashboardCloudPlanItem,
-  DashboardCloudPlanUpdatePayload,
-  DashboardCloudPricingItem,
-} from '#/api/admin';
 
 const loading = ref(false);
 const saving = ref(false);
-const deletingId = ref<number | null>(null);
+const deletingId = ref<null | number>(null);
 const keyword = ref('');
 const activeTab = ref<'plans' | 'pricing'>('plans');
 const plans = ref<DashboardCloudPlanItem[]>([]);
@@ -281,9 +283,9 @@ function applyRegion(regionCode?: unknown) {
   const normalizedRegionCode =
     typeof regionCode === 'string'
       ? regionCode
-      : regionCode === null || Array.isArray(regionCode)
+      : (regionCode === null || Array.isArray(regionCode)
         ? undefined
-        : String(regionCode);
+        : String(regionCode));
   selectedRegionCode.value = normalizedRegionCode;
   const selected = pricing.value.find(
     (item) =>
@@ -303,9 +305,9 @@ function applyPricingPreset(presetValue?: unknown) {
   const normalizedPresetValue =
     typeof presetValue === 'string'
       ? presetValue
-      : presetValue === null || Array.isArray(presetValue)
+      : (presetValue === null || Array.isArray(presetValue)
         ? undefined
-        : String(presetValue);
+        : String(presetValue));
   selectedPricingPreset.value = normalizedPresetValue;
   const selected = pricing.value.find(
     (item) =>
@@ -419,21 +421,24 @@ onMounted(loadData);
             size="small"
             :type="activeTab === 'plans' ? 'primary' : 'default'"
             @click="activeTab = 'plans'"
-            >套餐列表</Button
-          >
+            >
+套餐列表
+</Button>
           <Button
             size="small"
             :type="activeTab === 'pricing' ? 'primary' : 'default'"
             @click="activeTab = 'pricing'"
-            >价格列表</Button
-          >
+            >
+价格列表
+</Button>
           <Button
             v-if="activeTab === 'plans'"
             size="small"
             type="primary"
             @click="openCreate"
-            >新增套餐</Button
-          >
+            >
+新增套餐
+</Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
         </Space>
@@ -448,25 +453,29 @@ onMounted(loadData);
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'provider'">
-            <Tag color="blue">{{
+            <Tag color="blue">
+{{
               record.provider_label || record.provider || '-'
-            }}</Tag>
+            }}
+</Tag>
           </template>
           <template v-else-if="column.key === 'cost_price'">
-            <Tag color="default"
-              >{{ record.cost_price || '0' }}
-              {{ record.currency || 'USDT' }}</Tag
-            >
+            <Tag color="default">
+{{ record.cost_price || '0' }}
+              {{ record.currency || 'USDT' }}
+</Tag>
           </template>
           <template v-else-if="column.key === 'price'">
-            <Tag color="gold"
-              >{{ record.price }} {{ record.currency || 'USDT' }}</Tag
-            >
+            <Tag color="gold">
+{{ record.price }} {{ record.currency || 'USDT' }}
+</Tag>
           </template>
           <template v-else-if="column.key === 'is_active'">
-            <Tag :color="record.is_active ? 'success' : 'default'">{{
+            <Tag :color="record.is_active ? 'success' : 'default'">
+{{
               record.is_active ? '启用' : '停用'
-            }}</Tag>
+            }}
+</Tag>
           </template>
           <template v-else-if="column.key === 'display_description'">
             <span>{{
@@ -481,8 +490,9 @@ onMounted(loadData);
                 type="link"
                 size="small"
                 @click="openEdit(asDashboardCloudPlanItem(record))"
-                >编辑</Button
-              >
+                >
+编辑
+</Button>
               <Popconfirm
                 title="确认删除该套餐？"
                 @confirm="removePlan(record.id)"
@@ -492,8 +502,9 @@ onMounted(loadData);
                   danger
                   size="small"
                   :loading="deletingId === record.id"
-                  >删除</Button
-                >
+                  >
+删除
+</Button>
               </Popconfirm>
             </Space>
           </template>

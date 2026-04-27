@@ -1,19 +1,20 @@
 <script lang="ts" setup>
+import type {
+  DashboardTelegramChatItem,
+  DashboardTelegramMessageItem,
+} from '#/api/admin';
+
 import { computed, nextTick, onMounted, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Empty, Input, Switch, Tag, message } from 'ant-design-vue';
+import { Button, Empty, Input, message, Switch, Tag } from 'ant-design-vue';
 
 import {
   getDashboardTelegramAccountsApi,
   getDashboardTelegramMessagesApi,
   sendDashboardTelegramMessageApi,
   updateDashboardTelegramChatArchiveApi,
-} from '#/api/admin';
-import type {
-  DashboardTelegramChatItem,
-  DashboardTelegramMessageItem,
 } from '#/api/admin';
 
 const loading = ref(false);
@@ -156,8 +157,9 @@ onMounted(() => loadData());
             <Button
               :loading="loading"
               @click="() => loadData({ keepSelected: true })"
-              >刷新</Button
-            >
+              >
+刷新
+</Button>
           </div>
         </div>
 
@@ -187,7 +189,7 @@ onMounted(() => loadData());
               </Button>
             </div>
           </div>
-          <Empty v-if="!chats.length" description="暂无匹配会话" />
+          <Empty v-if="chats.length === 0" description="暂无匹配会话" />
         </div>
       </aside>
 
@@ -211,7 +213,7 @@ onMounted(() => loadData());
         </header>
 
         <main ref="messageScrollRef" class="message-timeline">
-          <template v-if="selectedChat && orderedMessages.length">
+          <template v-if="selectedChat && orderedMessages.length > 0">
             <div
               v-for="(item, index) in orderedMessages"
               :key="item.id"

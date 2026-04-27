@@ -1,5 +1,9 @@
 <script lang="ts" setup>
-import dayjs from 'dayjs';
+import type {
+  DashboardCloudAssetDetail,
+  DashboardCloudAssetIpLogItem,
+} from '#/api/admin';
+
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -10,18 +14,15 @@ import {
   Card,
   Descriptions,
   Empty,
+  message,
   Space,
   Table,
   Tag,
   Typography,
-  message,
 } from 'ant-design-vue';
+import dayjs from 'dayjs';
 
 import { getDashboardCloudAssetDetailApi } from '#/api/admin';
-import type {
-  DashboardCloudAssetDetail,
-  DashboardCloudAssetIpLogItem,
-} from '#/api/admin';
 
 const route = useRoute();
 const router = useRouter();
@@ -56,18 +57,18 @@ function formatExpiryTime(value?: null | string) {
 }
 
 function statusColor(status?: string) {
-  if (['running', 'completed', 'paid'].includes(status || '')) return 'green';
+  if (['completed', 'paid', 'running'].includes(status || '')) return 'green';
   if (
     [
+      'expiring',
       'pending',
-      'unknown',
       'provisioning',
       'renew_pending',
-      'expiring',
+      'unknown',
     ].includes(status || '')
   )
     return 'orange';
-  if (['failed', 'deleted', 'expired', 'terminated'].includes(status || ''))
+  if (['deleted', 'expired', 'failed', 'terminated'].includes(status || ''))
     return 'red';
   return 'blue';
 }
@@ -102,9 +103,11 @@ onMounted(loadData);
         <Space>
           <Button size="small" @click="goBack">返回代理列表</Button>
           <span>{{ detail?.asset_name || `代理 #${assetId}` }}</span>
-          <Tag v-if="detail" :color="statusColor(detail.status)">{{
+          <Tag v-if="detail" :color="statusColor(detail.status)">
+{{
             detail.status_label || detail.status
-          }}</Tag>
+          }}
+</Tag>
           <Button v-if="detail" size="small" @click="loadData">刷新</Button>
         </Space>
       </template>
@@ -113,18 +116,26 @@ onMounted(loadData);
         <Descriptions bordered :column="2" size="small" title="基础信息">
           <Descriptions.Item label="资产 ID">{{ detail.id }}</Descriptions.Item>
           <Descriptions.Item label="类型">{{ detail.kind }}</Descriptions.Item>
-          <Descriptions.Item label="资产名称">{{
+          <Descriptions.Item label="资产名称">
+{{
             empty(detail.asset_name)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="来源">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="来源">
+{{
             empty(detail.source_label || detail.source)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="厂商">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="厂商">
+{{
             empty(detail.provider_label || detail.provider)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="地区">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="地区">
+{{
             empty(detail.region_label || detail.region_name)
-          }}</Descriptions.Item>
+          }}
+</Descriptions.Item>
           <Descriptions.Item label="云账号ID" :span="2">
             <Typography.Paragraph
               :copyable="
@@ -135,12 +146,16 @@ onMounted(loadData);
               {{ empty(detail.account_label) }}
             </Typography.Paragraph>
           </Descriptions.Item>
-          <Descriptions.Item label="内部云账号记录 ID">{{
+          <Descriptions.Item label="内部云账号记录 ID">
+{{
             empty(detail.cloud_account_id)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="排序">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="排序">
+{{
             empty(detail.sort_order)
-          }}</Descriptions.Item>
+          }}
+</Descriptions.Item>
         </Descriptions>
 
         <Descriptions
@@ -150,12 +165,16 @@ onMounted(loadData);
           size="small"
           title="服务器与 IP"
         >
-          <Descriptions.Item label="公网 IP">{{
+          <Descriptions.Item label="公网 IP">
+{{
             empty(detail.public_ip)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="实例 ID">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="实例 ID">
+{{
             empty(detail.instance_id)
-          }}</Descriptions.Item>
+          }}
+</Descriptions.Item>
           <Descriptions.Item label="云资源 ID" :span="2">
             <Typography.Paragraph
               :copyable="
@@ -168,39 +187,61 @@ onMounted(loadData);
               {{ empty(detail.provider_resource_id) }}
             </Typography.Paragraph>
           </Descriptions.Item>
-          <Descriptions.Item label="资产到期时间">{{
+          <Descriptions.Item label="资产到期时间">
+{{
             formatExpiryTime(detail.actual_expires_at)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="剩余天数">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="剩余天数">
+{{
             empty(detail.status_countdown)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="服务开始时间">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="服务开始时间">
+{{
             formatTime(detail.service_started_at)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="服务到期时间">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="服务到期时间">
+{{
             formatExpiryTime(detail.service_expires_at)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="续费宽限到期">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="续费宽限到期">
+{{
             formatTime(detail.renew_grace_expires_at)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="最后续费时间">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="最后续费时间">
+{{
             formatTime(detail.last_renewed_at)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="计划关机时间">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="计划关机时间">
+{{
             formatTime(detail.suspend_at)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="计划删机时间">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="计划删机时间">
+{{
             formatTime(detail.delete_at)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="IP 保留到期">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="IP 保留到期">
+{{
             formatTime(detail.ip_recycle_at)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="剩余更换IP次数">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="剩余更换IP次数">
+{{
             empty(detail.ip_change_quota)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="更新时间">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="更新时间">
+{{
             formatTime(detail.updated_at)
-          }}</Descriptions.Item>
+          }}
+</Descriptions.Item>
         </Descriptions>
 
         <Descriptions
@@ -210,12 +251,16 @@ onMounted(loadData);
           size="small"
           title="代理链接"
         >
-          <Descriptions.Item label="MTProxy 主机">{{
+          <Descriptions.Item label="MTProxy 主机">
+{{
             empty(detail.mtproxy_host)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="MTProxy 端口">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="MTProxy 端口">
+{{
             empty(detail.mtproxy_port)
-          }}</Descriptions.Item>
+          }}
+</Descriptions.Item>
           <Descriptions.Item label="MTProxy 密钥" :span="2">
             <Typography.Paragraph
               :copyable="
@@ -268,32 +313,46 @@ onMounted(loadData);
           size="small"
           title="用户与订单"
         >
-          <Descriptions.Item label="用户">{{
+          <Descriptions.Item label="用户">
+{{
             empty(detail.user_display_name)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="用户名">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="用户名">
+{{
             empty(detail.username_label)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="Telegram ID">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="Telegram ID">
+{{
             empty(detail.tg_user_id)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="后台用户 ID">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="后台用户 ID">
+{{
             empty(detail.user_id)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="订单号">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="订单号">
+{{
             empty(detail.order_no)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="订单状态">{{
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="订单状态">
+{{
             empty(detail.order_status_label || detail.order_status)
-          }}</Descriptions.Item>
-          <Descriptions.Item label="价格"
-            >{{ empty(detail.price) }}
-            {{ empty(detail.currency) }}</Descriptions.Item
-          >
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="价格">
+{{ empty(detail.price) }}
+            {{ empty(detail.currency) }}
+</Descriptions.Item>
           <Descriptions.Item label="资产状态">
-            <Tag :color="statusColor(detail.status)">{{
+            <Tag :color="statusColor(detail.status)">
+{{
               empty(detail.status_label || detail.status)
-            }}</Tag>
+            }}
+</Tag>
           </Descriptions.Item>
         </Descriptions>
 
