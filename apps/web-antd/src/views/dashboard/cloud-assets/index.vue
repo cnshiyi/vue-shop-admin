@@ -531,28 +531,28 @@ onBeforeUnmount(() => {
             @search="loadData"
           />
           <Button size="small" :loading="syncing" @click="syncAssets">
-同步代理
-</Button>
+            同步代理
+          </Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
           <Tag v-if="syncing" color="processing">同步中…</Tag>
           <Tag v-else-if="loading" color="processing">刷新中…</Tag>
           <Tag color="blue">
-最后刷新：{{ formatRefreshTime(lastRefreshedAt) }}
-</Tag>
+            最后刷新：{{ formatRefreshTime(lastRefreshedAt) }}
+          </Tag>
           <Tag
             v-if="lastSyncedAt"
             :color="recentSyncHighlight ? 'success' : 'cyan'"
-            >
-后台同步：{{ formatRefreshTime(lastSyncedAt) }}
-</Tag>
+          >
+            后台同步：{{ formatRefreshTime(lastSyncedAt) }}
+          </Tag>
           <Tag color="geekblue">
-自动同步周期：{{ Math.floor(autoSyncEverySeconds / 60) }}分钟
-</Tag>
+            自动同步周期：{{ Math.floor(autoSyncEverySeconds / 60) }}分钟
+          </Tag>
           <Tag color="orange">
-数量：AWS {{ awsExistingCount }} / 阿里云
+            数量：AWS {{ awsExistingCount }} / 阿里云
             {{ aliyunExistingCount }}
-</Tag>
+          </Tag>
           <Tag color="purple">下次刷新：{{ nextRefreshInSeconds }}s</Tag>
           <Switch v-model:checked="grouped" @change="loadData" />
         </Space>
@@ -635,10 +635,8 @@ onBeforeUnmount(() => {
               </template>
               <template v-else-if="column.key === 'sort_order'">
                 <Tag :color="sortOrderTagColor(record.sort_order)">
-{{
-                  record.sort_order || 99
-                }}
-</Tag>
+                  {{ record.sort_order || 99 }}
+                </Tag>
               </template>
               <template v-else-if="column.key === 'account_label'">
                 <TypographyParagraph
@@ -752,15 +750,15 @@ onBeforeUnmount(() => {
                   <Button
                     type="link"
                     @click="openDetail(record as DashboardCloudAssetItem)"
-                    >
-详情
-</Button>
+                  >
+                    详情
+                  </Button>
                   <Button
                     type="link"
                     @click="openEdit(record as DashboardCloudAssetItem)"
-                    >
-编辑
-</Button>
+                  >
+                    编辑
+                  </Button>
                   <Popconfirm
                     v-if="
                       canRebuildPreserveLink(record as DashboardCloudAssetItem)
@@ -775,9 +773,9 @@ onBeforeUnmount(() => {
                       :loading="
                         rebuildingServerId === (record.server_id || null)
                       "
-                      >
-重装
-</Button>
+                    >
+                      重装
+                    </Button>
                   </Popconfirm>
                   <Popconfirm
                     title="确认删除该代理/服务器记录吗？"
@@ -856,10 +854,8 @@ onBeforeUnmount(() => {
           </template>
           <template v-else-if="column.key === 'sort_order'">
             <Tag :color="sortOrderTagColor(record.sort_order)">
-{{
-              record.sort_order || 99
-            }}
-</Tag>
+              {{ record.sort_order || 99 }}
+            </Tag>
           </template>
           <template v-else-if="column.key === 'account_label'">
             <TypographyParagraph
@@ -970,15 +966,15 @@ onBeforeUnmount(() => {
               <Button
                 type="link"
                 @click="openDetail(record as DashboardCloudAssetItem)"
-                >
-详情
-</Button>
+              >
+                详情
+              </Button>
               <Button
                 type="link"
                 @click="openEdit(record as DashboardCloudAssetItem)"
-                >
-编辑
-</Button>
+              >
+                编辑
+              </Button>
               <Popconfirm
                 v-if="canRebuildPreserveLink(record as DashboardCloudAssetItem)"
                 title="确认按 AWS 方案重装并保持链接不变吗？系统会后台创建新实例、切换固定 IP、复用 MTProxy 密钥，成功后删除旧实例。"
@@ -989,9 +985,9 @@ onBeforeUnmount(() => {
                 <Button
                   type="link"
                   :loading="rebuildingServerId === (record.server_id || null)"
-                  >
-重装
-</Button>
+                >
+                  重装
+                </Button>
               </Popconfirm>
               <Popconfirm
                 title="确认删除该代理/服务器记录吗？"

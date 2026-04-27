@@ -171,12 +171,15 @@ onMounted(loadData);
               <Button
                 type="link"
                 @click="openBalanceDetail(record as DashboardUserItem)"
-                >
-余额明细
-</Button>
-              <Button type="link" @click="openEdit(record as DashboardUserItem)">
-编辑
-</Button>
+              >
+                余额明细
+              </Button>
+              <Button
+                type="link"
+                @click="openEdit(record as DashboardUserItem)"
+              >
+                编辑
+              </Button>
             </Space>
           </template>
         </template>

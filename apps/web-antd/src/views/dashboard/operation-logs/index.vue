@@ -101,10 +101,8 @@ onMounted(loadData);
           </template>
           <template v-else-if="column.key === 'action_type'">
             <Tag :color="actionColor(record.action_type)">
-{{
-              record.action_label || record.action_type
-            }}
-</Tag>
+              {{ record.action_label || record.action_type }}
+            </Tag>
           </template>
           <template v-else-if="column.key === 'payload'">
             <span class="whitespace-pre-wrap break-all">{{

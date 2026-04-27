@@ -120,18 +120,16 @@ function goToDetail(orderId: number) {
           </template>
           <template v-else-if="column.key === 'status'">
             <Tag :color="statusColor(record.status)">
-{{
-              record.status_label || statusLabel(record.status)
-            }}
-</Tag>
+              {{ record.status_label || statusLabel(record.status) }}
+            </Tag>
           </template>
           <template v-else-if="column.key === 'execution_status'">
             <Tag
               v-if="record.execution_status_label"
               :color="executionStatusColor(record.execution_status)"
-              >
-{{ record.execution_status_label }}
-</Tag>
+            >
+              {{ record.execution_status_label }}
+            </Tag>
             <span v-else>-</span>
           </template>
           <template v-else-if="column.key === 'total_amount'">

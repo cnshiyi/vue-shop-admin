@@ -134,10 +134,8 @@ function goToDetail(rechargeId: number) {
           </template>
           <template v-else-if="column.key === 'status'">
             <Tag :color="statusColor(record.status)">
-{{
-              record.status_label || statusLabel(record.status)
-            }}
-</Tag>
+              {{ record.status_label || statusLabel(record.status) }}
+            </Tag>
           </template>
           <template v-else-if="column.key === 'tx_hash'">
             <Typography.Paragraph

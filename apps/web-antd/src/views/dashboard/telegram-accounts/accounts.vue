@@ -187,11 +187,14 @@ onMounted(loadData);
     </Card>
 
     <Card :loading="loading" title="账号列表">
-      <List v-if="overview.accounts.length > 0" :data-source="overview.accounts">
+      <List
+        v-if="overview.accounts.length > 0"
+        :data-source="overview.accounts"
+      >
         <template #renderItem="{ item }">
           <List.Item>
             <List.Item.Meta
-              :description="`${item.phone || '-'} · ${item.username ? `@${ item.username}` : '-'} · ${item.note || ''}`"
+              :description="`${item.phone || '-'} · ${item.username ? `@${item.username}` : '-'} · ${item.note || ''}`"
               :title="item.label"
             />
             <Space>

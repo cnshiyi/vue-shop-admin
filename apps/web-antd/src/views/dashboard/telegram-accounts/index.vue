@@ -116,8 +116,8 @@ onMounted(loadData);
           @search="loadData"
         />
         <Button type="primary" @click="openCreate">
-添加 Telegram 登录账号
-</Button>
+          添加 Telegram 登录账号
+        </Button>
         <Button :loading="loading" @click="loadData">刷新</Button>
       </Space>
       <div class="mt-2 text-xs text-[var(--ant-color-text-description)]">
@@ -136,7 +136,7 @@ onMounted(loadData);
             <template #renderItem="{ item }">
               <List.Item>
                 <List.Item.Meta
-                  :description="`${item.phone || '-'} · ${item.username ? `@${ item.username}` : '-'}`"
+                  :description="`${item.phone || '-'} · ${item.username ? `@${item.username}` : '-'}`"
                   :title="item.label"
                 />
                 <Tag color="blue">{{ item.status }}</Tag>
@@ -159,9 +159,9 @@ onMounted(loadData);
                 <Tag
                   v-if="selectedUser?.tg_user_id === item.tg_user_id"
                   color="green"
-                  >
-当前
-</Tag>
+                >
+                  当前
+                </Tag>
               </List.Item>
             </template>
           </List>
@@ -196,7 +196,7 @@ onMounted(loadData);
                     {{ item.direction_label }} ·
                     {{
                       item.username_snapshot
-                        ? `@${ item.username_snapshot}`
+                        ? `@${item.username_snapshot}`
                         : item.tg_user_id
                     }}
                     · {{ item.created_at || '-' }}

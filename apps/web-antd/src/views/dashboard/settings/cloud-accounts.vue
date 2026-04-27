@@ -234,10 +234,8 @@ onMounted(loadData);
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'is_active'">
           <Tag :color="record.is_active ? 'success' : 'default'">
-{{
-            record.is_active ? '启用' : '停用'
-          }}
-</Tag>
+            {{ record.is_active ? '启用' : '停用' }}
+          </Tag>
         </template>
         <template v-else-if="column.key === 'status'">
           <Tag
@@ -258,16 +256,16 @@ onMounted(loadData);
               type="link"
               size="small"
               @click="verify(record as DashboardCloudAccountConfigItem)"
-              >
-验证
-</Button>
+            >
+              验证
+            </Button>
             <Button
               type="link"
               size="small"
               @click="openEdit(record as DashboardCloudAccountConfigItem)"
-              >
-编辑
-</Button>
+            >
+              编辑
+            </Button>
             <Popconfirm
               title="确认删除该云账号吗？"
               @confirm="remove(record as DashboardCloudAccountConfigItem)"

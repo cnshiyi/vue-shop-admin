@@ -421,24 +421,24 @@ onMounted(loadData);
             size="small"
             :type="activeTab === 'plans' ? 'primary' : 'default'"
             @click="activeTab = 'plans'"
-            >
-套餐列表
-</Button>
+          >
+            套餐列表
+          </Button>
           <Button
             size="small"
             :type="activeTab === 'pricing' ? 'primary' : 'default'"
             @click="activeTab = 'pricing'"
-            >
-价格列表
-</Button>
+          >
+            价格列表
+          </Button>
           <Button
             v-if="activeTab === 'plans'"
             size="small"
             type="primary"
             @click="openCreate"
-            >
-新增套餐
-</Button>
+          >
+            新增套餐
+          </Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
         </Space>
@@ -454,28 +454,24 @@ onMounted(loadData);
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'provider'">
             <Tag color="blue">
-{{
-              record.provider_label || record.provider || '-'
-            }}
-</Tag>
+              {{ record.provider_label || record.provider || '-' }}
+            </Tag>
           </template>
           <template v-else-if="column.key === 'cost_price'">
             <Tag color="default">
-{{ record.cost_price || '0' }}
+              {{ record.cost_price || '0' }}
               {{ record.currency || 'USDT' }}
-</Tag>
+            </Tag>
           </template>
           <template v-else-if="column.key === 'price'">
             <Tag color="gold">
-{{ record.price }} {{ record.currency || 'USDT' }}
-</Tag>
+              {{ record.price }} {{ record.currency || 'USDT' }}
+            </Tag>
           </template>
           <template v-else-if="column.key === 'is_active'">
             <Tag :color="record.is_active ? 'success' : 'default'">
-{{
-              record.is_active ? '启用' : '停用'
-            }}
-</Tag>
+              {{ record.is_active ? '启用' : '停用' }}
+            </Tag>
           </template>
           <template v-else-if="column.key === 'display_description'">
             <span>{{
@@ -490,9 +486,9 @@ onMounted(loadData);
                 type="link"
                 size="small"
                 @click="openEdit(asDashboardCloudPlanItem(record))"
-                >
-编辑
-</Button>
+              >
+                编辑
+              </Button>
               <Popconfirm
                 title="确认删除该套餐？"
                 @confirm="removePlan(record.id)"
@@ -502,9 +498,9 @@ onMounted(loadData);
                   danger
                   size="small"
                   :loading="deletingId === record.id"
-                  >
-删除
-</Button>
+                >
+                  删除
+                </Button>
               </Popconfirm>
             </Space>
           </template>

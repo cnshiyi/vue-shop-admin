@@ -121,8 +121,8 @@ onMounted(loadData);
   >
     <Space class="mb-3">
       <Button type="primary" :loading="initLoading" @click="initOpen = true">
-初始化文案
-</Button>
+        初始化文案
+      </Button>
       <Button :loading="loading" @click="loadData">刷新</Button>
     </Space>
 
@@ -160,9 +160,9 @@ onMounted(loadData);
             :loading="savingMap[item.key]"
             type="primary"
             @click="saveItem(item)"
-            >
-保存
-</Button>
+          >
+            保存
+          </Button>
           <Button @click="resetItem(item)">恢复默认</Button>
         </Space>
       </Card>

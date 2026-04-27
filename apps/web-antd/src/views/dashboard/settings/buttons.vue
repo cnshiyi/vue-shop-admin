@@ -134,8 +134,8 @@ onMounted(loadData);
 
       <Space class="mb-3">
         <Button type="primary" :loading="saving" @click="saveConfig">
-保存设置
-</Button>
+          保存设置
+        </Button>
         <Button @click="addLinkButton">添加自定义键盘</Button>
         <Button :loading="loading" @click="loadData">刷新</Button>
         <Button :loading="loading" @click="initConfig">初始化默认按钮</Button>

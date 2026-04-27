@@ -288,9 +288,9 @@ onMounted(() => {
             type="primary"
             :loading="syncing"
             @click="syncPricing"
-            >
-同步主规格与进货价
-</Button>
+          >
+            同步主规格与进货价
+          </Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
         </Space>
@@ -300,14 +300,14 @@ onMounted(() => {
         <Card v-if="syncSummary" size="small">
           <Space wrap>
             <Tag color="blue">
-同步地区 {{ syncSummary.summary.region_count }}
-</Tag>
+              同步地区 {{ syncSummary.summary.region_count }}
+            </Tag>
             <Tag color="green">
-主规格 {{ syncSummary.summary.after_pricing_count }}
-</Tag>
+              主规格 {{ syncSummary.summary.after_pricing_count }}
+            </Tag>
             <Tag color="gold">
-人工套餐 {{ syncSummary.summary.after_plan_count }}
-</Tag>
+              人工套餐 {{ syncSummary.summary.after_plan_count }}
+            </Tag>
             <Tag>同步结果 {{ syncSummary.synced ? '成功' : '未完成' }}</Tag>
           </Space>
         </Card>
@@ -326,9 +326,9 @@ onMounted(() => {
             <Space>
               <Tag
                 :color="provider.key === 'aws_lightsail' ? 'blue' : 'orange'"
-                >
-{{ provider.label }}
-</Tag>
+              >
+                {{ provider.label }}
+              </Tag>
               <span>{{ provider.regions.length }} 个地区</span>
             </Space>
           </template>
@@ -362,17 +362,13 @@ onMounted(() => {
                 <template #bodyCell="{ column, record }">
                   <template v-if="column.key === 'cost_price'">
                     <Tag>
-{{
-                      formatMoney(record.cost_price, record.currency)
-                    }}
-</Tag>
+                      {{ formatMoney(record.cost_price, record.currency) }}
+                    </Tag>
                   </template>
                   <template v-else-if="column.key === 'is_active'">
                     <Tag :color="record.is_active ? 'success' : 'default'">
-{{
-                      record.is_active ? '在售' : '停用'
-                    }}
-</Tag>
+                      {{ record.is_active ? '在售' : '停用' }}
+                    </Tag>
                   </template>
                 </template>
               </Table>

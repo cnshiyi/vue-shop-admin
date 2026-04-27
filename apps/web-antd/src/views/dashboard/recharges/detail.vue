@@ -129,37 +129,25 @@ onMounted(loadData);
       <template v-if="detail">
         <Descriptions bordered :column="2" size="small" title="基础信息">
           <Descriptions.Item label="充值订单 ID">
-{{
-            detail.id
-          }}
-</Descriptions.Item>
+            {{ detail.id }}
+          </Descriptions.Item>
           <Descriptions.Item label="状态">
             <Tag :color="statusColor(detail.status)">
-{{
-              statusLabel(detail.status)
-            }}
-</Tag>
+              {{ statusLabel(detail.status) }}
+            </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="用户">
-{{
-            empty(detail.user_display_name)
-          }}
-</Descriptions.Item>
+            {{ empty(detail.user_display_name) }}
+          </Descriptions.Item>
           <Descriptions.Item label="用户名">
-{{
-            empty(detail.username_label)
-          }}
-</Descriptions.Item>
+            {{ empty(detail.username_label) }}
+          </Descriptions.Item>
           <Descriptions.Item label="Telegram ID">
-{{
-            empty(detail.tg_user_id)
-          }}
-</Descriptions.Item>
+            {{ empty(detail.tg_user_id) }}
+          </Descriptions.Item>
           <Descriptions.Item label="后台用户 ID">
-{{
-            empty(detail.user_id)
-          }}
-</Descriptions.Item>
+            {{ empty(detail.user_id) }}
+          </Descriptions.Item>
         </Descriptions>
 
         <Descriptions
@@ -170,20 +158,14 @@ onMounted(loadData);
           title="金额信息"
         >
           <Descriptions.Item label="币种">
-{{
-            empty(detail.currency)
-          }}
-</Descriptions.Item>
+            {{ empty(detail.currency) }}
+          </Descriptions.Item>
           <Descriptions.Item label="充值金额">
-{{
-            empty(detail.amount)
-          }}
-</Descriptions.Item>
+            {{ empty(detail.amount) }}
+          </Descriptions.Item>
           <Descriptions.Item label="应付金额">
-{{
-            empty(detail.pay_amount)
-          }}
-</Descriptions.Item>
+            {{ empty(detail.pay_amount) }}
+          </Descriptions.Item>
           <Descriptions.Item label="收款地址" :span="2">
             <Typography.Paragraph
               :copyable="
@@ -214,20 +196,14 @@ onMounted(loadData);
           title="时间信息"
         >
           <Descriptions.Item label="创建时间">
-{{
-            empty(detail.created_at)
-          }}
-</Descriptions.Item>
+            {{ empty(detail.created_at) }}
+          </Descriptions.Item>
           <Descriptions.Item label="完成时间">
-{{
-            empty(detail.completed_at)
-          }}
-</Descriptions.Item>
+            {{ empty(detail.completed_at) }}
+          </Descriptions.Item>
           <Descriptions.Item label="更新时间">
-{{
-            empty(detail.updated_at)
-          }}
-</Descriptions.Item>
+            {{ empty(detail.updated_at) }}
+          </Descriptions.Item>
         </Descriptions>
       </template>
 
