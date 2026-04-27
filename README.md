@@ -36,6 +36,10 @@ git fetch upstream
 
 Do not blindly merge upstream changes without checking conflicts against business customizations.
 
+## Development Notes
+
+- Detailed development notes and roadmap are in `DEVELOPMENT.md`
+
 ## Local Development
 
 ### Requirements
