@@ -130,8 +130,8 @@ onMounted(loadData);
   <Page :description="description || ''" :title="title">
     <Space class="mb-4">
       <Button type="primary" :loading="initLoading" @click="initConfigs">
-初始化配置
-</Button>
+        初始化配置
+      </Button>
       <Button :loading="loading" @click="loadData">刷新</Button>
     </Space>
 
@@ -146,9 +146,9 @@ onMounted(loadData);
               type="primary"
               :loading="savingMap[item.key]"
               @click="saveItem(item)"
-              >
-保存
-</Button>
+            >
+              保存
+            </Button>
           </Space>
         </div>
         <Input

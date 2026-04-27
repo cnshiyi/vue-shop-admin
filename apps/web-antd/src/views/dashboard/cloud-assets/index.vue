@@ -435,7 +435,9 @@ async function rebuildPreserveLink(record: DashboardCloudAssetItem) {
 
 async function deleteAsset(record: DashboardCloudAssetItem) {
   try {
-    await (record.server_id ? deleteDashboardServerApi(record.server_id) : deleteDashboardCloudAssetApi(record.id));
+    await (record.server_id
+      ? deleteDashboardServerApi(record.server_id)
+      : deleteDashboardCloudAssetApi(record.id));
     message.success('代理已删除');
     await loadData();
   } catch (error: any) {
