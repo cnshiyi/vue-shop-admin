@@ -219,7 +219,7 @@ onMounted(loadData);
         class="mb-4"
         show-icon
         type="info"
-        message="密钥不会明文保存到前端；只有动态码校验通过后才会写入后台配置。"
+        message="密钥只用于本次绑定；动态码校验通过后才会加密写入后台配置。"
       />
       <Space class="mb-4">
         <Button
