@@ -7,11 +7,18 @@ import type {
 
 import { computed, onMounted, reactive, ref } from 'vue';
 
-import QRCode from 'qrcode';
-
 import { Page } from '@vben/common-ui';
 
-import { Alert, Button, Card, Input, message, Space, Tag } from 'ant-design-vue';
+import {
+  Alert,
+  Button,
+  Card,
+  Input,
+  message,
+  Space,
+  Tag,
+} from 'ant-design-vue';
+import QRCode from 'qrcode';
 
 import {
   bindDashboardTotpApi,
@@ -200,7 +207,8 @@ onMounted(loadData);
             {{ totpItem.description || '后台 Google Authenticator 二级验证' }}
           </div>
           <div class="config-desc">
-            生成二维码后，用 Google Authenticator 扫码，再输入 6 位动态码完成绑定。
+            生成二维码后，用 Google Authenticator 扫码，再输入 6
+            位动态码完成绑定。
           </div>
         </div>
         <Tag :color="totpItem.value_preview ? 'green' : 'default'">
@@ -320,9 +328,9 @@ onMounted(loadData);
 
 .totp-bind-box {
   display: flex;
+  flex-wrap: wrap;
   gap: 20px;
   align-items: center;
-  flex-wrap: wrap;
 }
 
 .totp-qrcode {
