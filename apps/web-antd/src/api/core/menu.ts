@@ -20,7 +20,6 @@ const routeComponentMap: Record<string, string> = {
   DashboardSettingsCloudAccounts:
     '/views/dashboard/settings/cloud-accounts.vue',
   DashboardSettingsDatabase: '/views/dashboard/settings/database.vue',
-  DashboardSettingsPassword: '/views/dashboard/settings/password.vue',
   DashboardSettingsSystem: '/views/dashboard/settings/system.vue',
   DashboardSettingsTexts: '/views/dashboard/settings/texts.vue',
   DashboardTasks: '/views/dashboard/tasks/index.vue',

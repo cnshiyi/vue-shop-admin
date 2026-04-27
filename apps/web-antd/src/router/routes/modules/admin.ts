@@ -156,12 +156,6 @@ const routes: RouteRecordRaw[] = [
               import('#/views/dashboard/settings/cloud-accounts.vue'),
             meta: { title: '云账号设置' },
           },
-          {
-            name: 'DashboardSettingsPassword',
-            path: 'password',
-            component: () => import('#/views/dashboard/settings/password.vue'),
-            meta: { title: '密码修改' },
-          },
         ],
       },
       {

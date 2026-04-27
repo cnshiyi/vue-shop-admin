@@ -57,6 +57,15 @@ const coreRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        name: 'GitHubCallback',
+        path: 'github/callback',
+        component: () =>
+          import('#/views/_core/authentication/github-callback.vue'),
+        meta: {
+          title: 'GitHub 登录',
+        },
+      },
+      {
         name: 'CodeLogin',
         path: 'code-login',
         component: () => import('#/views/_core/authentication/code-login.vue'),

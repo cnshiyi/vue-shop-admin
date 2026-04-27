@@ -17,6 +17,16 @@ export namespace AuthApi {
     data: LoginResult;
     status: number;
   }
+
+  export interface GitHubStartResult {
+    authorizeUrl: string;
+  }
+
+  export interface GitHubCallbackParams {
+    code: string;
+    redirectUri: string;
+    state: string;
+  }
 }
 
 /**
@@ -24,6 +34,18 @@ export namespace AuthApi {
  */
 export async function loginApi(data: AuthApi.LoginParams) {
   return requestClient.post<AuthApi.LoginResult>('/auth/login', data);
+}
+
+export async function githubLoginStartApi(redirectUri: string) {
+  return requestClient.post<AuthApi.GitHubStartResult>('/auth/github/start', {
+    redirectUri,
+  });
+}
+
+export async function githubLoginCallbackApi(
+  data: AuthApi.GitHubCallbackParams,
+) {
+  return requestClient.post<AuthApi.LoginResult>('/auth/github/callback', data);
 }
 
 /**
