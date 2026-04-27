@@ -786,6 +786,10 @@ export async function deleteDashboardServerApi(serverId: number) {
   return requestClient.post<boolean>(`/admin/servers/${serverId}/delete/`);
 }
 
+export async function deleteDashboardCloudAssetApi(assetId: number) {
+  return requestClient.post<boolean>(`/admin/cloud-assets/${assetId}/delete/`);
+}
+
 export async function rebuildDashboardServerPreserveLinkApi(serverId: number) {
   return requestClient.post<{
     accepted: boolean;

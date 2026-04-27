@@ -28,6 +28,7 @@ import {
 import dayjs from 'dayjs';
 
 import {
+  deleteDashboardCloudAssetApi,
   deleteDashboardServerApi,
   getDashboardCloudAssetsApi,
   getDashboardCloudAssetsGroupedApi,
@@ -434,8 +435,11 @@ async function rebuildPreserveLink(record: DashboardCloudAssetItem) {
 
 async function deleteAsset(record: DashboardCloudAssetItem) {
   try {
-    const serverId = record.server_id || record.id;
-    await deleteDashboardServerApi(serverId);
+    if (record.server_id) {
+      await deleteDashboardServerApi(record.server_id);
+    } else {
+      await deleteDashboardCloudAssetApi(record.id);
+    }
     message.success('代理已删除');
     await loadData();
   } catch (error: any) {

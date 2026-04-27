@@ -2,11 +2,43 @@ import type { RouteRecordStringComponent } from '@vben/types';
 
 import adminRoutes from '#/router/routes/modules/admin';
 
+const routeComponentMap: Record<string, string> = {
+  DashboardAnalytics: '/views/dashboard/analytics/index.vue',
+  DashboardCloudAssetDetail: '/views/dashboard/cloud-assets/detail.vue',
+  DashboardCloudAssets: '/views/dashboard/cloud-assets/index.vue',
+  DashboardCloudOrderDetail: '/views/dashboard/cloud-orders/detail.vue',
+  DashboardCloudOrdersList: '/views/dashboard/cloud-orders/index.vue',
+  DashboardCloudPlansList: '/views/dashboard/cloud-plans/index.vue',
+  DashboardCloudPricing: '/views/dashboard/cloud-pricing/index.vue',
+  DashboardMonitors: '/views/dashboard/monitors/index.vue',
+  DashboardOperationLogs: '/views/dashboard/operation-logs/index.vue',
+  DashboardRechargeDetail: '/views/dashboard/recharges/detail.vue',
+  DashboardRecharges: '/views/dashboard/recharges/index.vue',
+  DashboardServerLogs: '/views/dashboard/server-logs/index.vue',
+  DashboardServerStatistics: '/views/dashboard/server-statistics/index.vue',
+  DashboardSettingsButtons: '/views/dashboard/settings/buttons.vue',
+  DashboardSettingsCloudAccounts:
+    '/views/dashboard/settings/cloud-accounts.vue',
+  DashboardSettingsDatabase: '/views/dashboard/settings/database.vue',
+  DashboardSettingsPassword: '/views/dashboard/settings/password.vue',
+  DashboardSettingsSystem: '/views/dashboard/settings/system.vue',
+  DashboardSettingsTexts: '/views/dashboard/settings/texts.vue',
+  DashboardTasks: '/views/dashboard/tasks/index.vue',
+  DashboardTelegramAccountList:
+    '/views/dashboard/telegram-accounts/accounts.vue',
+  DashboardTelegramChatRecords: '/views/dashboard/telegram-accounts/chats.vue',
+  DashboardUserBalanceDetails: '/views/dashboard/users/balance-details.vue',
+  DashboardUsers: '/views/dashboard/users/index.vue',
+};
+
 function toMenuRoutes(routes: any[]): RouteRecordStringComponent[] {
   return routes.map((route) => {
+    const routeName = String(route.name || '');
     const menuRoute: RouteRecordStringComponent = {
       ...route,
-      component: route.children?.length ? 'BasicLayout' : resolveViewComponent(route.component),
+      component: route.children?.length
+        ? 'BasicLayout'
+        : routeComponentMap[routeName] || '/views/_core/fallback/not-found.vue',
     };
 
     if (route.children?.length) {
@@ -15,15 +47,6 @@ function toMenuRoutes(routes: any[]): RouteRecordStringComponent[] {
 
     return menuRoute;
   });
-}
-
-function resolveViewComponent(component: unknown): string {
-  const text = String(component ?? '');
-  const matched = text.match(/views\/(.+?)\.vue/);
-  if (matched?.[1]) {
-    return `/views/${matched[1]}.vue`;
-  }
-  return '/views/_core/fallback/not-found.vue';
 }
 
 /**

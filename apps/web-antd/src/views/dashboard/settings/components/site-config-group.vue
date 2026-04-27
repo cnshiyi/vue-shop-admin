@@ -89,15 +89,21 @@ async function saveItem(item: DashboardSiteConfigGroupItem) {
     message.error('该配置尚未初始化，请先点击顶部“初始化配置”');
     return;
   }
+  const value = draftMap[item.key] ?? '';
+  const preserveExisting = !!item.is_sensitive && (maskedMap[item.key] || !value.trim());
   savingMap[item.key] = true;
   try {
     await updateDashboardSiteConfigApi(current.id, {
       is_sensitive: !!sensitiveMap[item.key],
       key: item.key,
-      preserve_existing: !!item.is_sensitive && !!maskedMap[item.key],
-      value: draftMap[item.key] ?? '',
+      preserve_existing: preserveExisting,
+      value: preserveExisting ? '' : value,
     });
-    message.success(`已保存：${item.description || item.key}`);
+    message.success(
+      preserveExisting
+        ? `已保留原密钥：${item.description || item.key}`
+        : `已保存：${item.description || item.key}`,
+    );
     await loadData();
   } catch (error: any) {
     message.error(error?.message || '保存失败');
