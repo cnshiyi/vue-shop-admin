@@ -1,12 +1,15 @@
 <script lang="ts" setup>
 import { reactive, ref } from 'vue';
 
+import { SliderCaptcha } from '@vben/common-ui';
+
 import { Alert, Button, Card, Input, InputPassword } from 'ant-design-vue';
 
 import { useAuthStore } from '#/store';
 
 const authStore = useAuthStore();
 const errorMessage = ref('');
+const captchaPassed = ref(false);
 const form = reactive({
   otp_token: '',
   password: '',
@@ -17,6 +20,10 @@ async function handleLogin() {
   errorMessage.value = '';
   if (!form.username || !form.password) {
     errorMessage.value = '请输入用户名和密码';
+    return;
+  }
+  if (!captchaPassed.value) {
+    errorMessage.value = '请先完成滑动验证';
     return;
   }
   try {
@@ -62,12 +69,19 @@ async function handleLogin() {
       />
       <Input
         v-model:value="form.otp_token"
-        class="mb-6"
+        class="mb-4"
         autocomplete="one-time-code"
         inputmode="numeric"
         :maxlength="6"
         placeholder="Google 验证码（6位）"
         size="large"
+      />
+
+      <SliderCaptcha
+        v-model="captchaPassed"
+        class="mb-6"
+        success-text="验证通过"
+        text="向右滑动完成验证"
       />
 
       <Button
