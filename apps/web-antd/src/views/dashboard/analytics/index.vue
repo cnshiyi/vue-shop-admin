@@ -1,29 +1,12 @@
 <script lang="ts" setup>
-import type { AnalysisOverviewItem } from '@vben/common-ui';
-import type { TabOption } from '@vben/types';
-
-import { computed, onMounted, ref } from 'vue';
+import type { EchartsUIType } from '@vben/plugins/echarts';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
-import {
-  AnalysisChartCard,
-  AnalysisChartsTabs,
-  AnalysisOverview,
-} from '@vben/common-ui';
+import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
 import { SvgBellIcon, SvgCardIcon, SvgDownloadIcon } from '@vben/icons';
 
-import {
-  Button,
-  Card,
-  Col,
-  Empty,
-  List,
-  Progress,
-  Row,
-  Space,
-  Statistic,
-  Tag,
-} from 'ant-design-vue';
+import { Button, Card, Col, Row, Space, Statistic } from 'ant-design-vue';
 
 import { getDashboardOverviewApi } from '#/api/admin';
 
@@ -32,82 +15,101 @@ const loading = ref(false);
 const overview = ref<Awaited<
   ReturnType<typeof getDashboardOverviewApi>
 > | null>(null);
+const trendChartRef = ref<EchartsUIType>();
+const { renderEcharts: renderTrendChart } = useEcharts(trendChartRef);
 
-const overviewItems = computed<AnalysisOverviewItem[]>(() => {
+const overviewItems = computed(() => {
   const summary = overview.value?.summary;
   return [
     {
       icon: SvgCardIcon,
-      title: '用户总量',
-      totalTitle: 'Telegram 用户',
-      totalValue: summary?.users_total ?? 0,
-      value: summary?.users_total ?? 0,
+      title: '服务器总量',
+      totalTitle: '有效代理/服务器',
+      totalValue: summary?.server_assets_total ?? 0,
+      value: 0,
     },
     {
       icon: SvgDownloadIcon,
-      title: '云订单总量',
-      totalTitle: '云服务器订单',
-      totalValue: summary?.cloud_orders_total ?? 0,
-      value: summary?.cloud_pending ?? 0,
+      title: '今日到期',
+      totalTitle: '今日到期代理',
+      totalValue: summary?.due_today ?? 0,
+      value: 0,
     },
     {
       icon: SvgBellIcon,
-      title: '充值总量',
-      totalTitle: '充值记录',
-      totalValue: summary?.recharges_total ?? 0,
-      value: summary?.recharge_pending ?? 0,
+      title: '今日订单',
+      totalTitle: '今日新增云订单',
+      totalValue: summary?.new_orders_today ?? 0,
+      value: 0,
     },
     {
       icon: SvgCardIcon,
-      title: '监控总量',
-      totalTitle: '地址监控',
-      totalValue: summary?.monitors_total ?? 0,
-      value: summary?.monitors_total ?? 0,
+      title: '利润统计',
+      totalTitle: 'USDT',
+      totalValue: Number(summary?.profit_total ?? 0),
+      value: 0,
     },
   ];
 });
 
-const chartTabs: TabOption[] = [
-  { label: '业务总览', value: 'business' },
-  { label: '最近动态', value: 'activity' },
-];
-
-const progressItems = computed(() => {
+const financeCards = computed(() => {
   const summary = overview.value?.summary;
-  const cloudTotal = Math.max(summary?.cloud_orders_total ?? 0, 1);
-  const rechargeTotal = Math.max(summary?.recharges_total ?? 0, 1);
   return [
-    {
-      label: '云订单处理率',
-      percent: Math.round(
-        ((cloudTotal - (summary?.cloud_pending ?? 0)) / cloudTotal) * 100,
-      ),
-      strokeColor: '#1677ff',
-    },
-    {
-      label: '充值确认率',
-      percent: Math.round(
-        ((rechargeTotal - (summary?.recharge_pending ?? 0)) / rechargeTotal) *
-          100,
-      ),
-      strokeColor: '#52c41a',
-    },
-    {
-      label: '地址监控覆盖度',
-      percent: summary?.monitors_total ? 100 : 0,
-      strokeColor: '#722ed1',
-    },
+    { label: '收入', value: summary?.revenue_total ?? '0', suffix: 'USDT' },
+    { label: '成本', value: summary?.cost_total ?? '0', suffix: 'USDT' },
+    { label: '利润', value: summary?.profit_total ?? '0', suffix: 'USDT' },
   ];
 });
 
-function statusColor(status: string) {
-  if (['completed', 'paid', 'success', 'active'].includes(status))
-    return 'green';
-  if (['pending', 'creating', 'provisioning', 'renew_pending'].includes(status))
-    return 'orange';
-  if (['failed', 'expired', 'cancelled', 'deleted'].includes(status))
-    return 'red';
-  return 'blue';
+function renderCharts() {
+  const charts = overview.value?.charts;
+  if (!charts) return;
+  renderTrendChart({
+    grid: { bottom: 35, containLabel: true, left: 24, right: 56, top: 45 },
+    legend: {
+      top: 0,
+      data: ['用户增长', '订单数量', '服务器数量', '到期数量', '利润'],
+    },
+    series: [
+      {
+        name: '用户增长',
+        type: 'line',
+        smooth: true,
+        data: charts.trend.users,
+      },
+      {
+        name: '订单数量',
+        type: 'line',
+        smooth: true,
+        data: charts.trend.orders,
+      },
+      {
+        name: '服务器数量',
+        type: 'line',
+        smooth: true,
+        data: charts.trend.servers,
+      },
+      {
+        name: '到期数量',
+        type: 'line',
+        smooth: true,
+        data: charts.trend.expiry,
+      },
+      {
+        name: '利润',
+        type: 'line',
+        smooth: true,
+        yAxisIndex: 1,
+        data: charts.trend.profit,
+      },
+    ],
+    tooltip: { trigger: 'axis' },
+    xAxis: { boundaryGap: false, data: charts.trend.labels, type: 'category' },
+    yAxis: [
+      { min: 0, name: '数量', type: 'value' },
+      { min: 0, name: '利润', type: 'value' },
+    ],
+  });
 }
 
 async function loadOverview() {
@@ -117,9 +119,20 @@ async function loadOverview() {
   } finally {
     loading.value = false;
   }
+  await nextTick();
+  renderCharts();
+  window.setTimeout(renderCharts, 100);
+  window.setTimeout(renderCharts, 500);
 }
 
 onMounted(loadOverview);
+watch(
+  () => overview.value?.charts,
+  async () => {
+    await nextTick();
+    renderCharts();
+  },
+);
 </script>
 
 <template>
@@ -130,137 +143,57 @@ onMounted(loadOverview);
       <div>
         <div class="text-2xl font-semibold">分析页</div>
         <div class="mt-1 text-sm text-gray-500">
-          聚焦业务概览、处理率与最近动态，和工作台形成分工。
+          横轴固定为当月 1–31
+          号；用户增长、订单数量、服务器数量、到期数量和利润每月 1
+          号自动从新月份重新统计。
         </div>
       </div>
       <Space>
-        <Button @click="router.push('/admin/workspace')">返回工作台</Button>
+        <Button @click="router.push('/admin/cloud-orders/list')">云订单</Button>
         <Button type="primary" @click="loadOverview">刷新分析</Button>
       </Space>
     </div>
 
-    <AnalysisOverview :items="overviewItems" />
-
-    <AnalysisChartsTabs :tabs="chartTabs" class="mt-5">
-      <template #business>
-        <Row :gutter="16">
-          <Col :lg="8" :span="24">
-            <Card :loading="loading" title="核心总览">
-              <div class="space-y-4">
-                <Statistic
-                  title="普通订单"
-                  :value="overview?.summary?.orders_total ?? 0"
-                />
-                <Statistic
-                  title="地址监控"
-                  :value="overview?.summary?.monitors_total ?? 0"
-                />
-                <Statistic
-                  title="待处理云订单"
-                  :value="overview?.summary?.cloud_pending ?? 0"
-                />
-                <Statistic
-                  title="待确认充值"
-                  :value="overview?.summary?.recharge_pending ?? 0"
-                />
-              </div>
-            </Card>
-          </Col>
-          <Col :lg="16" :span="24">
-            <Card :loading="loading" title="处理进度">
-              <div class="space-y-5">
-                <div v-for="item in progressItems" :key="item.label">
-                  <div
-                    class="mb-2 flex items-center justify-between text-sm text-gray-500"
-                  >
-                    <span>{{ item.label }}</span>
-                    <span>{{ item.percent }}%</span>
-                  </div>
-                  <Progress
-                    :percent="item.percent"
-                    :show-info="false"
-                    :stroke-color="item.strokeColor"
-                  />
-                </div>
-              </div>
-            </Card>
-          </Col>
-        </Row>
-      </template>
-
-      <template #activity>
-        <Row :gutter="16">
-          <Col :lg="12" :span="24">
-            <Card :loading="loading" title="最近云订单动态">
-              <List
-                v-if="overview?.latest_cloud_orders?.length"
-                :data-source="overview.latest_cloud_orders"
-              >
-                <template #renderItem="{ item }">
-                  <List.Item>
-                    <List.Item.Meta
-                      :description="`${item.region_label || item.region_name || '-'} · ${item.plan_name || '-'}`"
-                      :title="item.order_no || `#${item.id}`"
-                    />
-                    <Tag :color="statusColor(item.status)">{{
-                      item.status_label || item.status
-                    }}</Tag>
-                  </List.Item>
-                </template>
-              </List>
-              <Empty v-else description="暂无云订单动态" />
-            </Card>
-          </Col>
-          <Col :lg="12" :span="24">
-            <Card :loading="loading" title="最近充值动态">
-              <List
-                v-if="overview?.latest_recharges?.length"
-                :data-source="overview.latest_recharges"
-              >
-                <template #renderItem="{ item }">
-                  <List.Item>
-                    <List.Item.Meta
-                      :description="item.tx_hash || '暂无交易哈希'"
-                      :title="`充值 #${item.id} · ${item.amount}`"
-                    />
-                    <Tag :color="statusColor(item.status)">{{
-                      item.status_label || item.status
-                    }}</Tag>
-                  </List.Item>
-                </template>
-              </List>
-              <Empty v-else description="暂无充值动态" />
-            </Card>
-          </Col>
-        </Row>
-      </template>
-    </AnalysisChartsTabs>
-
-    <div class="mt-5 w-full md:flex">
-      <AnalysisChartCard class="mt-5 md:mt-0 md:mr-4 md:w-1/3" title="数据来源">
-        <div class="space-y-3 text-sm text-gray-500">
-          <div>Django API</div>
-          <div>`/api/admin/dashboard/overview/`</div>
-          <div>实时读取数据库聚合结果</div>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <Card v-for="item in overviewItems" :key="item.title" class="w-full">
+        <div class="flex items-start justify-between gap-4">
+          <Statistic :title="item.title" :value="item.totalValue" />
+          <component
+            :is="item.icon"
+            class="size-8 shrink-0 text-[var(--ant-color-primary)]"
+          />
         </div>
-      </AnalysisChartCard>
-      <AnalysisChartCard
-        class="mt-5 md:mt-0 md:mr-4 md:w-1/3"
-        title="分析页定位"
-      >
-        <div class="space-y-3 text-sm text-gray-500">
-          <div>看整体</div>
-          <div>看处理率</div>
-          <div>看最近动态</div>
+        <div class="mt-2 text-sm text-[var(--ant-color-text-tertiary)]">
+          {{ item.totalTitle }}
         </div>
-      </AnalysisChartCard>
-      <AnalysisChartCard class="mt-5 md:mt-0 md:w-1/3" title="推荐动作">
-        <div class="space-y-3 text-sm text-gray-500">
-          <div>待办处理去工作台</div>
-          <div>订单异常去云订单</div>
-          <div>配置缺口去系统设置/套餐设置</div>
-        </div>
-      </AnalysisChartCard>
+      </Card>
     </div>
+
+    <Row class="mt-5" :gutter="16">
+      <Col :span="24">
+        <Card
+          :loading="loading"
+          title="月度趋势图：用户增长 / 订单数量 / 服务器数量 / 到期数量 / 利润"
+        >
+          <EchartsUI ref="trendChartRef" style="width: 100%; height: 360px" />
+        </Card>
+      </Col>
+    </Row>
+
+    <Row class="mt-5" :gutter="16">
+      <Col :span="24">
+        <Card :loading="loading" title="利润统计">
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Card v-for="item in financeCards" :key="item.label" size="small">
+              <Statistic
+                :title="item.label"
+                :value="item.value"
+                :suffix="item.suffix"
+              />
+            </Card>
+          </div>
+        </Card>
+      </Col>
+    </Row>
   </div>
 </template>

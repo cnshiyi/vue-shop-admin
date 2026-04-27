@@ -16,7 +16,10 @@ import {
   message,
 } from 'ant-design-vue';
 
-import { getDashboardRechargeDetailApi, updateDashboardRechargeStatusApi } from '#/api/admin';
+import {
+  getDashboardRechargeDetailApi,
+  updateDashboardRechargeStatusApi,
+} from '#/api/admin';
 import type { DashboardRechargeDetail } from '#/api/admin';
 
 const route = useRoute();
@@ -91,7 +94,7 @@ async function saveStatus() {
 }
 
 function goBack() {
-  router.push('/admin/logs/recharges').catch(() => {});
+  router.push('/admin/cloud-orders/recharges').catch(() => {});
 }
 
 onMounted(loadData);

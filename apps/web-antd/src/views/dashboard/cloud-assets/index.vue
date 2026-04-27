@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import dayjs from 'dayjs';
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 
@@ -21,11 +22,23 @@ import {
   message,
 } from 'ant-design-vue';
 
-import { getDashboardCloudAssetsApi, getDashboardCloudAssetsGroupedApi, getDashboardCloudAssetsSyncStatusApi, syncDashboardCloudAssetsApi, updateDashboardCloudAssetApi, deleteDashboardServerApi, rebuildDashboardServerPreserveLinkApi } from '#/api/admin';
-import type { DashboardCloudAssetGroup, DashboardCloudAssetItem } from '#/api/admin';
+import {
+  getDashboardCloudAssetsApi,
+  getDashboardCloudAssetsGroupedApi,
+  getDashboardCloudAssetsSyncStatusApi,
+  syncDashboardCloudAssetsApi,
+  updateDashboardCloudAssetApi,
+  deleteDashboardServerApi,
+  rebuildDashboardServerPreserveLinkApi,
+} from '#/api/admin';
+import type {
+  DashboardCloudAssetGroup,
+  DashboardCloudAssetItem,
+} from '#/api/admin';
 
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
 
+const router = useRouter();
 const loading = ref(false);
 const saving = ref(false);
 const syncing = ref(false);
@@ -63,14 +76,14 @@ let syncHighlightTimer: ReturnType<typeof setTimeout> | null = null;
 
 function normalizeDaysLeft(record: DashboardCloudAssetItem) {
   if (typeof record.days_left !== 'number' || Number.isNaN(record.days_left)) {
-    return Number.POSITIVE_INFINITY;
+    return record.actual_expires_at ? Number.POSITIVE_INFINITY : 0;
   }
   return record.days_left;
 }
 
 function normalizeExpiresAt(value: null | string | undefined) {
   if (!value) {
-    return Number.POSITIVE_INFINITY;
+    return dayjs().startOf('day').valueOf();
   }
   const timestamp = dayjs(value).valueOf();
   return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp;
@@ -101,41 +114,61 @@ function compareByDaysLeft(
   return normalizeUpdatedAt(b.updated_at) - normalizeUpdatedAt(a.updated_at);
 }
 
+function isDeletedAsset(record: DashboardCloudAssetItem) {
+  return (
+    !record.is_active ||
+    [
+      'deleted',
+      'deleting',
+      'terminated',
+      'terminating',
+      'expired',
+      'unknown',
+    ].includes(record.status) ||
+    ['已删除', '删除中', '已终止', '终止中', '已过期', '未知状态'].includes(
+      record.status_label || '',
+    )
+  );
+}
+
+function isUnattachedIpAsset(record: DashboardCloudAssetItem) {
+  return (
+    !record.public_ip ||
+    (record.provider_status || '').includes('未附加固定IP') ||
+    (record.provider_status || '').includes('未附加IP')
+  );
+}
+
+function assetDisplayRank(record: DashboardCloudAssetItem) {
+  if (isDeletedAsset(record)) return 2;
+  if (isUnattachedIpAsset(record)) return 1;
+  return 0;
+}
+
 function compareByDisplayOrder(
   a: DashboardCloudAssetItem,
   b: DashboardCloudAssetItem,
 ) {
-  const deletedDiff =
-    Number(a.status === 'deleted') - Number(b.status === 'deleted');
-  if (deletedDiff !== 0) {
-    return deletedDiff;
-  }
-  const sortDiff = (b.sort_order || 99) - (a.sort_order || 99);
-  if (sortDiff !== 0) {
-    return sortDiff;
+  const rankDiff = assetDisplayRank(a) - assetDisplayRank(b);
+  if (rankDiff !== 0) {
+    return rankDiff;
   }
   return compareByDaysLeft(a, b);
 }
 
-function compareByExpiresAt(
-  a: DashboardCloudAssetItem,
-  b: DashboardCloudAssetItem,
-) {
-  const expiresDiff =
-    normalizeExpiresAt(a.actual_expires_at) -
-    normalizeExpiresAt(b.actual_expires_at);
-  if (expiresDiff !== 0) {
-    return expiresDiff;
-  }
-  const daysDiff = normalizeDaysLeft(a) - normalizeDaysLeft(b);
-  if (daysDiff !== 0) {
-    return daysDiff;
-  }
-  return normalizeUpdatedAt(b.updated_at) - normalizeUpdatedAt(a.updated_at);
-}
-
 function sortAssets(records: DashboardCloudAssetItem[]) {
   return [...records].toSorted(compareByDisplayOrder);
+}
+
+function activeAssetCount(records: DashboardCloudAssetItem[]) {
+  return records.filter(
+    (item) =>
+      item.is_active &&
+      !isDeletedAsset(item) &&
+      !['deleted', 'deleting', 'terminated', 'terminating'].includes(
+        item.status,
+      ),
+  ).length;
 }
 
 const columns = [
@@ -150,29 +183,28 @@ const columns = [
     sorter: (a: DashboardCloudAssetItem, b: DashboardCloudAssetItem) =>
       (b.sort_order || 99) - (a.sort_order || 99),
   },
-  { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 140 },
-  { title: '公网IP', dataIndex: 'public_ip', key: 'public_ip' },
+  { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 120 },
+  { title: '公网IP', dataIndex: 'public_ip', key: 'public_ip', width: 140 },
   { title: '代理链接', dataIndex: 'mtproxy_link', key: 'mtproxy_link' },
-  { title: '价格', dataIndex: 'price', key: 'price', width: 100 },
-  {
-    title: '到期日期',
-    dataIndex: 'actual_expires_at',
-    key: 'actual_expires_at',
-    width: 120,
-    sorter: compareByExpiresAt,
-  },
-  { title: '备注', dataIndex: 'note', key: 'note' },
   { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
   {
     title: '剩余天数',
     dataIndex: 'status_countdown',
     key: 'status_countdown',
     width: 140,
-    sorter: compareByDaysLeft,
-    defaultSortOrder: 'ascend' as const,
   },
-  { title: '操作', key: 'actions', fixed: 'right' as const, width: 150 },
+  {
+    title: '到期时间',
+    dataIndex: 'actual_expires_at',
+    key: 'actual_expires_at',
+    width: 130,
+  },
+  { title: '操作', key: 'actions', fixed: 'right' as const, width: 180 },
 ];
+
+function openDetail(record: DashboardCloudAssetItem) {
+  router.push(`/admin/cloud-assets/${record.id}`).catch(() => {});
+}
 
 function formatRefreshTime(value: dayjs.Dayjs | null) {
   return value ? value.format('MM-DD HH:mm:ss') : '-';
@@ -535,7 +567,7 @@ onBeforeUnmount(() => {
               <span>{{ group.user_display_name }}</span>
               <Tag color="blue">{{ group.username_label || '-' }}</Tag>
               <Tag>{{ group.tg_user_id || '未绑定' }}</Tag>
-              <Tag>{{ group.items.length }} 条</Tag>
+              <Tag>{{ activeAssetCount(group.items) }} 条</Tag>
             </Space>
           </template>
           <Table
@@ -544,7 +576,7 @@ onBeforeUnmount(() => {
             :loading="loading"
             :pagination="false"
             row-key="id"
-            :scroll="{ x: 980 }"
+            :scroll="{ x: 1200 }"
             size="small"
           >
             <template #bodyCell="{ column, record }">
@@ -603,6 +635,16 @@ onBeforeUnmount(() => {
                 <Tag :color="sortOrderTagColor(record.sort_order)">{{
                   record.sort_order || 99
                 }}</Tag>
+              </template>
+              <template v-else-if="column.key === 'account_label'">
+                <TypographyParagraph
+                  v-if="record.account_label"
+                  :copyable="{ text: record.account_label }"
+                  class="mb-0 break-all font-mono text-xs leading-5"
+                >
+                  {{ record.account_label }}
+                </TypographyParagraph>
+                <span v-else>-</span>
               </template>
               <template v-else-if="column.key === 'mtproxy_link'">
                 <div
@@ -686,27 +728,28 @@ onBeforeUnmount(() => {
                 <Tag
                   :color="
                     countdownTagColor(
-                      (record.provider_status || '').includes('未附加固定IP')
-                        ? '未附加IP'
-                        : record.preserve_link_status ||
-                            record.status_countdown ||
-                            record.provider_status ||
-                            '-',
+                      record.preserve_link_status ||
+                        record.status_countdown ||
+                        record.provider_status ||
+                        '-',
                     )
                   "
                 >
                   {{
-                    (record.provider_status || '').includes('未附加固定IP')
-                      ? '未附加IP'
-                      : record.preserve_link_status ||
-                        record.status_countdown ||
-                        record.provider_status ||
-                        '-'
+                    record.preserve_link_status ||
+                    record.status_countdown ||
+                    record.provider_status ||
+                    '-'
                   }}
                 </Tag>
               </template>
               <template v-else-if="column.key === 'actions'">
                 <Space>
+                  <Button
+                    type="link"
+                    @click="openDetail(record as DashboardCloudAssetItem)"
+                    >详情</Button
+                  >
                   <Button
                     type="link"
                     @click="openEdit(record as DashboardCloudAssetItem)"
@@ -749,7 +792,7 @@ onBeforeUnmount(() => {
         :loading="loading"
         :pagination="{ pageSize: 10 }"
         row-key="id"
-        :scroll="{ x: 980 }"
+        :scroll="{ x: 1200 }"
         size="small"
       >
         <template #bodyCell="{ column, record }">
@@ -808,6 +851,16 @@ onBeforeUnmount(() => {
             <Tag :color="sortOrderTagColor(record.sort_order)">{{
               record.sort_order || 99
             }}</Tag>
+          </template>
+          <template v-else-if="column.key === 'account_label'">
+            <TypographyParagraph
+              v-if="record.account_label"
+              :copyable="{ text: record.account_label }"
+              class="mb-0 break-all font-mono text-xs leading-5"
+            >
+              {{ record.account_label }}
+            </TypographyParagraph>
+            <span v-else>-</span>
           </template>
           <template v-else-if="column.key === 'mtproxy_link'">
             <div v-if="record.mtproxy_link" class="max-w-full overflow-hidden">
@@ -888,27 +941,28 @@ onBeforeUnmount(() => {
             <Tag
               :color="
                 countdownTagColor(
-                  (record.provider_status || '').includes('未附加固定IP')
-                    ? '未附加IP'
-                    : record.preserve_link_status ||
-                        record.status_countdown ||
-                        record.provider_status ||
-                        '-',
+                  record.preserve_link_status ||
+                    record.status_countdown ||
+                    record.provider_status ||
+                    '-',
                 )
               "
             >
               {{
-                (record.provider_status || '').includes('未附加固定IP')
-                  ? '未附加IP'
-                  : record.preserve_link_status ||
-                    record.status_countdown ||
-                    record.provider_status ||
-                    '-'
+                record.preserve_link_status ||
+                record.status_countdown ||
+                record.provider_status ||
+                '-'
               }}
             </Tag>
           </template>
           <template v-else-if="column.key === 'actions'">
             <Space>
+              <Button
+                type="link"
+                @click="openDetail(record as DashboardCloudAssetItem)"
+                >详情</Button
+              >
               <Button
                 type="link"
                 @click="openEdit(record as DashboardCloudAssetItem)"
@@ -955,6 +1009,9 @@ onBeforeUnmount(() => {
         </Form.Item>
         <Form.Item label="当前显示用户">
           <Input :value="currentRow?.user_display_name || ''" disabled />
+        </Form.Item>
+        <Form.Item label="云账号ID">
+          <Input :value="currentRow?.account_label || ''" disabled />
         </Form.Item>
         <Form.Item label="价格">
           <Input v-model:value="formState.price" placeholder="关联订单价格" />

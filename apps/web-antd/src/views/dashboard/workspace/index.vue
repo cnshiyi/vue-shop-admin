@@ -14,17 +14,7 @@ import { preferences } from '@vben/preferences';
 import { useUserStore } from '@vben/stores';
 import { openWindow } from '@vben/utils';
 
-import {
-  Button,
-  Card,
-  Col,
-  Empty,
-  List,
-  Row,
-  Space,
-  Statistic,
-  Tag,
-} from 'ant-design-vue';
+import { Button, Card, Col, Row, Space } from 'ant-design-vue';
 
 import { getDashboardOverviewApi } from '#/api/admin';
 
@@ -50,9 +40,9 @@ const quickNavItems: WorkbenchQuickNavItem[] = [
   },
   {
     color: '#14b8a6',
-    icon: 'lucide:list-todo',
-    title: '任务列表',
-    url: '/admin/tasks',
+    icon: 'lucide:message-circle',
+    title: '账号管理',
+    url: '/admin/telegram-accounts',
   },
   {
     color: '#722ed1',
@@ -69,8 +59,8 @@ const quickNavItems: WorkbenchQuickNavItem[] = [
   {
     color: '#fa8c16',
     icon: 'lucide:wallet-cards',
-    title: '充值列表',
-    url: '/admin/logs/recharges',
+    title: '充值订单',
+    url: '/admin/cloud-orders/recharges',
   },
   {
     color: '#52c41a',
@@ -86,15 +76,45 @@ const quickNavItems: WorkbenchQuickNavItem[] = [
   },
 ];
 
-const summaryCards = computed(() => {
+const shortcutCards = computed(() => {
   const summary = overview.value?.summary;
   return [
-    { label: '用户总量', value: summary?.users_total ?? 0 },
-    { label: '云订单', value: summary?.cloud_orders_total ?? 0 },
-    { label: '待处理云订单', value: summary?.cloud_pending ?? 0 },
-    { label: '充值记录', value: summary?.recharges_total ?? 0 },
-    { label: '待确认充值', value: summary?.recharge_pending ?? 0 },
-    { label: '地址监控', value: summary?.monitors_total ?? 0 },
+    {
+      action: '处理云订单',
+      description: `待处理 ${summary?.cloud_pending ?? 0} 个`,
+      path: '/admin/cloud-orders/list',
+      title: '云订单',
+    },
+    {
+      action: '核对充值',
+      description: `待确认 ${summary?.recharge_pending ?? 0} 条`,
+      path: '/admin/cloud-orders/recharges',
+      title: '充值订单',
+    },
+    {
+      action: '查看待续费',
+      description: `7 天内待续费 ${summary?.renew_due ?? 0} 台`,
+      path: '/admin/cloud-assets',
+      title: '代理列表',
+    },
+    {
+      action: '搜索聊天',
+      description: '用户资料与聊天记录',
+      path: '/admin/telegram-accounts',
+      title: '账号管理',
+    },
+    {
+      action: '调整套餐',
+      description: '价格、文案、排序',
+      path: '/admin/cloud-plans/list',
+      title: '套餐设置',
+    },
+    {
+      action: '系统配置',
+      description: '文案、按钮、云账号',
+      path: '/admin/settings',
+      title: '后台设置',
+    },
   ];
 });
 
@@ -141,16 +161,6 @@ function navTo(nav: WorkbenchQuickNavItem) {
   }
 }
 
-function statusColor(status: string) {
-  if (['completed', 'paid', 'success', 'active'].includes(status))
-    return 'green';
-  if (['pending', 'creating', 'provisioning', 'renew_pending'].includes(status))
-    return 'orange';
-  if (['failed', 'expired', 'cancelled', 'deleted'].includes(status))
-    return 'red';
-  return 'blue';
-}
-
 onMounted(loadOverview);
 </script>
 
@@ -173,67 +183,40 @@ onMounted(loadOverview);
       </template>
     </WorkbenchHeader>
 
-    <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
-      <Card
-        v-for="item in summaryCards"
-        :key="item.label"
-        :loading="loading"
-        class="rounded-xl"
-      >
-        <Statistic :title="item.label" :value="item.value" />
-      </Card>
-    </div>
-
     <Row class="mt-5" :gutter="16">
       <Col :xl="16" :span="24">
-        <Card title="最近云订单" :loading="loading">
-          <List
-            v-if="overview?.latest_cloud_orders?.length"
-            :data-source="overview.latest_cloud_orders"
-          >
-            <template #renderItem="{ item }">
-              <List.Item>
-                <List.Item.Meta
-                  :description="`${item.region_label || item.region_name || '-'} · ${item.plan_name || '-'}`"
-                  :title="item.order_no || `#${item.id}`"
-                />
-                <div class="text-right">
-                  <Tag :color="statusColor(item.status)">{{
-                    item.status_label || item.status
-                  }}</Tag>
-                  <div class="mt-1 text-sm text-gray-500">
-                    {{ item.total_amount }} USDT
-                  </div>
-                </div>
-              </List.Item>
-            </template>
-          </List>
-          <Empty v-else description="暂无云订单" />
+        <Card title="快捷处理入口" :loading="loading">
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <Card
+              v-for="item in shortcutCards"
+              :key="item.title"
+              class="rounded-xl"
+              size="small"
+            >
+              <div class="text-base font-semibold">{{ item.title }}</div>
+              <div class="mt-2 min-h-5 text-sm text-gray-500">
+                {{ item.description }}
+              </div>
+              <Button
+                class="mt-4"
+                type="primary"
+                block
+                @click="router.push(item.path)"
+              >
+                {{ item.action }}
+              </Button>
+            </Card>
+          </div>
         </Card>
 
-        <Card class="mt-5" title="最近充值" :loading="loading">
-          <List
-            v-if="overview?.latest_recharges?.length"
-            :data-source="overview.latest_recharges"
+        <Card class="mt-5" title="值班提示">
+          <div
+            class="grid grid-cols-1 gap-3 text-sm text-gray-500 md:grid-cols-3"
           >
-            <template #renderItem="{ item }">
-              <List.Item>
-                <List.Item.Meta
-                  :description="item.tx_hash || '暂无交易哈希'"
-                  :title="`充值 #${item.id}`"
-                />
-                <div class="text-right">
-                  <Tag :color="statusColor(item.status)">{{
-                    item.status_label || item.status
-                  }}</Tag>
-                  <div class="mt-1 text-sm text-gray-500">
-                    {{ item.amount }}
-                  </div>
-                </div>
-              </List.Item>
-            </template>
-          </List>
-          <Empty v-else description="暂无充值记录" />
+            <div>先处理待支付/创建失败/续费异常。</div>
+            <div>充值只做核对入口，不在工作台堆运营报表。</div>
+            <div>趋势、利润、转化统一去分析页看。</div>
+          </div>
         </Card>
       </Col>
 

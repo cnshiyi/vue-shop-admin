@@ -1,6 +1,7 @@
 import { requestClient } from '#/api/request';
 
 interface DashboardListQuery {
+  archived?: 0 | 1;
   grouped?: 0 | 1;
   keyword?: string;
 }
@@ -13,6 +14,13 @@ export interface DashboardSummary {
   recharge_pending: number;
   recharges_total: number;
   users_total: number;
+  server_assets_total?: number;
+  due_today?: number;
+  new_orders_today?: number;
+  renew_due?: number;
+  revenue_total?: string;
+  cost_total?: string;
+  profit_total?: string;
 }
 
 export interface LatestCloudOrder {
@@ -24,6 +32,8 @@ export interface LatestCloudOrder {
   region_name: string;
   status: string;
   status_label?: string;
+  execution_status?: string;
+  execution_status_label?: string;
   total_amount: string;
 }
 
@@ -36,7 +46,19 @@ export interface LatestRecharge {
   tx_hash: null | string;
 }
 
+export interface DashboardChartSeries {
+  trend: {
+    expiry: number[];
+    labels: string[];
+    orders: number[];
+    profit: number[];
+    servers: number[];
+    users: number[];
+  };
+}
+
 export interface DashboardOverview {
+  charts?: DashboardChartSeries;
   latest_cloud_orders: LatestCloudOrder[];
   latest_recharges: LatestRecharge[];
   summary: DashboardSummary;
@@ -51,6 +73,7 @@ export interface DashboardUserItem {
   first_name: null | string;
   id: number;
   primary_username: string;
+  proxy_count: number;
   tg_user_id: number;
   username: null | string;
   username_label: string;
@@ -68,6 +91,8 @@ export interface DashboardCloudOrderItem {
   region_name: string;
   status: string;
   status_label?: string;
+  execution_status?: string;
+  execution_status_label?: string;
   total_amount: string;
 }
 
@@ -86,6 +111,7 @@ export interface DashboardCloudOrderDetail extends DashboardCloudOrderItem {
   login_user: null | string;
   mtproxy_host: null | string;
   mtproxy_link: null | string;
+  proxy_links?: ProxyLinkItem[];
   mtproxy_port: number;
   mtproxy_secret: null | string;
   paid_at: null | string;
@@ -140,15 +166,36 @@ export interface DashboardRechargeDetail extends DashboardRechargeItem {
   username_label: string;
 }
 
+export interface ProxyLinkItem {
+  name?: string;
+  port?: string;
+  secret?: string;
+  server?: string;
+  url: string;
+}
+
+export interface DashboardCloudAssetIpLogItem {
+  created_at: null | string;
+  event_label?: string;
+  event_type: string;
+  id: number;
+  note?: null | string;
+  previous_public_ip?: null | string;
+  public_ip?: null | string;
+}
+
 export interface DashboardCloudAssetItem {
+  account_label: null | string;
   actual_expires_at: null | string;
   asset_name: null | string;
+  cloud_account_id: null | number;
   currency: string;
   days_left?: null | number;
   id: number;
   sort_order: number;
   instance_id: null | string;
   is_active: boolean;
+  ip_change_quota?: number;
   server_id?: null | number;
   status: string;
   status_countdown?: string;
@@ -158,6 +205,7 @@ export interface DashboardCloudAssetItem {
   kind: string;
   mtproxy_host: null | string;
   mtproxy_link: null | string;
+  proxy_links?: ProxyLinkItem[];
   mtproxy_port: null | number;
   mtproxy_secret: null | string;
   note?: null | string;
@@ -179,6 +227,21 @@ export interface DashboardCloudAssetItem {
   username_label: string;
 }
 
+export interface DashboardCloudAssetDetail extends DashboardCloudAssetItem {
+  created_at?: null | string;
+  delete_at?: null | string;
+  ip_logs?: DashboardCloudAssetIpLogItem[];
+  ip_recycle_at?: null | string;
+  last_renewed_at?: null | string;
+  order_status?: string;
+  order_status_label?: string;
+  provision_note?: null | string;
+  renew_grace_expires_at?: null | string;
+  service_expires_at?: null | string;
+  service_started_at?: null | string;
+  suspend_at?: null | string;
+}
+
 export interface DashboardCloudAssetGroup {
   default_expanded: boolean;
   items: DashboardCloudAssetItem[];
@@ -191,6 +254,20 @@ export interface DashboardCloudAssetGroup {
 export interface DashboardCloudAssetGroupedResponse {
   groups: DashboardCloudAssetGroup[];
   items: DashboardCloudAssetItem[];
+}
+
+export interface DashboardBotOperationLogItem {
+  action_label?: string;
+  action_type: string;
+  chat_id: null | number;
+  created_at: null | string;
+  id: number;
+  message_id: null | number;
+  payload: null | string;
+  tg_user_id: null | number;
+  user_display_name: string;
+  user_id: null | number;
+  username_label: string;
 }
 
 export interface DashboardCloudIpLogItem {
@@ -258,7 +335,15 @@ export interface DashboardCloudPlanItem {
   id: number;
   is_active: boolean;
   memory: string;
+  config_id?: string;
+  provider_plan_id?: string;
   plan_description?: null | string;
+  display_plan_name?: string;
+  display_cpu?: string;
+  display_memory?: string;
+  display_storage?: string;
+  display_bandwidth?: string;
+  display_description?: string;
   plan_name: string;
   price: string;
   provider: string;
@@ -307,8 +392,16 @@ export interface DashboardCloudPlanUpdatePayload {
   cost_price?: number;
   cpu?: string;
   currency?: string;
+  display_bandwidth?: string;
+  display_cpu?: string;
+  display_description?: string;
+  display_memory?: string;
+  display_plan_name?: string;
+  display_storage?: string;
   is_active?: boolean;
   memory?: string;
+  config_id?: string;
+  provider_plan_id?: string;
   plan_description?: string;
   plan_name?: string;
   price?: number;
@@ -323,6 +416,7 @@ export interface DashboardSiteConfigUpdatePayload {
   is_sensitive: boolean;
   key: string;
   preserve_existing?: boolean;
+  sort_order?: number;
   value: string;
 }
 
@@ -333,6 +427,7 @@ export interface DashboardSiteConfigItem {
   key: string;
   value: string;
   value_preview?: string;
+  sort_order?: number;
 }
 
 export interface DashboardTaskItem {
@@ -354,7 +449,9 @@ export interface DashboardTaskItem {
 
 export interface DashboardCloudAccountConfigItem {
   access_key: string;
+  access_key_preview?: string;
   effective_region?: null | string;
+  external_account_id?: string;
   id: number;
   is_active: boolean;
   last_checked_at?: null | string;
@@ -363,6 +460,7 @@ export interface DashboardCloudAccountConfigItem {
   provider_label?: string;
   region_hint?: null | string;
   secret_key: string;
+  secret_key_preview?: string;
   status?: null | string;
   status_label?: null | string;
   status_note?: null | string;
@@ -376,6 +474,7 @@ export interface DashboardSiteConfigGroupItem {
   key: string;
   value: string;
   value_preview?: string;
+  sort_order?: number;
 }
 
 export interface DashboardSiteConfigGroup {
@@ -383,8 +482,26 @@ export interface DashboardSiteConfigGroup {
   items: DashboardSiteConfigGroupItem[];
 }
 
+export interface DashboardButtonConfigItem {
+  button_label?: string;
+  enabled?: boolean;
+  key: string;
+  label: string;
+  locked?: boolean;
+  message?: string;
+  sort_order: number;
+  type: 'business' | 'link';
+  url?: string;
+}
+
+export interface DashboardButtonConfig {
+  items: DashboardButtonConfigItem[];
+  row_size: number;
+}
+
 export interface DashboardCloudAccountCreatePayload {
   access_key: string;
+  external_account_id?: string;
   is_active: boolean;
   name: string;
   provider: string;
@@ -392,7 +509,83 @@ export interface DashboardCloudAccountCreatePayload {
   secret_key: string;
 }
 
-export type DashboardCloudAccountUpdatePayload = DashboardCloudAccountCreatePayload;
+export type DashboardCloudAccountUpdatePayload =
+  Partial<DashboardCloudAccountCreatePayload>;
+
+export interface DashboardTelegramLoginAccountItem {
+  created_at: null | string;
+  has_session?: boolean;
+  id: number;
+  label: string;
+  last_synced_at: null | string;
+  note: string;
+  notify_enabled: boolean;
+  phone: string;
+  status: string;
+  updated_at: null | string;
+  username: string;
+}
+
+export interface DashboardTelegramChatUserItem {
+  display_name: string;
+  first_name: string;
+  id: number;
+  latest_at: null | string;
+  latest_message: string;
+  message_count: number;
+  primary_username: string;
+  tg_user_id: number;
+  username_label: string;
+  usernames: string[];
+}
+
+export interface DashboardTelegramChatItem {
+  archived: boolean;
+  chat_id: number;
+  is_group?: boolean;
+  login_account_id: null | number;
+  login_account_label: string;
+  latest_at: null | string;
+  latest_message: string;
+  message_count: number;
+  source: string;
+  source_label: string;
+  subtitle: string;
+  title: string;
+}
+
+export interface DashboardTelegramMessageItem {
+  chat_id: number;
+  chat_title: string;
+  content_type: string;
+  created_at: null | string;
+  direction: 'in' | 'out';
+  direction_label: string;
+  first_name_snapshot: string;
+  id: number;
+  login_account_id: null | number;
+  login_account_label: string;
+  message_id: null | number;
+  source: string;
+  source_label: string;
+  text: string;
+  tg_user_id: number;
+  username_snapshot: string;
+}
+
+export interface DashboardTelegramAccountsOverview {
+  accounts: DashboardTelegramLoginAccountItem[];
+  chats: DashboardTelegramChatItem[];
+  messages: DashboardTelegramMessageItem[];
+  users: DashboardTelegramChatUserItem[];
+}
+
+export interface DashboardTelegramLoginAccountCreatePayload {
+  label: string;
+  note?: string;
+  phone?: string;
+  username?: string;
+}
 
 export interface DashboardAdminUserItem {
   date_joined: null | string;
@@ -529,6 +722,12 @@ export async function getDashboardCloudAssetsGroupedApi(
   );
 }
 
+export async function getDashboardCloudAssetDetailApi(assetId: number) {
+  return requestClient.get<DashboardCloudAssetDetail>(
+    `/admin/cloud-assets/${assetId}/`,
+  );
+}
+
 export async function syncDashboardCloudAssetsApi(region = 'cn-hongkong') {
   return requestClient.post('/admin/cloud-assets/sync/', { region });
 }
@@ -553,6 +752,15 @@ export async function getDashboardCloudIpLogsApi(
 ) {
   return requestClient.get<DashboardCloudIpLogItem[]>(
     '/admin/cloud-assets/ip-logs/',
+    { params },
+  );
+}
+
+export async function getDashboardBotOperationLogsApi(
+  params: DashboardListQuery = {},
+) {
+  return requestClient.get<DashboardBotOperationLogItem[]>(
+    '/admin/bot/operation-logs/',
     { params },
   );
 }
@@ -701,6 +909,25 @@ export async function initDashboardTextConfigsApi(
   );
 }
 
+export async function getDashboardButtonConfigApi() {
+  return requestClient.get<DashboardButtonConfig>('/admin/settings/buttons/');
+}
+
+export async function updateDashboardButtonConfigApi(
+  payload: DashboardButtonConfig,
+) {
+  return requestClient.post<DashboardButtonConfig>(
+    '/admin/settings/buttons/update/',
+    payload,
+  );
+}
+
+export async function initDashboardButtonConfigApi() {
+  return requestClient.post<DashboardButtonConfig>(
+    '/admin/settings/buttons/init/',
+  );
+}
+
 export async function getDashboardCloudAccountsApi() {
   return requestClient.get<DashboardCloudAccountConfigItem[]>(
     '/admin/settings/cloud-accounts/',
@@ -743,6 +970,102 @@ export async function verifyDashboardCloudAccountApi(
     region: string;
     valid: boolean;
   }>(`/admin/settings/cloud-accounts/${accountId}/verify/`, payload);
+}
+
+export async function getDashboardTelegramAccountsApi(
+  params: DashboardListQuery = {},
+) {
+  return requestClient.get<DashboardTelegramAccountsOverview>(
+    '/admin/telegram/accounts/',
+    { params },
+  );
+}
+
+export async function createDashboardTelegramAccountApi(
+  payload: DashboardTelegramLoginAccountCreatePayload,
+) {
+  return requestClient.post<DashboardTelegramLoginAccountItem>(
+    '/admin/telegram/accounts/create/',
+    payload,
+  );
+}
+
+export async function updateDashboardTelegramAccountNotifyApi(
+  accountId: number,
+  payload: { notify_enabled: boolean },
+) {
+  return requestClient.post<DashboardTelegramLoginAccountItem>(
+    `/admin/telegram/accounts/${accountId}/notify/`,
+    payload,
+  );
+}
+
+export async function startDashboardTelegramLoginApi(payload: {
+  phone: string;
+}) {
+  return requestClient.post<{
+    account: DashboardTelegramLoginAccountItem;
+    account_id: number;
+    next_step: string;
+  }>('/admin/telegram/login/start/', payload);
+}
+
+export async function submitDashboardTelegramLoginCodeApi(payload: {
+  account_id: number;
+  code: string;
+}) {
+  return requestClient.post<{
+    account: DashboardTelegramLoginAccountItem;
+    account_id: number;
+    next_step: string;
+    requires_password?: boolean;
+  }>('/admin/telegram/login/code/', payload);
+}
+
+export async function submitDashboardTelegramLoginPasswordApi(payload: {
+  account_id: number;
+  password?: string;
+}) {
+  return requestClient.post<{
+    account: DashboardTelegramLoginAccountItem;
+    account_id: number;
+    next_step: string;
+  }>('/admin/telegram/login/password/', payload);
+}
+
+export async function sendDashboardTelegramMessageApi(payload: {
+  chat_id: number;
+  login_account_id?: null | number;
+  text: string;
+}) {
+  return requestClient.post<DashboardTelegramMessageItem>(
+    '/admin/telegram/messages/send/',
+    payload,
+  );
+}
+
+export async function updateDashboardTelegramChatArchiveApi(payload: {
+  archived: boolean;
+  chat_id: number;
+  title?: string;
+}) {
+  return requestClient.post<{ archived: boolean; chat_id: number }>(
+    '/admin/telegram/chats/archive/',
+    payload,
+  );
+}
+
+export async function getDashboardTelegramMessagesApi(
+  params: DashboardListQuery & {
+    chat_id?: number;
+    tg_user_id?: number;
+    user_id?: number;
+  } = {},
+) {
+  return requestClient.get<DashboardTelegramMessageItem[]>(
+    '/admin/telegram/messages/',
+    { params },
+  );
 }
 
 export async function getDashboardAdminUsersApi() {

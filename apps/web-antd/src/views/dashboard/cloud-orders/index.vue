@@ -6,10 +6,8 @@ import { Page } from '@vben/common-ui';
 
 import { Button, Card, Input, Space, Table, Tag } from 'ant-design-vue';
 
-import {
-  getDashboardCloudOrdersApi,
-  type DashboardCloudOrderItem,
-} from '#/api/admin';
+import { getDashboardCloudOrdersApi } from '#/api/admin';
+import type { DashboardCloudOrderItem } from '#/api/admin';
 
 const loading = ref(false);
 const keyword = ref('');
@@ -22,6 +20,12 @@ const columns = [
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 160 },
   { title: '套餐', dataIndex: 'plan_name', key: 'plan_name', width: 220 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 120 },
+  {
+    title: '执行情况',
+    dataIndex: 'execution_status',
+    key: 'execution_status',
+    width: 180,
+  },
   { title: '公网 IP', dataIndex: 'public_ip', key: 'public_ip', width: 160 },
   { title: '金额', dataIndex: 'total_amount', key: 'total_amount', width: 120 },
   { title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 220 },
@@ -29,8 +33,10 @@ const columns = [
 
 function statusColor(status: string) {
   if (['completed', 'paid'].includes(status)) return 'green';
-  if (['pending', 'provisioning', 'renew_pending', 'expiring'].includes(status)) return 'orange';
-  if (['failed', 'cancelled', 'expired', 'deleted'].includes(status)) return 'red';
+  if (['pending', 'provisioning', 'renew_pending', 'expiring'].includes(status))
+    return 'orange';
+  if (['failed', 'cancelled', 'expired', 'deleted'].includes(status))
+    return 'red';
   return 'blue';
 }
 
@@ -52,10 +58,18 @@ function statusLabel(status: string) {
   return labels[status] || status || '-';
 }
 
+function executionStatusColor(status?: string) {
+  if (!status) return 'default';
+  if (status.includes('failed')) return 'red';
+  return 'blue';
+}
+
 async function loadData() {
   loading.value = true;
   try {
-    items.value = await getDashboardCloudOrdersApi({ keyword: keyword.value.trim() });
+    items.value = await getDashboardCloudOrdersApi({
+      keyword: keyword.value.trim(),
+    });
   } finally {
     loading.value = false;
   }
@@ -104,7 +118,17 @@ function goToDetail(orderId: number) {
             <a @click="goToDetail(Number(record.id))">{{ record.order_no }}</a>
           </template>
           <template v-else-if="column.key === 'status'">
-            <Tag :color="statusColor(record.status)">{{ record.status_label || statusLabel(record.status) }}</Tag>
+            <Tag :color="statusColor(record.status)">{{
+              record.status_label || statusLabel(record.status)
+            }}</Tag>
+          </template>
+          <template v-else-if="column.key === 'execution_status'">
+            <Tag
+              v-if="record.execution_status_label"
+              :color="executionStatusColor(record.execution_status)"
+              >{{ record.execution_status_label }}</Tag
+            >
+            <span v-else>-</span>
           </template>
           <template v-else-if="column.key === 'total_amount'">
             {{ record.total_amount }} USDT

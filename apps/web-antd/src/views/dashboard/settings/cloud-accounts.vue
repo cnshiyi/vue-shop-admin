@@ -18,8 +18,17 @@ import {
 } from 'ant-design-vue';
 import type { TableColumnsType } from 'ant-design-vue';
 
-import { createDashboardCloudAccountApi, deleteDashboardCloudAccountApi, getDashboardCloudAccountsApi, updateDashboardCloudAccountApi, verifyDashboardCloudAccountApi } from '#/api/admin';
-import type { DashboardCloudAccountConfigItem, DashboardCloudAccountCreatePayload } from '#/api/admin';
+import {
+  createDashboardCloudAccountApi,
+  deleteDashboardCloudAccountApi,
+  getDashboardCloudAccountsApi,
+  updateDashboardCloudAccountApi,
+  verifyDashboardCloudAccountApi,
+} from '#/api/admin';
+import type {
+  DashboardCloudAccountConfigItem,
+  DashboardCloudAccountCreatePayload,
+} from '#/api/admin';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -34,6 +43,7 @@ const DEFAULT_REGION_MAP: Record<string, string> = {
 
 const form = reactive<DashboardCloudAccountCreatePayload>({
   access_key: '',
+  external_account_id: '',
   is_active: true,
   name: '',
   provider: 'aws',
@@ -66,7 +76,13 @@ const columns: TableColumnsType<DashboardCloudAccountConfigItem> = [
     key: 'provider_label',
     width: 120,
   },
-  { title: '名称', dataIndex: 'name', key: 'name', width: 180 },
+  { title: '备注', dataIndex: 'name', key: 'name', width: 160 },
+  {
+    title: '账号ID',
+    dataIndex: 'external_account_id',
+    key: 'external_account_id',
+    width: 180,
+  },
   {
     title: '默认地区',
     dataIndex: 'effective_region',
@@ -75,14 +91,14 @@ const columns: TableColumnsType<DashboardCloudAccountConfigItem> = [
   },
   {
     title: 'Access Key',
-    dataIndex: 'access_key',
-    key: 'access_key',
+    dataIndex: 'access_key_preview',
+    key: 'access_key_preview',
     width: 180,
   },
   {
     title: 'Secret Key',
-    dataIndex: 'secret_key',
-    key: 'secret_key',
+    dataIndex: 'secret_key_preview',
+    key: 'secret_key_preview',
     width: 180,
   },
   { title: '巡检状态', dataIndex: 'status', key: 'status', width: 120 },
@@ -98,6 +114,7 @@ const columns: TableColumnsType<DashboardCloudAccountConfigItem> = [
 
 function resetForm() {
   form.access_key = '';
+  form.external_account_id = '';
   form.is_active = true;
   form.name = '';
   form.provider = 'aws';
@@ -123,12 +140,13 @@ function openCreate() {
 
 function openEdit(record: DashboardCloudAccountConfigItem) {
   current.value = record;
-  form.access_key = record.access_key || '';
+  form.access_key = '';
+  form.external_account_id = record.external_account_id || '';
   form.is_active = !!record.is_active;
   form.name = record.name || '';
   form.provider = record.provider || 'aws';
   form.region_hint = record.region_hint || '';
-  form.secret_key = record.secret_key || '';
+  form.secret_key = '';
   regionHintTouched.value = !!record.region_hint;
   open.value = true;
 }
@@ -145,12 +163,19 @@ watch(
 async function save() {
   saving.value = true;
   try {
-    const payload = { ...form, region_hint: effectiveRegionHint.value || null };
+    const payload: Partial<DashboardCloudAccountCreatePayload> = {
+      ...form,
+      region_hint: effectiveRegionHint.value || null,
+    };
     if (current.value) {
+      if (!String(payload.access_key || '').trim()) delete payload.access_key;
+      if (!String(payload.secret_key || '').trim()) delete payload.secret_key;
       await updateDashboardCloudAccountApi(current.value.id, payload);
       message.success('云账号已更新');
     } else {
-      await createDashboardCloudAccountApi(payload);
+      await createDashboardCloudAccountApi(
+        payload as DashboardCloudAccountCreatePayload,
+      );
       message.success('云账号已创建');
     }
     open.value = false;
@@ -264,8 +289,17 @@ onMounted(loadData);
             ]"
           />
         </Form.Item>
-        <Form.Item label="账号名称">
-          <Input v-model:value="form.name" placeholder="例如：生产 AWS" />
+        <Form.Item label="账号备注">
+          <Input
+            v-model:value="form.name"
+            placeholder="例如：11 / 嗷嗷 / 生产 AWS"
+          />
+        </Form.Item>
+        <Form.Item label="云厂商账号ID">
+          <Input
+            v-model:value="form.external_account_id"
+            placeholder="例如：121241；留空时验证账号后自动回填（AWS 支持）"
+          />
         </Form.Item>
         <Form.Item label="默认地区">
           <Input
@@ -277,13 +311,16 @@ onMounted(loadData);
           </div>
         </Form.Item>
         <Form.Item label="Access Key">
-          <Input v-model:value="form.access_key" placeholder="Access Key" />
+          <Input
+            v-model:value="form.access_key"
+            :placeholder="current ? '留空则不修改' : 'Access Key'"
+          />
         </Form.Item>
         <Form.Item label="Secret Key">
           <Input.Password
             v-model:value="form.secret_key"
-            placeholder="Secret Key"
-            :visibility-toggle="true"
+            :placeholder="current ? '留空则不修改' : 'Secret Key'"
+            :visibility-toggle="false"
           />
         </Form.Item>
         <Form.Item label="启用状态">

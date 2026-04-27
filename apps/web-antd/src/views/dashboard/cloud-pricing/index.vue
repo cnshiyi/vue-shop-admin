@@ -16,8 +16,14 @@ import {
 } from 'ant-design-vue';
 import type { CollapseProps, TableColumnsType } from 'ant-design-vue';
 
-import { getDashboardCloudPricingApi, syncDashboardCloudPlansApi } from '#/api/admin';
-import type { DashboardCloudPricingItem, DashboardCloudPlanSyncResult } from '#/api/admin';
+import {
+  getDashboardCloudPricingApi,
+  syncDashboardCloudPlansApi,
+} from '#/api/admin';
+import type {
+  DashboardCloudPricingItem,
+  DashboardCloudPlanSyncResult,
+} from '#/api/admin';
 
 interface RegionGroupItem {
   currency: string;
@@ -61,6 +67,12 @@ const providerRegionDisplayMap: Record<string, Record<string, string>> = {
 
 const pricingColumns: TableColumnsType<DashboardCloudPricingItem> = [
   { title: '在售规格', dataIndex: 'plan_name', key: 'plan_name', width: 140 },
+  {
+    title: '配置ID',
+    dataIndex: 'config_id',
+    key: 'config_id',
+    width: 220,
+  },
   {
     title: '规格编码',
     dataIndex: 'bundle_code',
@@ -341,7 +353,7 @@ onMounted(() => {
                 :pagination="false"
                 row-key="id"
                 size="small"
-                :scroll="{ x: 1380 }"
+                :scroll="{ x: 1520 }"
               >
                 <template #bodyCell="{ column, record }">
                   <template v-if="column.key === 'cost_price'">

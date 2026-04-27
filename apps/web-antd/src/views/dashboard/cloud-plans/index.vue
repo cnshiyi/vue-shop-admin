@@ -48,6 +48,7 @@ const editForm = ref<DashboardCloudPlanUpdatePayload>({
   provider: 'aws_lightsail',
   region_code: 'ap-southeast-1',
   region_name: '新加坡',
+  provider_plan_id: '',
   plan_name: '',
   plan_description: '',
   cpu: '',
@@ -69,12 +70,19 @@ const providerOptions = [
 const planColumns: TableColumnsType<DashboardCloudPlanItem> = [
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 140 },
   { title: '厂商', dataIndex: 'provider', key: 'provider', width: 120 },
+  { title: '配置ID', dataIndex: 'config_id', key: 'config_id', width: 220 },
   { title: '套餐名', dataIndex: 'plan_name', key: 'plan_name', width: 160 },
   {
-    title: '配置',
-    dataIndex: 'plan_description',
-    key: 'plan_description',
-    width: 280,
+    title: '展示套餐名',
+    dataIndex: 'display_plan_name',
+    key: 'display_plan_name',
+    width: 180,
+  },
+  {
+    title: '套餐文案',
+    dataIndex: 'display_description',
+    key: 'display_description',
+    width: 320,
   },
   { title: 'CPU', dataIndex: 'cpu', key: 'cpu', width: 90 },
   { title: '内存', dataIndex: 'memory', key: 'memory', width: 90 },
@@ -92,10 +100,16 @@ const pricingColumns: TableColumnsType<DashboardCloudPricingItem> = [
   { title: '厂商', dataIndex: 'provider', key: 'provider', width: 120 },
   { title: '套餐名', dataIndex: 'plan_name', key: 'plan_name', width: 140 },
   {
+    title: '配置ID',
+    dataIndex: 'config_id',
+    key: 'config_id',
+    width: 220,
+  },
+  {
     title: '规格编码',
     dataIndex: 'bundle_code',
     key: 'bundle_code',
-    width: 180,
+    width: 220,
   },
   {
     title: '配置',
@@ -151,6 +165,30 @@ function asDashboardCloudPlanItem(record: Record<string, any>) {
   return record as DashboardCloudPlanItem;
 }
 
+function generateConfigId() {
+  return `cfg-${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`;
+}
+
+function buildDefaultDisplayDescription(form: DashboardCloudPlanUpdatePayload) {
+  const lines = [
+    `适用地区：${form.region_name || form.region_code || '待填写'}`,
+    `套餐配置：${form.cpu || '待填写'} / ${form.memory || '待填写'} / ${form.storage || '待填写'}`,
+    `带宽流量：${form.bandwidth || '待填写'}`,
+    '套餐说明：高速稳定，开箱即用，适合日常建站与轻量业务部署。',
+  ];
+  return lines.join('\n');
+}
+
+function fillDefaultDisplayDescription(force = false) {
+  if (!force && editForm.value.display_description) {
+    return;
+  }
+  editForm.value = {
+    ...editForm.value,
+    display_description: buildDefaultDisplayDescription(editForm.value),
+  };
+}
+
 function resetEditForm() {
   selectedRegionCode.value = 'ap-southeast-1';
   selectedPricingPreset.value = undefined;
@@ -158,8 +196,16 @@ function resetEditForm() {
     provider: 'aws_lightsail',
     region_code: 'ap-southeast-1',
     region_name: '新加坡',
+    config_id: '',
+    provider_plan_id: '',
     plan_name: '',
     plan_description: '',
+    display_plan_name: '',
+    display_cpu: '',
+    display_memory: '',
+    display_storage: '',
+    display_bandwidth: '',
+    display_description: '',
     cpu: '',
     memory: '',
     storage: '',
@@ -170,6 +216,7 @@ function resetEditForm() {
     sort_order: 0,
     is_active: true,
   };
+  fillDefaultDisplayDescription(true);
 }
 
 async function loadData() {
@@ -198,13 +245,25 @@ function openEdit(record: DashboardCloudPlanItem) {
   createMode.value = false;
   editingPlan.value = record;
   selectedRegionCode.value = record.region_code;
-  selectedPricingPreset.value = undefined;
+  const providerPlanId = (record as any).provider_plan_id || '';
+  selectedPricingPreset.value = providerPlanId
+    ? `${record.provider}::${record.region_code}::${providerPlanId}`
+    : undefined;
   editForm.value = {
     provider: record.provider,
     region_code: record.region_code,
     region_name: record.region_name,
+    config_id: (record as any).config_id || generateConfigId(),
+    provider_plan_id: providerPlanId,
     plan_name: record.plan_name || '',
-    plan_description: record.plan_description || '',
+    plan_description:
+      record.display_description || record.plan_description || '',
+    display_plan_name: (record as any).display_plan_name || '',
+    display_cpu: (record as any).display_cpu || '',
+    display_memory: (record as any).display_memory || '',
+    display_storage: (record as any).display_storage || '',
+    display_bandwidth: (record as any).display_bandwidth || '',
+    display_description: (record as any).display_description || '',
     cpu: record.cpu || '',
     memory: record.memory || '',
     storage: record.storage || '',
@@ -237,6 +296,7 @@ function applyRegion(regionCode?: unknown) {
     region_name: selected?.region_name || '',
   };
   selectedPricingPreset.value = undefined;
+  fillDefaultDisplayDescription();
 }
 
 function applyPricingPreset(presetValue?: unknown) {
@@ -261,8 +321,12 @@ function applyPricingPreset(presetValue?: unknown) {
     provider: selected.provider,
     region_code: selected.region_code,
     region_name: selected.region_name,
+    config_id: (selected as any).config_id || '',
+    provider_plan_id: selected.bundle_code || '',
     plan_name: selected.plan_name,
-    plan_description: selected.plan_description || '',
+    plan_description:
+      editForm.value.display_description || selected.plan_description || '',
+    display_plan_name: editForm.value.display_plan_name || selected.plan_name,
     cpu: selected.cpu || '',
     memory: selected.memory || '',
     storage: selected.storage || '',
@@ -270,6 +334,7 @@ function applyPricingPreset(presetValue?: unknown) {
     currency: selected.currency || 'USDT',
     cost_price: Number(selected.cost_price || selected.price || 0),
   };
+  fillDefaultDisplayDescription();
 }
 
 watch(
@@ -289,11 +354,16 @@ watch(
 async function saveEdit() {
   saving.value = true;
   try {
+    const payload = {
+      ...editForm.value,
+      config_id: (editForm.value.config_id || generateConfigId()).trim(),
+      plan_description: editForm.value.display_description || '',
+    };
     if (createMode.value) {
-      await createDashboardCloudPlanApi(editForm.value);
+      await createDashboardCloudPlanApi(payload);
       message.success('套餐已创建');
     } else if (editingPlan.value) {
-      await updateDashboardCloudPlanApi(editingPlan.value.id, editForm.value);
+      await updateDashboardCloudPlanApi(editingPlan.value.id, payload);
       message.success('套餐已更新');
     }
     editOpen.value = false;
@@ -398,8 +468,9 @@ onMounted(loadData);
               record.is_active ? '启用' : '停用'
             }}</Tag>
           </template>
-          <template v-else-if="column.key === 'plan_description'">
+          <template v-else-if="column.key === 'display_description'">
             <span>{{
+              record.display_description ||
               record.plan_description ||
               `${record.cpu} / ${record.memory} / ${record.storage} / ${record.bandwidth}`
             }}</span>
@@ -443,7 +514,6 @@ onMounted(loadData);
           placeholder="选择云厂商"
         />
         <Select
-          v-if="createMode"
           v-model:value="selectedRegionCode"
           allow-clear
           show-search
@@ -458,7 +528,6 @@ onMounted(loadData);
           @change="applyRegion"
         />
         <Select
-          v-if="createMode"
           v-model:value="selectedPricingPreset"
           allow-clear
           show-search
@@ -483,10 +552,15 @@ onMounted(loadData);
           :disabled="createMode"
           placeholder="地区名称，如 新加坡"
         />
+        <Input
+          :value="editForm.config_id || '选择同步配置后自动带入'"
+          disabled
+          placeholder="配置ID来自配置同步"
+        />
         <Input v-model:value="editForm.plan_name" placeholder="套餐名" />
         <Input
-          v-model:value="editForm.plan_description"
-          placeholder="套餐描述"
+          v-model:value="editForm.display_plan_name"
+          placeholder="前台标题，如 新加坡轻量 2核4G"
         />
         <Input v-model:value="editForm.cpu" placeholder="CPU，如 2核" />
         <Input v-model:value="editForm.memory" placeholder="内存，如 2GB" />
@@ -497,6 +571,19 @@ onMounted(loadData);
         <Input
           v-model:value="editForm.bandwidth"
           placeholder="带宽，如 3TB / 30Mbps"
+        />
+        <Space style="justify-content: space-between; width: 100%">
+          <div style="font-size: 13px; color: rgb(100 116 139)">
+            套餐文案（可留空；需要时可恢复默认文案）
+          </div>
+          <Button size="small" @click="fillDefaultDisplayDescription(true)">
+            恢复默认文案
+          </Button>
+        </Space>
+        <Input.TextArea
+          v-model:value="editForm.display_description"
+          :auto-size="{ minRows: 8, maxRows: 14 }"
+          placeholder="系统会自动带入默认套餐文案"
         />
         <Input v-model:value="editForm.currency" placeholder="币种" />
         <InputNumber

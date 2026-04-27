@@ -7,14 +7,24 @@ import {
   Button,
   Card,
   Input,
+  InputNumber,
   Modal,
   RadioGroup,
   Space,
   message,
 } from 'ant-design-vue';
 
-import { getDashboardSiteConfigGroupsApi, getDashboardSiteConfigsApi, initDashboardTextConfigsApi, updateDashboardSiteConfigApi } from '#/api/admin';
-import type { DashboardSiteConfigGroup, DashboardSiteConfigGroupItem, DashboardSiteConfigItem } from '#/api/admin';
+import {
+  getDashboardSiteConfigGroupsApi,
+  getDashboardSiteConfigsApi,
+  initDashboardTextConfigsApi,
+  updateDashboardSiteConfigApi,
+} from '#/api/admin';
+import type {
+  DashboardSiteConfigGroup,
+  DashboardSiteConfigGroupItem,
+  DashboardSiteConfigItem,
+} from '#/api/admin';
 
 const loading = ref(false);
 const initLoading = ref(false);
@@ -24,6 +34,7 @@ const siteConfigs = ref<DashboardSiteConfigItem[]>([]);
 const configGroups = ref<DashboardSiteConfigGroup[]>([]);
 const savingMap = reactive<Record<string, boolean>>({});
 const draftMap = reactive<Record<string, string>>({});
+const sortOrderMap = reactive<Record<string, number>>({});
 
 const textItems = computed(() => {
   const group = configGroups.value.find((item) => item.group === 'custom_text');
@@ -33,6 +44,7 @@ const textItems = computed(() => {
 function syncDrafts() {
   for (const item of textItems.value) {
     draftMap[item.key] = item.value || item.default_value || '';
+    sortOrderMap[item.key] = Number(item.sort_order || 0);
   }
 }
 
@@ -67,6 +79,7 @@ async function saveItem(item: DashboardSiteConfigGroupItem) {
       is_sensitive: !!item.is_sensitive,
       key: item.key,
       value: draftMap[item.key] ?? '',
+      sort_order: Number(sortOrderMap[item.key] || 0),
     });
     message.success(`已保存：${item.description || item.key}`);
     await loadData();
@@ -129,6 +142,17 @@ onMounted(loadData);
         />
         <div class="mt-2 text-xs text-gray-400">
           默认文案：{{ item.default_value || '-' }}
+        </div>
+        <div class="mt-3 flex items-center gap-2 text-xs text-gray-500">
+          <span>排序</span>
+          <InputNumber
+            v-model:value="sortOrderMap[item.key]"
+            :min="0"
+            :precision="0"
+            size="small"
+            style="width: 110px"
+          />
+          <span class="text-gray-400">数值越小越靠前</span>
         </div>
         <Space class="mt-3">
           <Button

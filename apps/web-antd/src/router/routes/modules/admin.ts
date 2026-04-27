@@ -24,16 +24,6 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
-        name: 'DashboardWorkspace',
-        path: 'workspace',
-        component: () => import('#/views/dashboard/workspace/index.vue'),
-        meta: {
-          affixTab: true,
-          icon: 'carbon:workspace',
-          title: '工作台',
-        },
-      },
-      {
         name: 'DashboardUsers',
         path: 'users',
         component: () => import('#/views/dashboard/users/index.vue'),
@@ -41,6 +31,35 @@ const routes: RouteRecordRaw[] = [
           icon: 'lucide:users',
           title: '用户列表',
         },
+      },
+      {
+        name: 'DashboardTelegramAccounts',
+        path: 'telegram-accounts',
+        redirect: '/admin/telegram-accounts/accounts',
+        meta: {
+          icon: 'lucide:message-circle',
+          title: '账号管理',
+        },
+        children: [
+          {
+            name: 'DashboardTelegramAccountList',
+            path: 'accounts',
+            component: () =>
+              import('#/views/dashboard/telegram-accounts/accounts.vue'),
+            meta: {
+              title: '账号列表',
+            },
+          },
+          {
+            name: 'DashboardTelegramChatRecords',
+            path: 'chats',
+            component: () =>
+              import('#/views/dashboard/telegram-accounts/chats.vue'),
+            meta: {
+              title: '聊天记录',
+            },
+          },
+        ],
       },
       {
         name: 'DashboardUserBalanceDetails',
@@ -61,49 +80,13 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
-        name: 'DashboardLogs',
-        path: 'logs',
-        redirect: '/admin/logs/ip',
+        name: 'DashboardCloudAssetDetail',
+        path: 'cloud-assets/:id',
+        component: () => import('#/views/dashboard/cloud-assets/detail.vue'),
         meta: {
-          icon: 'lucide:logs',
-          title: '日志',
+          hideInMenu: true,
+          title: '代理详情',
         },
-        children: [
-          {
-            name: 'DashboardRecharges',
-            path: 'recharges',
-            component: () => import('#/views/dashboard/recharges/index.vue'),
-            meta: {
-              title: '充值列表',
-            },
-          },
-          {
-            name: 'DashboardCloudIpLogs',
-            path: 'ip',
-            component: () =>
-              import('#/views/dashboard/cloud-ip-logs/index.vue'),
-            meta: {
-              title: 'IP日志',
-            },
-          },
-          {
-            name: 'DashboardServerLogs',
-            path: 'servers',
-            component: () => import('#/views/dashboard/server-logs/index.vue'),
-            meta: {
-              title: '服务器日志',
-            },
-          },
-          {
-            name: 'DashboardOperationLogs',
-            path: 'operations',
-            component: () =>
-              import('#/views/dashboard/operation-logs/index.vue'),
-            meta: {
-              title: '操作日志',
-            },
-          },
-        ],
       },
       {
         name: 'DashboardCloudPlans',
@@ -161,6 +144,12 @@ const routes: RouteRecordRaw[] = [
             meta: { title: '文案设置' },
           },
           {
+            name: 'DashboardSettingsButtons',
+            path: 'buttons',
+            component: () => import('#/views/dashboard/settings/buttons.vue'),
+            meta: { title: '按钮设置' },
+          },
+          {
             name: 'DashboardSettingsCloudAccounts',
             path: 'cloud-accounts',
             component: () =>
@@ -203,11 +192,28 @@ const routes: RouteRecordRaw[] = [
             },
           },
           {
+            name: 'DashboardRecharges',
+            path: 'recharges',
+            component: () => import('#/views/dashboard/recharges/index.vue'),
+            meta: {
+              title: '充值订单',
+            },
+          },
+          {
             name: 'DashboardTasks',
             path: 'tasks',
             component: () => import('#/views/dashboard/tasks/index.vue'),
             meta: {
               title: '任务列表',
+            },
+          },
+          {
+            name: 'DashboardRechargeDetail',
+            path: 'recharges/:id',
+            component: () => import('#/views/dashboard/recharges/detail.vue'),
+            meta: {
+              hideInMenu: true,
+              title: '充值详情',
             },
           },
           {
@@ -223,13 +229,32 @@ const routes: RouteRecordRaw[] = [
         ],
       },
       {
-        name: 'DashboardRechargeDetail',
-        path: 'logs/recharges/:id',
-        component: () => import('#/views/dashboard/recharges/detail.vue'),
+        name: 'DashboardLogs',
+        path: 'logs',
+        redirect: '/admin/logs/servers',
         meta: {
-          hideInMenu: true,
-          title: '充值详情',
+          icon: 'lucide:logs',
+          title: '日志',
         },
+        children: [
+          {
+            name: 'DashboardServerLogs',
+            path: 'servers',
+            component: () => import('#/views/dashboard/server-logs/index.vue'),
+            meta: {
+              title: '服务器日志',
+            },
+          },
+          {
+            name: 'DashboardOperationLogs',
+            path: 'operations',
+            component: () =>
+              import('#/views/dashboard/operation-logs/index.vue'),
+            meta: {
+              title: '操作日志',
+            },
+          },
+        ],
       },
       {
         name: 'DashboardMonitors',
