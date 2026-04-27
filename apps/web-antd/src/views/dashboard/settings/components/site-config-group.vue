@@ -1,12 +1,22 @@
 <script lang="ts" setup>
+import type {
+  DashboardSiteConfigGroup,
+  DashboardSiteConfigGroupItem,
+  DashboardSiteConfigItem,
+} from '#/api/admin';
+
 import { computed, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Input, Space, message } from 'ant-design-vue';
+import { Button, Input, message, Space } from 'ant-design-vue';
 
-import { getDashboardSiteConfigGroupsApi, getDashboardSiteConfigsApi, initDashboardSiteConfigsApi, updateDashboardSiteConfigApi } from '#/api/admin';
-import type { DashboardSiteConfigGroup, DashboardSiteConfigGroupItem, DashboardSiteConfigItem } from '#/api/admin';
+import {
+  getDashboardSiteConfigGroupsApi,
+  getDashboardSiteConfigsApi,
+  initDashboardSiteConfigsApi,
+  updateDashboardSiteConfigApi,
+} from '#/api/admin';
 
 const props = defineProps<{
   description?: string;
@@ -90,7 +100,8 @@ async function saveItem(item: DashboardSiteConfigGroupItem) {
     return;
   }
   const value = draftMap[item.key] ?? '';
-  const preserveExisting = !!item.is_sensitive && (maskedMap[item.key] || !value.trim());
+  const preserveExisting =
+    !!item.is_sensitive && (maskedMap[item.key] || !value.trim());
   savingMap[item.key] = true;
   try {
     await updateDashboardSiteConfigApi(current.id, {
@@ -118,13 +129,13 @@ onMounted(loadData);
 <template>
   <Page :description="description || ''" :title="title">
     <Space class="mb-4">
-      <Button type="primary" :loading="initLoading" @click="initConfigs"
-        >初始化配置</Button
-      >
+      <Button type="primary" :loading="initLoading" @click="initConfigs">
+初始化配置
+</Button>
       <Button :loading="loading" @click="loadData">刷新</Button>
     </Space>
 
-    <div v-if="items.length" class="config-list">
+    <div v-if="items.length > 0" class="config-list">
       <div v-for="item in items" :key="item.key" class="config-row">
         <div class="config-head">
           <div>
@@ -135,8 +146,9 @@ onMounted(loadData);
               type="primary"
               :loading="savingMap[item.key]"
               @click="saveItem(item)"
-              >保存</Button
-            >
+              >
+保存
+</Button>
           </Space>
         </div>
         <Input
