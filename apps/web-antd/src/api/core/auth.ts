@@ -10,10 +10,11 @@ export namespace AuthApi {
   /** 登录接口返回值 */
   export interface LoginResult {
     accessToken: string;
+    expiresIn?: number;
   }
 
   export interface RefreshTokenResult {
-    data: string;
+    data: LoginResult;
     status: number;
   }
 }
