@@ -482,6 +482,16 @@ export interface DashboardSiteConfigGroup {
   items: DashboardSiteConfigGroupItem[];
 }
 
+export interface DashboardTotpStartResult {
+  enabled: boolean;
+  otpauthUrl: string;
+  secret: string;
+}
+
+export interface DashboardTotpBindResult {
+  enabled: boolean;
+}
+
 export interface DashboardButtonConfigItem {
   button_label?: string;
   enabled?: boolean;
@@ -902,6 +912,17 @@ export async function initDashboardSiteConfigsApi(
   payload: { scope?: 'all' | 'configs' } = {},
 ) {
   return requestClient.post('/admin/settings/site-configs/init/', payload);
+}
+
+export async function startDashboardTotpBindApi() {
+  return requestClient.post<DashboardTotpStartResult>('/admin/auth/totp/start');
+}
+
+export async function bindDashboardTotpApi(payload: { otp_token: string }) {
+  return requestClient.post<DashboardTotpBindResult>(
+    '/admin/auth/totp/bind',
+    payload,
+  );
 }
 
 export async function initDashboardTextConfigsApi(

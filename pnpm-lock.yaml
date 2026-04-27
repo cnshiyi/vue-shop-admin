@@ -30,9 +30,6 @@ catalogs:
     '@eslint/js':
       specifier: ^10.0.1
       version: 10.0.1
-    '@faker-js/faker':
-      specifier: ^10.4.0
-      version: 10.4.0
     '@iconify/json':
       specifier: ^2.2.460
       version: 2.2.460
@@ -57,9 +54,6 @@ catalogs:
     '@nolebase/vitepress-plugin-git-changelog':
       specifier: ^2.18.2
       version: 2.18.2
-    '@playwright/test':
-      specifier: ^1.59.1
-      version: 1.59.1
     '@pnpm/workspace.read-manifest':
       specifier: ^1000.3.1
       version: 1000.3.1
@@ -72,9 +66,6 @@ catalogs:
     '@tailwindcss/vite':
       specifier: ^4.2.2
       version: 4.2.2
-    '@tanstack/vue-query':
-      specifier: ^5.97.0
-      version: 5.97.0
     '@tanstack/vue-store':
       specifier: ^0.10.0
       version: 0.10.0
@@ -123,9 +114,6 @@ catalogs:
     '@types/json-bigint':
       specifier: ^1.0.4
       version: 1.0.4
-    '@types/jsonwebtoken':
-      specifier: ^9.0.10
-      version: 9.0.10
     '@types/lodash.clonedeep':
       specifier: ^4.5.9
       version: 4.5.9
@@ -180,9 +168,6 @@ catalogs:
     ant-design-vue:
       specifier: ^4.2.6
       version: 4.2.6
-    antdv-next:
-      specifier: ^1.1.9
-      version: 1.1.9
     archiver:
       specifier: ^7.0.1
       version: 7.0.1
@@ -240,9 +225,6 @@ catalogs:
     echarts:
       specifier: ^6.0.0
       version: 6.0.0
-    element-plus:
-      specifier: ^2.13.7
-      version: 2.13.7
     es-toolkit:
       specifier: ^1.45.1
       version: 1.45.1
@@ -291,9 +273,6 @@ catalogs:
     globals:
       specifier: ^17.4.0
       version: 17.4.0
-    h3:
-      specifier: ^1.15.11
-      version: 1.15.11
     happy-dom:
       specifier: ^20.8.9
       version: 20.8.9
@@ -306,9 +285,6 @@ catalogs:
     json-bigint:
       specifier: ^1.0.0
       version: 1.0.0
-    jsonwebtoken:
-      specifier: ^9.0.3
-      version: 9.0.3
     lefthook:
       specifier: ^2.1.5
       version: 2.1.5
@@ -321,9 +297,6 @@ catalogs:
     medium-zoom:
       specifier: ^1.1.0
       version: 1.1.0
-    naive-ui:
-      specifier: ^2.44.1
-      version: 2.44.1
     nitropack:
       specifier: ^2.13.3
       version: 2.13.3
@@ -426,9 +399,6 @@ catalogs:
     tailwindcss:
       specifier: ^4.2.2
       version: 4.2.2
-    tdesign-vue-next:
-      specifier: ^1.19.0
-      version: 1.19.0
     theme-colors:
       specifier: ^0.1.0
       version: 0.1.0
@@ -450,9 +420,6 @@ catalogs:
     unplugin-dts:
       specifier: ^1.0.0-beta.6
       version: 1.0.0-beta.6
-    unplugin-element-plus:
-      specifier: ^0.11.2
-      version: 0.11.2
     unplugin-vue:
       specifier: ^7.1.1
       version: 7.1.1
@@ -709,12 +676,19 @@ importers:
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@6.0.2)(vue@3.5.32(typescript@6.0.2))
+      qrcode:
+        specifier: 'catalog:'
+        version: 1.5.4
       vue:
         specifier: ^3.5.32
         version: 3.5.32(typescript@6.0.2)
       vue-router:
         specifier: 'catalog:'
         version: 5.0.4(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@6.0.2)(vue@3.5.32(typescript@6.0.2)))(vue@3.5.32(typescript@6.0.2))
+    devDependencies:
+      '@types/qrcode':
+        specifier: 'catalog:'
+        version: 1.5.6
 
   apps/web-antdv-next:
     dependencies:
@@ -8480,6 +8454,11 @@ packages:
   lefthook-linux-arm64@2.1.5:
     resolution: {integrity: sha512-57TDKC5ewWpsCLZQKIJMHumFEObYKVundmPpiWhX491hINRZYYOL/26yrnVnNcidThRzTiTC+HLcuplLcaXtbA==}
     cpu: [arm64]
+    os: [linux]
+
+  lefthook-linux-x64@2.1.5:
+    resolution: {integrity: sha512-bqK3LrAB5l5YaCaoHk6qRWlITrGWzP4FbwRxA31elbxjd0wgNWZ2Sn3zEfSEcxz442g7/PPkEwqqsTx0kSFzpg==}
+    cpu: [x64]
     os: [linux]
 
   lefthook-openbsd-arm64@2.1.5:
@@ -18100,6 +18079,9 @@ snapshots:
   lefthook-linux-arm64@2.1.5:
     optional: true
 
+  lefthook-linux-x64@2.1.5:
+    optional: true
+
   lefthook-openbsd-arm64@2.1.5:
     optional: true
 
@@ -18119,6 +18101,7 @@ snapshots:
       lefthook-freebsd-arm64: 2.1.5
       lefthook-freebsd-x64: 2.1.5
       lefthook-linux-arm64: 2.1.5
+      lefthook-linux-x64: 2.1.5
       lefthook-openbsd-arm64: 2.1.5
       lefthook-openbsd-x64: 2.1.5
       lefthook-windows-arm64: 2.1.5
