@@ -1,41 +1,42 @@
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { reactive, ref } from 'vue';
 
-import { Alert, Button, Card } from 'ant-design-vue';
+import { Alert, Button, Card, Input, InputPassword } from 'ant-design-vue';
 
-import { githubLoginStartApi } from '#/api';
+import { useAuthStore } from '#/store';
 
-const loading = ref(false);
+const authStore = useAuthStore();
 const errorMessage = ref('');
+const form = reactive({
+  otp_token: '',
+  password: '',
+  username: '',
+});
 
-function githubRedirectUri() {
-  return `${window.location.origin}/auth/github/callback`;
-}
-
-async function handleGithubLogin() {
-  loading.value = true;
+async function handleLogin() {
   errorMessage.value = '';
+  if (!form.username || !form.password) {
+    errorMessage.value = '请输入用户名和密码';
+    return;
+  }
   try {
-    const { authorizeUrl } = await githubLoginStartApi(githubRedirectUri());
-    window.location.href = authorizeUrl;
+    await authStore.authLogin({
+      otp_token: form.otp_token.trim(),
+      password: form.password,
+      username: form.username.trim(),
+    });
   } catch (error: any) {
     errorMessage.value =
-      error?.response?.data?.message ||
-      error?.message ||
-      'GitHub 登录初始化失败，请检查 OAuth 配置';
-  } finally {
-    loading.value = false;
+      error?.response?.data?.message || error?.message || '登录失败，请重试';
   }
 }
 </script>
 
 <template>
-  <Card class="github-login-card" :bordered="false">
-    <div class="github-login-content">
-      <h2 class="github-login-title">后台登录</h2>
-      <p class="github-login-desc">
-        使用已授权的 GitHub 账号进入后台，账号密码登录已关闭。
-      </p>
+  <Card class="password-login-card" :bordered="false">
+    <div class="password-login-content" @keydown.enter.prevent="handleLogin">
+      <h2 class="password-login-title">后台登录</h2>
+      <p class="password-login-desc">请输入账号密码和 Google 动态验证码。</p>
 
       <Alert
         v-if="errorMessage"
@@ -45,35 +46,59 @@ async function handleGithubLogin() {
         :message="errorMessage"
       />
 
+      <Input
+        v-model:value="form.username"
+        class="mb-4"
+        autocomplete="username"
+        placeholder="用户名"
+        size="large"
+      />
+      <InputPassword
+        v-model:value="form.password"
+        class="mb-4"
+        autocomplete="current-password"
+        placeholder="密码"
+        size="large"
+      />
+      <Input
+        v-model:value="form.otp_token"
+        class="mb-6"
+        autocomplete="one-time-code"
+        inputmode="numeric"
+        :maxlength="6"
+        placeholder="Google 验证码（6位）"
+        size="large"
+      />
+
       <Button
         block
         size="large"
         type="primary"
-        :loading="loading"
-        @click="handleGithubLogin"
+        :loading="authStore.loginLoading"
+        @click="handleLogin"
       >
-        GitHub 登录
+        登录
       </Button>
     </div>
   </Card>
 </template>
 
 <style scoped>
-.github-login-card {
+.password-login-card {
   width: 100%;
 }
 
-.github-login-content {
+.password-login-content {
   text-align: center;
 }
 
-.github-login-title {
+.password-login-title {
   margin-bottom: 8px;
   font-size: 24px;
   font-weight: 600;
 }
 
-.github-login-desc {
+.password-login-desc {
   margin-bottom: 24px;
   color: hsl(var(--muted-foreground));
 }

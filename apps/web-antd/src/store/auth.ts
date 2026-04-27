@@ -10,13 +10,7 @@ import { resetAllStores, useAccessStore, useUserStore } from '@vben/stores';
 import { notification } from 'ant-design-vue';
 import { defineStore } from 'pinia';
 
-import {
-  getAccessCodesApi,
-  getUserInfoApi,
-  githubLoginCallbackApi,
-  loginApi,
-  logoutApi,
-} from '#/api';
+import { getAccessCodesApi, getUserInfoApi, loginApi, logoutApi } from '#/api';
 import { $t } from '#/locales';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -83,54 +77,6 @@ export const useAuthStore = defineStore('auth', () => {
     };
   }
 
-  async function finishLogin(
-    accessToken: string,
-    onSuccess?: () => Promise<void> | void,
-  ) {
-    accessStore.setAccessToken(accessToken);
-    const [fetchUserInfoResult, accessCodes] = await Promise.all([
-      fetchUserInfo(),
-      getAccessCodesApi(),
-    ]);
-    userStore.setUserInfo(fetchUserInfoResult);
-    accessStore.setAccessCodes(accessCodes);
-    if (accessStore.loginExpired) {
-      accessStore.setLoginExpired(false);
-    } else {
-      onSuccess
-        ? await onSuccess?.()
-        : await router.push(
-            fetchUserInfoResult.homePath || preferences.app.defaultHomePath,
-          );
-    }
-    return fetchUserInfoResult;
-  }
-
-  async function authGithubCallback(params: {
-    code: string;
-    redirectUri: string;
-    state: string;
-  }) {
-    loginLoading.value = true;
-    try {
-      const { accessToken } = await githubLoginCallbackApi(params);
-      if (!accessToken) {
-        return { userInfo: null };
-      }
-      const userInfo = await finishLogin(accessToken);
-      if (userInfo?.realName) {
-        notification.success({
-          description: `${$t('authentication.loginSuccessDesc')}:${userInfo?.realName}`,
-          duration: 3,
-          message: $t('authentication.loginSuccess'),
-        });
-      }
-      return { userInfo };
-    } finally {
-      loginLoading.value = false;
-    }
-  }
-
   async function logout(redirect: boolean = true) {
     try {
       await logoutApi();
@@ -163,7 +109,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     $reset,
-    authGithubCallback,
     authLogin,
     fetchUserInfo,
     loginLoading,
