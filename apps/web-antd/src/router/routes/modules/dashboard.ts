@@ -15,7 +15,7 @@ const routes: RouteRecordRaw[] = [
       {
         name: 'Analytics',
         path: '/analytics',
-        component: () => import('#/views/dashboard/analytics/index.vue'),
+        redirect: '/admin/analytics',
         meta: {
           affixTab: true,
           icon: 'lucide:area-chart',
@@ -25,7 +25,7 @@ const routes: RouteRecordRaw[] = [
       {
         name: 'Workspace',
         path: '/workspace',
-        component: () => import('#/views/dashboard/workspace/index.vue'),
+        redirect: '/admin/analytics',
         meta: {
           icon: 'carbon:workspace',
           title: $t('page.dashboard.workspace'),
