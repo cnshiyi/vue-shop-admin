@@ -651,6 +651,10 @@ export interface DashboardMonitorItem {
   is_active: boolean;
   monitor_resources: boolean;
   monitor_transfers: boolean;
+  usdt_threshold: string;
+  trx_threshold: string;
+  energy_threshold: number;
+  bandwidth_threshold: number;
   remark: null | string;
   resource_checked_at: null | string;
   stats_date: null | string;

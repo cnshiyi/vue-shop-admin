@@ -267,8 +267,15 @@ onMounted(loadData);
             </Button>
           </Space>
         </div>
+        <Input.TextArea
+          v-if="item.key === 'trongrid_api_key'"
+          v-model:value="draftMap[item.key]"
+          :auto-size="{ minRows: 3, maxRows: 8 }"
+          :placeholder="item.value_preview || '多个 Key 请每行一个，或用逗号/分号分隔'"
+          @focus="activateSensitiveEdit(item)"
+        />
         <Input
-          v-if="item.is_sensitive"
+          v-else-if="item.is_sensitive"
           v-model:value="draftMap[item.key]"
           :placeholder="item.value_preview || '请输入配置内容'"
           @focus="activateSensitiveEdit(item)"

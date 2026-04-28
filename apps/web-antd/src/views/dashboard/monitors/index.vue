@@ -21,6 +21,8 @@ const columns = [
   { title: 'Telegram ID', dataIndex: 'tg_user_id', key: 'tg_user_id', width: 160 },
   { title: '监控转账', dataIndex: 'monitor_transfers', key: 'monitor_transfers', width: 120 },
   { title: '监控资源', dataIndex: 'monitor_resources', key: 'monitor_resources', width: 120 },
+  { title: '转账阈值', dataIndex: 'transfer_thresholds', key: 'transfer_thresholds', width: 180 },
+  { title: '资源阈值', dataIndex: 'resource_thresholds', key: 'resource_thresholds', width: 180 },
   { title: '今日收入', dataIndex: 'daily_income', key: 'daily_income', width: 140 },
   { title: '今日支出', dataIndex: 'daily_expense', key: 'daily_expense', width: 140 },
   { title: '状态', dataIndex: 'is_active', key: 'is_active', width: 100 },
@@ -69,7 +71,7 @@ onMounted(loadData);
         :loading="loading"
         :pagination="{ pageSize: 10 }"
         row-key="id"
-        :scroll="{ x: 1700 }"
+        :scroll="{ x: 2050 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'username'">
@@ -84,6 +86,12 @@ onMounted(loadData);
             <Tag :color="record.monitor_resources ? 'purple' : 'default'">
               {{ record.monitor_resources ? '开启' : '关闭' }}
             </Tag>
+          </template>
+          <template v-else-if="column.key === 'transfer_thresholds'">
+            USDT ≥ {{ record.usdt_threshold }} / TRX ≥ {{ record.trx_threshold }}
+          </template>
+          <template v-else-if="column.key === 'resource_thresholds'">
+            能量 ≥ {{ record.energy_threshold }} / 带宽 ≥ {{ record.bandwidth_threshold }}
           </template>
           <template v-else-if="column.key === 'daily_income'">
             {{ record.daily_income }} {{ record.daily_income_currency }}
