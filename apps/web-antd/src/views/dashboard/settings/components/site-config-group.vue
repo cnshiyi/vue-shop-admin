@@ -271,7 +271,9 @@ onMounted(loadData);
           v-if="item.key === 'trongrid_api_key'"
           v-model:value="draftMap[item.key]"
           :auto-size="{ minRows: 3, maxRows: 8 }"
-          :placeholder="item.value_preview || '多个 Key 请每行一个，或用逗号/分号分隔'"
+          :placeholder="
+            item.value_preview || '多个 Key 请每行一个，或用逗号/分号分隔'
+          "
           @focus="activateSensitiveEdit(item)"
         />
         <Input
