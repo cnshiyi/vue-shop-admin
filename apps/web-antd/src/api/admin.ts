@@ -918,8 +918,13 @@ export async function initDashboardSiteConfigsApi(
   return requestClient.post('/admin/settings/site-configs/init/', payload);
 }
 
-export async function startDashboardTotpBindApi() {
-  return requestClient.post<DashboardTotpStartResult>('/admin/auth/totp/start');
+export async function startDashboardTotpBindApi(
+  payload: { old_otp_token?: string } = {},
+) {
+  return requestClient.post<DashboardTotpStartResult>(
+    '/admin/auth/totp/start',
+    payload,
+  );
 }
 
 export async function bindDashboardTotpApi(payload: { otp_token: string }) {

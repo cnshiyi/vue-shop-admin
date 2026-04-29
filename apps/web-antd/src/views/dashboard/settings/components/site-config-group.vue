@@ -62,13 +62,17 @@ const totpItem = computed(
 const totpQrCode = ref('');
 const totpSecret = ref('');
 const totpToken = ref('');
+const totpOldToken = ref('');
 const totpGenerating = ref(false);
 const totpBinding = ref(false);
 
 function syncDrafts() {
   for (const item of items.value) {
     sensitiveMap[item.key] = !!item.is_sensitive;
-    if (item.is_sensitive) {
+    if (item.key === 'trongrid_api_key') {
+      draftMap[item.key] = item.value || '';
+      maskedMap[item.key] = false;
+    } else if (item.is_sensitive) {
       const preview = item.value_preview || '';
       draftMap[item.key] = preview;
       maskedMap[item.key] = !!preview;
@@ -120,9 +124,19 @@ function activateSensitiveEdit(item: DashboardSiteConfigGroupItem) {
 }
 
 async function generateTotpQrCode() {
+  if (totpItem.value?.value_preview && !totpOldToken.value.trim()) {
+    message.error(
+      '更换 TOTP 密钥前，请先输入当前 Google Authenticator 的 6 位动态码',
+    );
+    return;
+  }
   totpGenerating.value = true;
   try {
-    const result = await startDashboardTotpBindApi();
+    const result = await startDashboardTotpBindApi({
+      old_otp_token: totpItem.value?.value_preview
+        ? totpOldToken.value.trim()
+        : undefined,
+    });
     totpSecret.value = result.secret;
     totpToken.value = '';
     totpQrCode.value = await QRCode.toDataURL(result.otpauthUrl, {
@@ -130,9 +144,13 @@ async function generateTotpQrCode() {
       margin: 1,
       width: 220,
     });
-    message.success('二维码已生成，请用 Google Authenticator 扫码');
+    message.success(
+      totpItem.value?.value_preview
+        ? '已生成新的绑定二维码；完成校验后将更换旧 TOTP 密钥'
+        : '二维码已生成，请用 Google Authenticator 扫码',
+    );
   } catch (error: any) {
-    message.error(error?.message || '生成二维码失败');
+    message.error(error?.message || '生成二维码失败，请确认当前动态码是否正确');
   } finally {
     totpGenerating.value = false;
   }
@@ -150,6 +168,7 @@ async function bindTotp() {
     totpQrCode.value = '';
     totpSecret.value = '';
     totpToken.value = '';
+    totpOldToken.value = '';
     await loadData();
   } catch (error: any) {
     message.error(error?.message || '动态码校验失败');
@@ -166,7 +185,9 @@ async function saveItem(item: DashboardSiteConfigGroupItem) {
   }
   const value = draftMap[item.key] ?? '';
   const preserveExisting =
-    !!item.is_sensitive && (maskedMap[item.key] || !value.trim());
+    item.key !== 'trongrid_api_key' &&
+    !!item.is_sensitive &&
+    (maskedMap[item.key] || !value.trim());
   savingMap[item.key] = true;
   try {
     await updateDashboardSiteConfigApi(current.id, {
@@ -207,8 +228,11 @@ onMounted(loadData);
             {{ totpItem.description || '后台 Google Authenticator 二级验证' }}
           </div>
           <div class="config-desc">
-            生成二维码后，用 Google Authenticator 扫码，再输入 6
-            位动态码完成绑定。
+            {{
+              totpItem.value_preview
+                ? '已绑定二级验证。更换密钥时必须先输入当前/旧 Google Authenticator 动态码；旧码验证通过后才会生成新二维码。新动态码校验成功后才会覆盖旧密钥，旧绑定将失效。'
+                : '生成二维码后，用 Google Authenticator 扫码，再输入 6 位动态码完成绑定。'
+            }}
           </div>
         </div>
         <Tag :color="totpItem.value_preview ? 'green' : 'default'">
@@ -219,22 +243,37 @@ onMounted(loadData);
         class="mb-4"
         show-icon
         type="info"
-        message="密钥只用于本次绑定；动态码校验通过后才会加密写入后台配置。"
+        :message="
+          totpItem.value_preview
+            ? '更换密钥必须先验证当前/旧 Google Authenticator 动态码；验证通过后才会生成新二维码。新动态码校验保存后，旧密钥和旧动态码将不能再登录。'
+            : '密钥只用于本次绑定；动态码校验通过后才会加密写入后台配置。'
+        "
       />
       <Space class="mb-4">
+        <Input
+          v-if="totpItem.value_preview"
+          v-model:value="totpOldToken"
+          autocomplete="one-time-code"
+          inputmode="numeric"
+          :maxlength="6"
+          placeholder="先输入当前/旧验证器 6 位动态码"
+          style="width: 260px"
+        />
         <Button
           type="primary"
           :loading="totpGenerating"
           @click="generateTotpQrCode"
         >
-          {{ totpItem.value_preview ? '重新生成二维码' : '生成绑定二维码' }}
+          {{
+            totpItem.value_preview ? '验证旧码并生成新二维码' : '生成绑定二维码'
+          }}
         </Button>
       </Space>
       <div v-if="totpQrCode" class="totp-bind-box">
         <img class="totp-qrcode" :src="totpQrCode" alt="TOTP QR Code" />
         <div class="totp-bind-form">
           <div class="config-desc mb-2">
-            不能扫码时，可手动输入密钥：{{ totpSecret }}
+            不能扫码时，可手动输入新密钥：{{ totpSecret }}
           </div>
           <Input
             v-model:value="totpToken"
@@ -242,10 +281,10 @@ onMounted(loadData);
             autocomplete="one-time-code"
             inputmode="numeric"
             :maxlength="6"
-            placeholder="输入 Google Authenticator 6 位动态码"
+            placeholder="输入新 Google Authenticator 6 位动态码"
           />
           <Button type="primary" :loading="totpBinding" @click="bindTotp">
-            校验并绑定
+            校验新码并保存
           </Button>
         </div>
       </div>
@@ -271,10 +310,7 @@ onMounted(loadData);
           v-if="item.key === 'trongrid_api_key'"
           v-model:value="draftMap[item.key]"
           :auto-size="{ minRows: 3, maxRows: 8 }"
-          :placeholder="
-            item.value_preview || '多个 Key 请每行一个，或用逗号/分号分隔'
-          "
-          @focus="activateSensitiveEdit(item)"
+          placeholder="多个 Key 请每行一个，或用逗号/分号分隔"
         />
         <Input
           v-else-if="item.is_sensitive"

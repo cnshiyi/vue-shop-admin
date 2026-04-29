@@ -37,6 +37,7 @@ const saving = ref(false);
 const open = ref(false);
 const current = ref<DashboardCloudAccountConfigItem | null>(null);
 const items = ref<DashboardCloudAccountConfigItem[]>([]);
+const togglingMap = reactive<Record<number, boolean>>({});
 
 const DEFAULT_REGION_MAP: Record<string, string> = {
   aliyun: 'cn-hongkong',
@@ -203,6 +204,23 @@ async function verify(record: DashboardCloudAccountConfigItem) {
   }
 }
 
+async function toggleActive(
+  record: DashboardCloudAccountConfigItem,
+  checked: boolean,
+) {
+  togglingMap[record.id] = true;
+  try {
+    await updateDashboardCloudAccountApi(record.id, { is_active: checked });
+    record.is_active = checked;
+    message.success(checked ? '云账号已启用' : '云账号已停用');
+  } catch (error: any) {
+    record.is_active = !checked;
+    message.error(error?.message || '切换失败');
+  } finally {
+    togglingMap[record.id] = false;
+  }
+}
+
 async function remove(record: DashboardCloudAccountConfigItem) {
   try {
     await deleteDashboardCloudAccountApi(record.id);
@@ -233,9 +251,21 @@ onMounted(loadData);
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'is_active'">
-          <Tag :color="record.is_active ? 'success' : 'default'">
-            {{ record.is_active ? '启用' : '停用' }}
-          </Tag>
+          <Switch
+            :checked="(record as DashboardCloudAccountConfigItem).is_active"
+            checked-children="启用"
+            :loading="
+              togglingMap[(record as DashboardCloudAccountConfigItem).id]
+            "
+            un-checked-children="停用"
+            @change="
+              (checked) =>
+                toggleActive(
+                  record as DashboardCloudAccountConfigItem,
+                  Boolean(checked),
+                )
+            "
+          />
         </template>
         <template v-else-if="column.key === 'status'">
           <Tag
