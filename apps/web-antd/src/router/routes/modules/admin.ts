@@ -11,14 +11,23 @@ const routes: RouteRecordRaw[] = [
     },
     name: 'Dashboard',
     path: '/admin',
-    redirect: '/admin/analytics',
+    redirect: '/admin/workspace',
     children: [
+      {
+        name: 'DashboardWorkspace',
+        path: 'workspace',
+        component: () => import('#/views/dashboard/workspace/index.vue'),
+        meta: {
+          affixTab: true,
+          icon: 'carbon:workspace',
+          title: '工作台',
+        },
+      },
       {
         name: 'DashboardAnalytics',
         path: 'analytics',
         component: () => import('#/views/dashboard/analytics/index.vue'),
         meta: {
-          affixTab: true,
           icon: 'lucide:chart-column',
           title: '分析页',
         },
@@ -237,6 +246,15 @@ const routes: RouteRecordRaw[] = [
             component: () => import('#/views/dashboard/server-logs/index.vue'),
             meta: {
               title: '服务器日志',
+            },
+          },
+          {
+            name: 'DashboardShutdownLogs',
+            path: 'shutdowns',
+            component: () =>
+              import('#/views/dashboard/shutdown-logs/index.vue'),
+            meta: {
+              title: '关机日志',
             },
           },
           {

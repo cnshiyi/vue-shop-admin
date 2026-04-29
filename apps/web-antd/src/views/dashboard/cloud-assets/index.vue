@@ -54,6 +54,7 @@ const recentSyncHighlight = ref(false);
 const autoSyncEverySeconds = ref(10 * 60);
 const awsExistingCount = ref(0);
 const aliyunExistingCount = ref(0);
+const unattachedIpCount = ref(0);
 const items = ref<DashboardCloudAssetItem[]>([]);
 const groups = ref<DashboardCloudAssetGroup[]>([]);
 const expandedGroupKeys = ref<string[]>([]);
@@ -242,6 +243,7 @@ async function loadData() {
       : null;
     awsExistingCount.value = syncStatus.aws_existing_count || 0;
     aliyunExistingCount.value = syncStatus.aliyun_existing_count || 0;
+    unattachedIpCount.value = syncStatus.unattached_ip_count || 0;
 
     if (grouped.value) {
       const groupedResponse = response as any;
@@ -281,7 +283,7 @@ async function syncAssets() {
     markRecentSync();
     await loadData();
     message.success(
-      `代理同步完成：AWS 存在 ${awsExistingCount.value} 条，阿里云存在 ${aliyunExistingCount.value} 条`,
+      `代理同步完成：AWS 存在 ${awsExistingCount.value} 条，阿里云存在 ${aliyunExistingCount.value} 条，未附加IP ${unattachedIpCount.value} 条`,
     );
   } catch (error: any) {
     message.error(error?.message || '代理同步失败');

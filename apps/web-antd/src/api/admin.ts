@@ -46,6 +46,42 @@ export interface LatestRecharge {
   tx_hash: null | string;
 }
 
+export interface DashboardShutdownLog {
+  asset_id?: null | number;
+  delete_at: null | string;
+  id: number | string;
+  is_old_shutdown?: boolean;
+  logged_at: null | string;
+  note: string;
+  order_id?: null | number;
+  order_no: string;
+  public_ip: string;
+  provider?: string;
+  provider_label?: string;
+  cloud_account_id?: null | number;
+  cloud_account_name?: string;
+  external_account_id?: string;
+  account_label?: string;
+  user_display_name?: string;
+  username_label?: string;
+  service_expires_at: null | string;
+  status: string;
+  status_label?: string;
+  suspend_at: null | string;
+}
+
+export interface DashboardUnattachedIpDeletePlan {
+  asset_name: string;
+  delete_at: null | string;
+  id: number;
+  is_overdue?: boolean;
+  note: string;
+  provider_status: string;
+  public_ip: string;
+  user_display_name?: string;
+  username_label?: string;
+}
+
 export interface DashboardChartSeries {
   trend: {
     expiry: number[];
@@ -61,7 +97,9 @@ export interface DashboardOverview {
   charts?: DashboardChartSeries;
   latest_cloud_orders: LatestCloudOrder[];
   latest_recharges: LatestRecharge[];
+  shutdown_logs?: DashboardShutdownLog[];
   summary: DashboardSummary;
+  unattached_ip_delete_plans?: DashboardUnattachedIpDeletePlan[];
 }
 
 export interface DashboardUserItem {
@@ -82,18 +120,28 @@ export interface DashboardUserItem {
 
 export interface DashboardCloudOrderItem {
   created_at: null | string;
+  currency: string;
+  delete_at?: null | string;
   id: number;
   order_no: string;
+  order_source?: string;
+  order_source_label?: string;
+  pay_amount: null | string;
   plan_name: string;
   provider: string;
+  provision_note: null | string;
   public_ip: null | string;
   region_label?: string;
   region_name: string;
+  server_name?: null | string;
+  service_expires_at?: null | string;
   status: string;
   status_label?: string;
+  suspend_at?: null | string;
   execution_status?: string;
   execution_status_label?: string;
   total_amount: string;
+  username_label?: string;
 }
 
 export interface DashboardCloudOrderDetail extends DashboardCloudOrderItem {
@@ -115,7 +163,6 @@ export interface DashboardCloudOrderDetail extends DashboardCloudOrderItem {
   mtproxy_port: number;
   mtproxy_secret: null | string;
   paid_at: null | string;
-  pay_amount: null | string;
   pay_method: string;
   plan_id: number;
   previous_public_ip: null | string;
@@ -666,6 +713,15 @@ export async function getDashboardOverviewApi() {
   return requestClient.get<DashboardOverview>('/admin/dashboard/overview/');
 }
 
+export async function getDashboardShutdownLogsApi(
+  params: { limit?: number } = {},
+) {
+  return requestClient.get<DashboardShutdownLog[]>(
+    '/admin/dashboard/shutdown-logs/',
+    { params },
+  );
+}
+
 export async function getDashboardUsersApi(params: DashboardListQuery = {}) {
   return requestClient.get<DashboardUserItem[]>('/admin/users/', { params });
 }
@@ -751,6 +807,7 @@ export interface DashboardCloudAssetsSyncStatus {
   auto_sync_every_seconds: number;
   aws_existing_count: number;
   last_synced_at: null | string;
+  unattached_ip_count?: number;
 }
 
 export async function getDashboardCloudAssetsSyncStatusApi() {
@@ -828,6 +885,33 @@ export async function getDashboardCloudOrderDetailApi(orderId: number) {
   );
 }
 
+export interface DashboardCloudOrderUpdatePayload {
+  delete_at?: null | string;
+  mtproxy_host?: null | string;
+  mtproxy_link?: null | string;
+  mtproxy_port?: null | number | string;
+  pay_amount?: null | string;
+  previous_public_ip?: null | string;
+  provision_note?: null | string;
+  public_ip?: null | string;
+  server_name?: null | string;
+  service_expires_at?: null | string;
+  status?: string;
+  suspend_at?: null | string;
+  total_amount?: null | string;
+  user_query?: null | string;
+}
+
+export async function updateDashboardCloudOrderApi(
+  orderId: number,
+  payload: DashboardCloudOrderUpdatePayload,
+) {
+  return requestClient.post<DashboardCloudOrderDetail>(
+    `/admin/cloud-orders/${orderId}/`,
+    payload,
+  );
+}
+
 export async function updateDashboardCloudOrderStatusApi(
   orderId: number,
   payload: { status: string },
@@ -836,6 +920,10 @@ export async function updateDashboardCloudOrderStatusApi(
     `/admin/cloud-orders/${orderId}/status/`,
     payload,
   );
+}
+
+export async function deleteDashboardCloudOrderApi(orderId: number) {
+  return requestClient.post<boolean>(`/admin/cloud-orders/${orderId}/delete/`);
 }
 
 export async function getDashboardServersApi(params: DashboardListQuery = {}) {

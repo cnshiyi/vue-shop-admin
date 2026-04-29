@@ -16,6 +16,7 @@ import {
   Input,
   message,
   Space,
+  Switch,
   Tag,
 } from 'ant-design-vue';
 import QRCode from 'qrcode';
@@ -177,6 +178,48 @@ async function bindTotp() {
   }
 }
 
+const switchConfigKeys = new Set([
+  'cloud_renew_notice_debug_repeat',
+  'scanner_block_log_enabled',
+  'scanner_verbose',
+  'text_init_enabled',
+]);
+
+const textInputConfigKeys = new Set([
+  'cleanup_retention_days',
+  'cloud_delete_after_days',
+  'cloud_delete_time',
+  'cloud_renew_notice_days',
+  'cloud_suspend_after_days',
+  'cloud_suspend_time',
+  'cloud_unattached_ip_delete_after_days',
+  'cloud_unattached_ip_delete_time',
+  'fsm_data_ttl',
+  'fsm_state_ttl',
+  'redis_db',
+  'redis_port',
+]);
+
+function isSwitchConfig(item: DashboardSiteConfigGroupItem) {
+  return switchConfigKeys.has(item.key);
+}
+
+function isTextInputConfig(item: DashboardSiteConfigGroupItem) {
+  return textInputConfigKeys.has(item.key);
+}
+
+function switchChecked(item: DashboardSiteConfigGroupItem) {
+  return String(draftMap[item.key] || '').trim() === '1';
+}
+
+async function saveSwitchItem(
+  item: DashboardSiteConfigGroupItem,
+  checked: boolean,
+) {
+  draftMap[item.key] = checked ? '1' : '0';
+  await saveItem(item);
+}
+
 async function saveItem(item: DashboardSiteConfigGroupItem) {
   const current = currentConfig(item);
   if (!current?.id) {
@@ -312,6 +355,23 @@ onMounted(loadData);
           :auto-size="{ minRows: 3, maxRows: 8 }"
           placeholder="多个 Key 请每行一个，或用逗号/分号分隔"
         />
+        <div v-else-if="isSwitchConfig(item)" class="switch-row">
+          <Switch
+            :checked="switchChecked(item)"
+            checked-children="开启"
+            un-checked-children="关闭"
+            :loading="savingMap[item.key]"
+            @change="(checked) => saveSwitchItem(item, Boolean(checked))"
+          />
+          <span class="switch-value">
+            当前：{{ switchChecked(item) ? '开启' : '关闭' }}
+          </span>
+        </div>
+        <Input
+          v-else-if="isTextInputConfig(item)"
+          v-model:value="draftMap[item.key]"
+          :placeholder="item.value || '请输入配置内容'"
+        />
         <Input
           v-else-if="item.is_sensitive"
           v-model:value="draftMap[item.key]"
@@ -390,6 +450,16 @@ onMounted(loadData);
 .totp-bind-form {
   flex: 1;
   min-width: 260px;
+}
+
+.switch-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.switch-value {
+  color: rgb(107 114 128);
 }
 
 .empty-hint {
