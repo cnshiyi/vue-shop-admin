@@ -223,16 +223,6 @@ onMounted(loadOverview);
           </Card>
         </Col>
       </Row>
-
-      <Card class="mt-5" title="值班提示">
-        <div
-          class="grid grid-cols-1 gap-3 text-sm text-gray-500 md:grid-cols-3"
-        >
-          <div>先处理待支付/创建失败/续费异常。</div>
-          <div>充值只做核对入口，不在工作台堆运营报表。</div>
-          <div>趋势、利润、转化统一去分析页看。</div>
-        </div>
-      </Card>
     </div>
   </div>
 </template>
