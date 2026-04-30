@@ -60,7 +60,12 @@ const unattachedIpCount = ref(0);
 const items = ref<DashboardCloudAssetItem[]>([]);
 const groups = ref<DashboardCloudAssetGroup[]>([]);
 const loadingMore = ref(false);
-const loadProgress = reactive({ done: true, loaded: 0, pageSize: ASSET_PAGE_SIZE, total: 0 });
+const loadProgress = reactive({
+  done: true,
+  loaded: 0,
+  pageSize: ASSET_PAGE_SIZE,
+  total: 0,
+});
 const expandedGroupKeys = ref<string[]>([]);
 const expandedLinkKeys = ref<string[]>([]);
 const expandedNoteKeys = ref<string[]>([]);
@@ -194,7 +199,7 @@ function buildAssetGroups(records: DashboardCloudAssetItem[]) {
     group.items.push(item);
     groupMap.set(key, group);
   }
-  return [...groupMap.values()].sort((a, b) => {
+  return [...groupMap.values()].toSorted((a, b) => {
     const aExpires = Math.min(
       ...a.items.map((item) => normalizeExpiresAt(item.actual_expires_at)),
     );
@@ -524,12 +529,24 @@ function startAutoRefresh() {
   }
   resetRefreshCountdown();
   autoRefreshTimer = setInterval(() => {
-    if (!editOpen.value && !loading.value && !loadingMore.value && !saving.value && !syncing.value) {
+    if (
+      !editOpen.value &&
+      !loading.value &&
+      !loadingMore.value &&
+      !saving.value &&
+      !syncing.value
+    ) {
       loadData();
     }
   }, AUTO_REFRESH_MS);
   countdownTimer = setInterval(() => {
-    if (!editOpen.value && !loading.value && !loadingMore.value && !saving.value && !syncing.value) {
+    if (
+      !editOpen.value &&
+      !loading.value &&
+      !loadingMore.value &&
+      !saving.value &&
+      !syncing.value
+    ) {
       nextRefreshInSeconds.value = Math.max(0, nextRefreshInSeconds.value - 1);
     }
   }, 1000);

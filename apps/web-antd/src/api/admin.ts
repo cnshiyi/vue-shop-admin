@@ -795,9 +795,12 @@ export async function getDashboardCloudAssetsApi(
 export async function getDashboardCloudAssetsPageApi(
   params: DashboardListQuery = {},
 ) {
-  return requestClient.get<DashboardCloudAssetsResponse>('/admin/cloud-assets/', {
-    params: { ...params, paginated: 1 },
-  });
+  return requestClient.get<DashboardCloudAssetsResponse>(
+    '/admin/cloud-assets/',
+    {
+      params: { ...params, paginated: 1 },
+    },
+  );
 }
 
 export async function getDashboardCloudAssetsGroupedApi(
