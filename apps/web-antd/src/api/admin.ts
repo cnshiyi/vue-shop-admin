@@ -491,6 +491,8 @@ export interface DashboardSiteConfigItem {
 export interface DashboardTaskItem {
   created_at: null | string;
   id: number;
+  execution_status?: string;
+  execution_status_label?: string;
   note: null | string;
   order_no: string;
   plan_name: string;

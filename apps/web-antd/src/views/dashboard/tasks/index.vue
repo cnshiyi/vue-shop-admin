@@ -21,7 +21,13 @@ const columns: TableColumnsType<DashboardTaskItem> = [
   { title: '云平台', dataIndex: 'provider_label', key: 'provider_label', width: 120 },
   { title: '套餐', dataIndex: 'plan_name', key: 'plan_name', width: 180 },
   { title: '公网IP', dataIndex: 'public_ip', key: 'public_ip', width: 140 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 120 },
+  { title: '订单状态', dataIndex: 'status', key: 'status', width: 120 },
+  {
+    title: '执行状态',
+    dataIndex: 'execution_status',
+    key: 'execution_status',
+    width: 150,
+  },
   { title: '更新时间', dataIndex: 'updated_at', key: 'updated_at', width: 180 },
   { title: '操作', key: 'actions', width: 100, fixed: 'right' as const },
 ];
@@ -31,9 +37,29 @@ function asDashboardTaskItem(record: Record<string, any>) {
 }
 
 function statusColor(status: string) {
-  if (['completed', 'active'].includes(status)) return 'success';
-  if (['paid', 'provisioning', 'renew_pending', 'expiring', 'suspended', 'deleting'].includes(status)) return 'processing';
-  if (['failed', 'deleted', 'cancelled', 'expired'].includes(status)) return 'error';
+  if (['auto_renew_success', 'completed', 'active'].includes(status)) {
+    return 'success';
+  }
+  if (
+    [
+      'auto_renew_pending',
+      'paid',
+      'provisioning',
+      'renew_pending',
+      'expiring',
+      'suspended',
+      'deleting',
+    ].includes(status)
+  ) {
+    return 'processing';
+  }
+  if (
+    ['auto_renew_failed', 'failed', 'deleted', 'cancelled', 'expired'].includes(
+      status,
+    )
+  ) {
+    return 'error';
+  }
   return 'default';
 }
 
@@ -77,6 +103,9 @@ onMounted(loadData);
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <Tag :color="statusColor(asDashboardTaskItem(record).status)">{{ asDashboardTaskItem(record).status_label || asDashboardTaskItem(record).status }}</Tag>
+          </template>
+          <template v-else-if="column.key === 'execution_status'">
+            <Tag :color="statusColor(asDashboardTaskItem(record).execution_status || asDashboardTaskItem(record).status)">{{ asDashboardTaskItem(record).execution_status_label || asDashboardTaskItem(record).execution_status || '-' }}</Tag>
           </template>
           <template v-else-if="column.key === 'updated_at'">
             <span>{{ asDashboardTaskItem(record).updated_at ? dayjs(asDashboardTaskItem(record).updated_at).format('YYYY-MM-DD HH:mm:ss') : '-' }}</span>
