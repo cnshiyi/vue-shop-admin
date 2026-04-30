@@ -820,11 +820,36 @@ export async function getDashboardCloudAssetDetailApi(assetId: number) {
   );
 }
 
+export interface DashboardCloudAssetsSyncResult {
+  accounts?: {
+    aliyun?: Array<null | {
+      id: number;
+      label: string;
+      name: string;
+      provider: string;
+    }>;
+    aws?: Array<null | {
+      id: number;
+      label: string;
+      name: string;
+      provider: string;
+    }>;
+  };
+  aliyun_region?: string;
+  aws_region?: string;
+  aws_regions?: string[];
+  errors?: string[];
+  logs?: string[];
+  ok?: boolean;
+  synced?: Record<string, boolean>;
+  warnings?: string[];
+}
+
 export async function syncDashboardCloudAssetsApi(
   region = 'cn-hongkong',
   awsRegion = 'all',
 ) {
-  return requestClient.post(
+  return requestClient.post<DashboardCloudAssetsSyncResult>(
     '/admin/cloud-assets/sync/',
     { aws_region: awsRegion, region },
     { timeout: 0 },

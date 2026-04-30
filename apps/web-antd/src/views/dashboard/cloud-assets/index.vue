@@ -11,6 +11,7 @@ import { useRouter } from 'vue-router';
 import { Page } from '@vben/common-ui';
 
 import {
+  Alert,
   Button,
   Card,
   Collapse,
@@ -46,6 +47,8 @@ const router = useRouter();
 const loading = ref(false);
 const saving = ref(false);
 const syncing = ref(false);
+const syncLogVisible = ref(false);
+const syncLogs = ref<string[]>([]);
 const rebuildingServerId = ref<null | number>(null);
 const keyword = ref('');
 const grouped = ref(true);
@@ -278,6 +281,45 @@ function markRecentSync() {
   }, 10_000);
 }
 
+function syncAccountText(accounts: any[] = []) {
+  return (
+    accounts
+      .filter(Boolean)
+      .map(
+        (account) =>
+          `${account.label || account.name || account.id}#${account.id}`,
+      )
+      .join('、') || '无'
+  );
+}
+
+function syncResultLines(result: any) {
+  return [
+    `同步状态：${result?.ok === false ? '失败/部分失败' : '完成'}`,
+    `阿里云账号：${syncAccountText(result?.accounts?.aliyun || [])}`,
+    `AWS账号：${syncAccountText(result?.accounts?.aws || [])}`,
+    `阿里云区域：${result?.aliyun_region || '-'}`,
+    `AWS区域：${(result?.aws_regions || []).join('、') || result?.aws_region || '-'}`,
+    ...(result?.errors?.length
+      ? ['错误：', ...result.errors.map((item: string) => `❌ ${item}`)]
+      : []),
+    ...(result?.warnings?.length
+      ? ['警告：', ...result.warnings.map((item: string) => `⚠️ ${item}`)]
+      : []),
+    ...(result?.logs?.length
+      ? ['命令日志：', ...result.logs.map((item: string) => `• ${item}`)]
+      : []),
+  ];
+}
+
+function showSyncLogModal() {
+  Modal.info({
+    content: syncLogs.value.join('\n'),
+    title: '同步日志',
+    width: 820,
+  });
+}
+
 async function loadData() {
   const sequence = ++loadSequence;
   loading.value = true;
@@ -351,14 +393,26 @@ function resetSearch() {
 
 async function syncAssets() {
   syncing.value = true;
+  syncLogVisible.value = true;
+  syncLogs.value = ['同步已开始，请等待后端逐账号返回日志…'];
   try {
-    await syncDashboardCloudAssetsApi();
+    const result = await syncDashboardCloudAssetsApi();
+    syncLogs.value = syncResultLines(result);
     markRecentSync();
     await loadData();
+    if (result?.ok === false || result?.errors?.length) {
+      message.warning('代理同步完成，但存在错误，请查看同步日志');
+      return;
+    }
     message.success(
       `代理同步完成：AWS 存在 ${awsExistingCount.value} 条，阿里云存在 ${aliyunExistingCount.value} 条，未附加IP ${unattachedIpCount.value} 条`,
     );
   } catch (error: any) {
+    syncLogs.value = [
+      '同步请求失败：',
+      error?.message || '未知错误',
+      error?.response?.data ? JSON.stringify(error.response.data, null, 2) : '',
+    ].filter(Boolean);
     message.error(error?.message || '代理同步失败');
   } finally {
     syncing.value = false;
@@ -677,6 +731,29 @@ onBeforeUnmount(() => {
           <Tag color="blue">
             最后刷新：{{ formatRefreshTime(lastRefreshedAt) }}
           </Tag>
+          <template v-if="!loadProgress.done || loadProgress.total">
+            <Progress
+              :percent="
+                loadProgress.total
+                  ? Math.min(
+                      100,
+                      Math.round(
+                        (loadProgress.loaded / loadProgress.total) * 100,
+                      ),
+                    )
+                  : 0
+              "
+              :show-info="false"
+              size="small"
+              style="width: 180px"
+            />
+            <Tag color="green">
+              {{ loadProgress.loaded }}/{{ loadProgress.total }}
+            </Tag>
+            <Tag color="orange">
+              剩余 {{ Math.max(loadProgress.total - loadProgress.loaded, 0) }}
+            </Tag>
+          </template>
           <Tag
             v-if="lastSyncedAt"
             :color="recentSyncHighlight ? 'success' : 'cyan'"
@@ -695,31 +772,36 @@ onBeforeUnmount(() => {
         </Space>
       </template>
 
-      <div v-if="!loadProgress.done || loadProgress.total" class="mb-3">
-        <Space wrap>
-          <span>加载进度</span>
-          <Progress
-            :percent="
-              loadProgress.total
-                ? Math.min(
-                    100,
-                    Math.round(
-                      (loadProgress.loaded / loadProgress.total) * 100,
-                    ),
-                  )
-                : 0
-            "
-            :show-info="false"
-            style="width: 260px"
-          />
-          <Tag color="blue">总量 {{ loadProgress.total }}</Tag>
-          <Tag color="green">已加载 {{ loadProgress.loaded }}</Tag>
-          <Tag color="orange">
-            剩余 {{ Math.max(loadProgress.total - loadProgress.loaded, 0) }}
-          </Tag>
-          <Tag color="purple">每批 {{ loadProgress.pageSize }} 条</Tag>
-        </Space>
-      </div>
+      <Alert
+        v-if="syncLogVisible"
+        class="mb-3"
+        show-icon
+        :type="
+          syncLogs.some((line) => line.includes('❌'))
+            ? 'error'
+            : syncing
+              ? 'info'
+              : 'success'
+        "
+      >
+        <template #message>
+          <Space wrap>
+            <strong>同步日志</strong>
+            <Tag v-if="syncing" color="processing">同步中</Tag>
+            <Button size="small" type="link" @click="showSyncLogModal">
+              查看完整日志
+            </Button>
+            <Button size="small" type="link" @click="syncLogVisible = false">
+              收起
+            </Button>
+          </Space>
+        </template>
+        <template #description>
+          <pre class="m-0 max-h-48 overflow-auto whitespace-pre-wrap text-xs">{{
+            syncLogs.join('\n')
+          }}</pre>
+        </template>
+      </Alert>
 
       <Collapse
         v-if="grouped"
