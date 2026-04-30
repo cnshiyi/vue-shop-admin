@@ -187,6 +187,7 @@ const switchConfigKeys = new Set([
 
 const textInputConfigKeys = new Set([
   'cleanup_retention_days',
+  'cloud_asset_sync_interval_seconds',
   'cloud_delete_after_days',
   'cloud_delete_time',
   'cloud_renew_notice_days',
@@ -194,7 +195,6 @@ const textInputConfigKeys = new Set([
   'cloud_suspend_time',
   'cloud_unattached_ip_delete_after_days',
   'cloud_unattached_ip_delete_time',
-  'cloud_asset_sync_interval_seconds',
   'fsm_data_ttl',
   'fsm_state_ttl',
   'redis_db',
