@@ -4,6 +4,9 @@ interface DashboardListQuery {
   archived?: 0 | 1;
   grouped?: 0 | 1;
   keyword?: string;
+  page?: number;
+  page_size?: number;
+  paginated?: 0 | 1;
 }
 
 export interface DashboardSummary {
@@ -301,6 +304,13 @@ export interface DashboardCloudAssetGroup {
 export interface DashboardCloudAssetGroupedResponse {
   groups: DashboardCloudAssetGroup[];
   items: DashboardCloudAssetItem[];
+}
+
+export interface DashboardCloudAssetsResponse {
+  items: DashboardCloudAssetItem[];
+  page: number;
+  page_size: number;
+  total: number;
 }
 
 export interface DashboardBotOperationLogItem {
@@ -799,7 +809,11 @@ export async function getDashboardCloudAssetDetailApi(assetId: number) {
 }
 
 export async function syncDashboardCloudAssetsApi(region = 'cn-hongkong') {
-  return requestClient.post('/admin/cloud-assets/sync/', { region }, { timeout: 120_000 });
+  return requestClient.post(
+    '/admin/cloud-assets/sync/',
+    { region },
+    { timeout: 300_000 },
+  );
 }
 
 export interface DashboardCloudAssetsSyncStatus {
@@ -868,7 +882,9 @@ export async function rebuildDashboardServerPreserveLinkApi(serverId: number) {
     order_id: number;
     order_no: string;
     replacement_for_id: number;
-  }>(`/admin/servers/${serverId}/rebuild-preserve-link/`, undefined, { timeout: 120_000 });
+  }>(`/admin/servers/${serverId}/rebuild-preserve-link/`, undefined, {
+    timeout: 120_000,
+  });
 }
 
 export async function getDashboardCloudOrdersApi(
@@ -1243,12 +1259,16 @@ export async function getDashboardServersStatisticsApi(
 
 export async function syncDashboardServersApi(
   region = 'cn-hongkong',
-  awsRegion = 'ap-southeast-1',
+  awsRegion = 'all',
 ) {
-  return requestClient.post('/admin/servers/sync/', {
-    region,
-    aws_region: awsRegion,
-  }, { timeout: 120_000 });
+  return requestClient.post(
+    '/admin/servers/sync/',
+    {
+      region,
+      aws_region: awsRegion,
+    },
+    { timeout: 300_000 },
+  );
 }
 
 export async function getDashboardRechargesApi(
