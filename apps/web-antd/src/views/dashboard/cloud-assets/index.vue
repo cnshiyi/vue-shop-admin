@@ -224,6 +224,18 @@ function regionDisplay(record: DashboardCloudAssetItem) {
   return record.region_label || record.region_name || record.region_code || '-';
 }
 
+function hasAssetPrice(record: DashboardCloudAssetItem) {
+  const price = Number(record.price || 0);
+  return Number.isFinite(price) && price > 0;
+}
+
+function assetPriceLabel(record: DashboardCloudAssetItem) {
+  if (!hasAssetPrice(record)) {
+    return '未设置';
+  }
+  return `${record.price} ${record.currency || 'USDT'}`;
+}
+
 const columns = [
   { title: '用户', dataIndex: 'user_display_name', key: 'user_display_name' },
   { title: '用户名', dataIndex: 'username_label', key: 'username_label' },
@@ -238,6 +250,7 @@ const columns = [
   },
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 120 },
   { title: '公网IP', dataIndex: 'public_ip', key: 'public_ip', width: 140 },
+  { title: '价格', dataIndex: 'price', key: 'price', width: 130 },
   { title: '代理链接', dataIndex: 'mtproxy_link', key: 'mtproxy_link' },
   { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
   {
@@ -820,6 +833,11 @@ onBeforeUnmount(() => {
                   </Tag>
                 </Space>
               </template>
+              <template v-else-if="column.key === 'price'">
+                <Tag :color="hasAssetPrice(record) ? 'success' : 'error'">
+                  {{ assetPriceLabel(record) }}
+                </Tag>
+              </template>
               <template v-else-if="column.key === 'mtproxy_link'">
                 <div
                   v-if="record.mtproxy_link"
@@ -1046,6 +1064,11 @@ onBeforeUnmount(() => {
                 {{ record.region_code }}
               </Tag>
             </Space>
+          </template>
+          <template v-else-if="column.key === 'price'">
+            <Tag :color="hasAssetPrice(record) ? 'success' : 'error'">
+              {{ assetPriceLabel(record) }}
+            </Tag>
           </template>
           <template v-else-if="column.key === 'mtproxy_link'">
             <div v-if="record.mtproxy_link" class="max-w-full overflow-hidden">
