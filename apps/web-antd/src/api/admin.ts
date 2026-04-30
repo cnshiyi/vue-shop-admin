@@ -808,10 +808,13 @@ export async function getDashboardCloudAssetDetailApi(assetId: number) {
   );
 }
 
-export async function syncDashboardCloudAssetsApi(region = 'cn-hongkong') {
+export async function syncDashboardCloudAssetsApi(
+  region = 'cn-hongkong',
+  awsRegion = 'all',
+) {
   return requestClient.post(
     '/admin/cloud-assets/sync/',
-    { region },
+    { aws_region: awsRegion, region },
     { timeout: 300_000 },
   );
 }
