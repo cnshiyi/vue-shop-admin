@@ -722,7 +722,6 @@ onBeforeUnmount(() => {
         </Space>
       </template>
 
-
       <Collapse
         v-if="grouped"
         v-model:active-key="expandedGroupKeys"
