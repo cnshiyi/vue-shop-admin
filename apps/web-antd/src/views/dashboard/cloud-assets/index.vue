@@ -39,7 +39,7 @@ import {
   updateDashboardCloudAssetApi,
 } from '#/api/admin';
 
-const AUTO_REFRESH_MS = 10 * 60 * 1000;
+const DEFAULT_AUTO_REFRESH_SECONDS = 5 * 60 * 60;
 const ASSET_PAGE_SIZE = 20;
 
 const router = useRouter();
@@ -51,9 +51,9 @@ const keyword = ref('');
 const grouped = ref(true);
 const lastRefreshedAt = ref<dayjs.Dayjs | null>(null);
 const lastSyncedAt = ref<dayjs.Dayjs | null>(null);
-const nextRefreshInSeconds = ref(Math.floor(AUTO_REFRESH_MS / 1000));
+const nextRefreshInSeconds = ref(DEFAULT_AUTO_REFRESH_SECONDS);
 const recentSyncHighlight = ref(false);
-const autoSyncEverySeconds = ref(10 * 60);
+const autoSyncEverySeconds = ref(DEFAULT_AUTO_REFRESH_SECONDS);
 const awsExistingCount = ref(0);
 const aliyunExistingCount = ref(0);
 const unattachedIpCount = ref(0);
@@ -82,7 +82,6 @@ const formState = reactive({
   sort_order: 99,
   user_query: '',
 });
-let autoRefreshTimer: null | ReturnType<typeof setInterval> = null;
 let countdownTimer: null | ReturnType<typeof setInterval> = null;
 let syncHighlightTimer: null | ReturnType<typeof setTimeout> = null;
 let loadSequence = 0;
@@ -276,8 +275,25 @@ function formatRefreshTime(value: dayjs.Dayjs | null) {
   return value ? value.format('MM-DD HH:mm:ss') : '-';
 }
 
+function normalizedIntervalSeconds(value: number | undefined) {
+  const seconds = Number(value || DEFAULT_AUTO_REFRESH_SECONDS);
+  return Number.isFinite(seconds) && seconds >= 60
+    ? Math.floor(seconds)
+    : DEFAULT_AUTO_REFRESH_SECONDS;
+}
+
+function formatDuration(seconds: number) {
+  if (seconds % 3600 === 0) {
+    return `${seconds / 3600}小时`;
+  }
+  if (seconds % 60 === 0) {
+    return `${seconds / 60}分钟`;
+  }
+  return `${seconds}秒`;
+}
+
 function resetRefreshCountdown() {
-  nextRefreshInSeconds.value = Math.floor(AUTO_REFRESH_MS / 1000);
+  nextRefreshInSeconds.value = autoSyncEverySeconds.value;
 }
 
 function markRecentSync() {
@@ -310,7 +326,10 @@ async function loadData() {
       }),
     ]);
     if (sequence !== loadSequence) return;
-    autoSyncEverySeconds.value = syncStatus.auto_sync_every_seconds || 10 * 60;
+    autoSyncEverySeconds.value = normalizedIntervalSeconds(
+      syncStatus.auto_sync_every_seconds,
+    );
+    resetRefreshCountdown();
     lastSyncedAt.value = syncStatus.last_synced_at
       ? dayjs(syncStatus.last_synced_at)
       : null;
@@ -538,24 +557,10 @@ async function deleteAsset(record: DashboardCloudAssetItem) {
 }
 
 function startAutoRefresh() {
-  if (autoRefreshTimer) {
-    clearInterval(autoRefreshTimer);
-  }
   if (countdownTimer) {
     clearInterval(countdownTimer);
   }
   resetRefreshCountdown();
-  autoRefreshTimer = setInterval(() => {
-    if (
-      !editOpen.value &&
-      !loading.value &&
-      !loadingMore.value &&
-      !saving.value &&
-      !syncing.value
-    ) {
-      loadData();
-    }
-  }, AUTO_REFRESH_MS);
   countdownTimer = setInterval(() => {
     if (
       !editOpen.value &&
@@ -565,15 +570,15 @@ function startAutoRefresh() {
       !syncing.value
     ) {
       nextRefreshInSeconds.value = Math.max(0, nextRefreshInSeconds.value - 1);
+      if (nextRefreshInSeconds.value <= 0) {
+        resetRefreshCountdown();
+        loadData();
+      }
     }
   }, 1000);
 }
 
 function stopAutoRefresh() {
-  if (autoRefreshTimer) {
-    clearInterval(autoRefreshTimer);
-    autoRefreshTimer = null;
-  }
   if (countdownTimer) {
     clearInterval(countdownTimer);
     countdownTimer = null;
@@ -743,7 +748,7 @@ onBeforeUnmount(() => {
             后台同步：{{ formatRefreshTime(lastSyncedAt) }}
           </Tag>
           <Tag color="geekblue">
-            自动同步周期：{{ Math.floor(autoSyncEverySeconds / 60) }}分钟
+            自动同步周期：{{ formatDuration(autoSyncEverySeconds) }}
           </Tag>
           <Tag color="orange">
             数量：AWS {{ awsExistingCount }} / 阿里云
