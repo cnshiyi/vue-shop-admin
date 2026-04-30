@@ -524,7 +524,9 @@ function buildAssetEditPayload(record: DashboardCloudAssetItem) {
   }
   const previousUserQuery = record.user_id
     ? String(record.user_id)
-    : (record.tg_user_id ? String(record.tg_user_id) : '');
+    : (record.tg_user_id
+      ? String(record.tg_user_id)
+      : '');
   const nextUserQuery = formState.user_query.trim();
   if (nextUserQuery !== previousUserQuery) {
     payload.user_query = nextUserQuery || null;

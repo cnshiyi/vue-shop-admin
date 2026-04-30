@@ -799,7 +799,7 @@ export async function getDashboardCloudAssetDetailApi(assetId: number) {
 }
 
 export async function syncDashboardCloudAssetsApi(region = 'cn-hongkong') {
-  return requestClient.post('/admin/cloud-assets/sync/', { region });
+  return requestClient.post('/admin/cloud-assets/sync/', { region }, { timeout: 120_000 });
 }
 
 export interface DashboardCloudAssetsSyncStatus {
@@ -868,7 +868,7 @@ export async function rebuildDashboardServerPreserveLinkApi(serverId: number) {
     order_id: number;
     order_no: string;
     replacement_for_id: number;
-  }>(`/admin/servers/${serverId}/rebuild-preserve-link/`);
+  }>(`/admin/servers/${serverId}/rebuild-preserve-link/`, undefined, { timeout: 120_000 });
 }
 
 export async function getDashboardCloudOrdersApi(
@@ -952,6 +952,8 @@ export async function getDashboardCloudPricingApi(
 export async function syncDashboardCloudPlansApi() {
   return requestClient.post<DashboardCloudPlanSyncResult>(
     '/admin/cloud-plans/sync/',
+    undefined,
+    { timeout: 120_000 },
   );
 }
 
@@ -1246,7 +1248,7 @@ export async function syncDashboardServersApi(
   return requestClient.post('/admin/servers/sync/', {
     region,
     aws_region: awsRegion,
-  });
+  }, { timeout: 120_000 });
 }
 
 export async function getDashboardRechargesApi(
