@@ -2,6 +2,7 @@
 import type {
   DashboardCloudAssetGroup,
   DashboardCloudAssetItem,
+  DashboardCloudAssetUpdatePayload,
 } from '#/api/admin';
 
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue';
@@ -482,21 +483,66 @@ function stopAutoRefresh() {
   }
 }
 
+function normalizedValue(value: null | string | undefined) {
+  return value || '';
+}
+
+function normalizedDateValue(value: any) {
+  if (!value) {
+    return '';
+  }
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '';
+}
+
+function buildAssetEditPayload(record: DashboardCloudAssetItem) {
+  const payload: DashboardCloudAssetUpdatePayload = {};
+  const nextExpiresAt = normalizedDateValue(formState.actual_expires_at);
+  const previousExpiresAt = normalizedDateValue(record.actual_expires_at);
+  if (nextExpiresAt !== previousExpiresAt) {
+    payload.actual_expires_at = nextExpiresAt || null;
+  }
+  const nextIsActive = Boolean(formState.is_active);
+  if (nextIsActive !== record.is_active) {
+    payload.is_active = nextIsActive;
+  }
+  const nextNote = formState.note || '';
+  if (nextNote !== normalizedValue(record.note)) {
+    payload.note = nextNote || null;
+  }
+  const nextSortOrder = Number(formState.sort_order || 99);
+  if (nextSortOrder !== Number(record.sort_order || 99)) {
+    payload.sort_order = nextSortOrder;
+  }
+  const nextPrice = formState.price || '';
+  if (nextPrice !== normalizedValue(record.price)) {
+    payload.price = nextPrice || null;
+  }
+  const nextPublicIp = formState.public_ip || '';
+  if (nextPublicIp !== normalizedValue(record.public_ip)) {
+    payload.public_ip = nextPublicIp || null;
+  }
+  const previousUserQuery = record.user_id
+    ? String(record.user_id)
+    : (record.tg_user_id ? String(record.tg_user_id) : '');
+  const nextUserQuery = formState.user_query.trim();
+  if (nextUserQuery !== previousUserQuery) {
+    payload.user_query = nextUserQuery || null;
+  }
+  return payload;
+}
+
 async function submitEdit() {
   if (!currentRow.value) return;
   saving.value = true;
   try {
-    await updateDashboardCloudAssetApi(currentRow.value.id, {
-      actual_expires_at: formState.actual_expires_at
-        ? dayjs(formState.actual_expires_at).format('YYYY-MM-DD')
-        : null,
-      is_active: formState.is_active,
-      note: formState.note || null,
-      sort_order: Number(formState.sort_order || 99),
-      price: formState.price || null,
-      public_ip: formState.public_ip || null,
-      user_query: formState.user_query.trim() || null,
-    });
+    const payload = buildAssetEditPayload(currentRow.value);
+    if (Object.keys(payload).length === 0) {
+      message.info('没有检测到变更');
+      editOpen.value = false;
+      return;
+    }
+    await updateDashboardCloudAssetApi(currentRow.value.id, payload);
     message.success('代理已更新');
     editOpen.value = false;
     await loadData();
