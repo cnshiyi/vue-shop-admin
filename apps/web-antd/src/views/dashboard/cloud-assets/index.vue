@@ -47,7 +47,7 @@ const saving = ref(false);
 const syncing = ref(false);
 const rebuildingServerId = ref<null | number>(null);
 const keyword = ref('');
-const grouped = ref(false);
+const grouped = ref(true);
 const lastRefreshedAt = ref<dayjs.Dayjs | null>(null);
 const lastSyncedAt = ref<dayjs.Dayjs | null>(null);
 const nextRefreshInSeconds = ref(Math.floor(AUTO_REFRESH_MS / 1000));
@@ -259,7 +259,6 @@ async function loadData() {
         .filter(
           (group: DashboardCloudAssetGroup) => group.default_expanded !== false,
         )
-        .slice(0, 3)
         .map((group: DashboardCloudAssetGroup) => group.user_key);
       return;
     }
@@ -275,14 +274,6 @@ async function loadData() {
 
 function resetSearch() {
   keyword.value = '';
-  loadData();
-}
-
-function handleSearch() {
-  loadData();
-}
-
-function handleGroupedChange() {
   loadData();
 }
 
@@ -589,7 +580,7 @@ onBeforeUnmount(() => {
             enter-button="搜索"
             placeholder="搜索用户、用户名、IP、代理链接"
             style="width: 360px"
-            @search="handleSearch"
+            @search="loadData"
           />
           <Button size="small" :loading="syncing" @click="syncAssets">
             同步代理
@@ -615,7 +606,7 @@ onBeforeUnmount(() => {
             {{ aliyunExistingCount }}
           </Tag>
           <Tag color="purple">下次刷新：{{ nextRefreshInSeconds }}s</Tag>
-          <Switch v-model:checked="grouped" @change="handleGroupedChange" />
+          <Switch v-model:checked="grouped" @change="loadData" />
         </Space>
       </template>
 
@@ -623,7 +614,6 @@ onBeforeUnmount(() => {
         v-if="grouped"
         v-model:active-key="expandedGroupKeys"
         class="compact-cloud-assets space-y-2"
-        :destroy-inactive-panel="true"
       >
         <Collapse.Panel v-for="group in groups" :key="group.user_key">
           <template #header>
@@ -639,9 +629,8 @@ onBeforeUnmount(() => {
             :data-source="group.items"
             :loading="loading"
             :pagination="false"
-            :virtual="true"
             row-key="id"
-            :scroll="{ x: 1200, y: 480 }"
+            :scroll="{ x: 1200 }"
             size="small"
           >
             <template #bodyCell="{ column, record }">
@@ -858,10 +847,9 @@ onBeforeUnmount(() => {
         :columns="columns"
         :data-source="items"
         :loading="loading"
-        :pagination="false"
-        :virtual="true"
+        :pagination="{ pageSize: 10 }"
         row-key="id"
-        :scroll="{ x: 1200, y: 680 }"
+        :scroll="{ x: 1200 }"
         size="small"
       >
         <template #bodyCell="{ column, record }">
