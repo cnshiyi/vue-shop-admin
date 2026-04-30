@@ -596,6 +596,22 @@ function normalizedDateValue(value: any) {
   return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '';
 }
 
+function replaceAssetInList(asset: DashboardCloudAssetItem) {
+  const index = items.value.findIndex((item) => item.id === asset.id);
+  if (index === -1) {
+    return;
+  }
+  items.value = sortAssets([
+    ...items.value.slice(0, index),
+    asset,
+    ...items.value.slice(index + 1),
+  ]);
+  if (grouped.value) {
+    refreshGroupedItems(items.value);
+  }
+  currentRow.value = asset;
+}
+
 function buildAssetEditPayload(record: DashboardCloudAssetItem) {
   const payload: DashboardCloudAssetUpdatePayload = {};
   const nextExpiresAt = normalizedDateValue(formState.actual_expires_at);
@@ -645,10 +661,13 @@ async function submitEdit() {
       editOpen.value = false;
       return;
     }
-    await updateDashboardCloudAssetApi(currentRow.value.id, payload);
+    const updatedAsset = await updateDashboardCloudAssetApi(
+      currentRow.value.id,
+      payload,
+    );
+    replaceAssetInList(updatedAsset);
     message.success('代理已更新');
     editOpen.value = false;
-    await loadData();
   } catch (error: any) {
     message.error(error?.message || '更新失败');
   } finally {

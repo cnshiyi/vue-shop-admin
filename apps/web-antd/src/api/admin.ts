@@ -904,7 +904,10 @@ export async function updateDashboardCloudAssetApi(
   assetId: number,
   payload: DashboardCloudAssetUpdatePayload,
 ) {
-  return requestClient.post(`/admin/cloud-assets/${assetId}/`, payload);
+  return requestClient.post<DashboardCloudAssetItem>(
+    `/admin/cloud-assets/${assetId}/`,
+    payload,
+  );
 }
 
 export async function deleteDashboardServerApi(serverId: number) {
