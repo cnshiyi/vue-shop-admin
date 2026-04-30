@@ -21,6 +21,7 @@ import {
   message,
   Modal,
   Popconfirm,
+  Progress,
   Space,
   Table,
   Tag,
@@ -31,8 +32,7 @@ import dayjs from 'dayjs';
 import {
   deleteDashboardCloudAssetApi,
   deleteDashboardServerApi,
-  getDashboardCloudAssetsApi,
-  getDashboardCloudAssetsGroupedApi,
+  getDashboardCloudAssetsPageApi,
   getDashboardCloudAssetsSyncStatusApi,
   rebuildDashboardServerPreserveLinkApi,
   syncDashboardCloudAssetsApi,
@@ -40,6 +40,7 @@ import {
 } from '#/api/admin';
 
 const AUTO_REFRESH_MS = 10 * 60 * 1000;
+const ASSET_PAGE_SIZE = 20;
 
 const router = useRouter();
 const loading = ref(false);
@@ -58,6 +59,8 @@ const aliyunExistingCount = ref(0);
 const unattachedIpCount = ref(0);
 const items = ref<DashboardCloudAssetItem[]>([]);
 const groups = ref<DashboardCloudAssetGroup[]>([]);
+const loadingMore = ref(false);
+const loadProgress = reactive({ done: true, loaded: 0, pageSize: ASSET_PAGE_SIZE, total: 0 });
 const expandedGroupKeys = ref<string[]>([]);
 const expandedLinkKeys = ref<string[]>([]);
 const expandedNoteKeys = ref<string[]>([]);
@@ -77,6 +80,7 @@ const formState = reactive({
 let autoRefreshTimer: null | ReturnType<typeof setInterval> = null;
 let countdownTimer: null | ReturnType<typeof setInterval> = null;
 let syncHighlightTimer: null | ReturnType<typeof setTimeout> = null;
+let loadSequence = 0;
 
 function normalizeDaysLeft(record: DashboardCloudAssetItem) {
   if (typeof record.days_left !== 'number' || Number.isNaN(record.days_left)) {
@@ -175,6 +179,46 @@ function activeAssetCount(records: DashboardCloudAssetItem[]) {
   ).length;
 }
 
+function buildAssetGroups(records: DashboardCloudAssetItem[]) {
+  const groupMap = new Map<string, DashboardCloudAssetGroup>();
+  for (const item of sortAssets(records)) {
+    const key = String(item.tg_user_id || 'unbound');
+    const group = groupMap.get(key) || {
+      default_expanded: true,
+      items: [],
+      tg_user_id: item.tg_user_id,
+      user_display_name: item.user_display_name,
+      user_key: key,
+      username_label: item.username_label,
+    };
+    group.items.push(item);
+    groupMap.set(key, group);
+  }
+  return [...groupMap.values()].sort((a, b) => {
+    const aExpires = Math.min(
+      ...a.items.map((item) => normalizeExpiresAt(item.actual_expires_at)),
+    );
+    const bExpires = Math.min(
+      ...b.items.map((item) => normalizeExpiresAt(item.actual_expires_at)),
+    );
+    if (aExpires !== bExpires) return aExpires - bExpires;
+    return String(a.tg_user_id || 'zzzz').localeCompare(
+      String(b.tg_user_id || 'zzzz'),
+    );
+  });
+}
+
+function refreshGroupedItems(records: DashboardCloudAssetItem[]) {
+  groups.value = buildAssetGroups(records);
+  expandedGroupKeys.value = groups.value
+    .filter((group) => group.default_expanded !== false)
+    .map((group) => group.user_key);
+}
+
+function regionDisplay(record: DashboardCloudAssetItem) {
+  return record.region_label || record.region_name || record.region_code || '-';
+}
+
 const columns = [
   { title: '用户', dataIndex: 'user_display_name', key: 'user_display_name' },
   { title: '用户名', dataIndex: 'username_label', key: 'username_label' },
@@ -230,14 +274,24 @@ function markRecentSync() {
 }
 
 async function loadData() {
+  const sequence = ++loadSequence;
   loading.value = true;
+  loadingMore.value = false;
+  loadProgress.done = false;
+  loadProgress.loaded = 0;
+  loadProgress.total = 0;
+  loadProgress.pageSize = ASSET_PAGE_SIZE;
   try {
-    const [syncStatus, response] = await Promise.all([
+    const keywordText = keyword.value.trim();
+    const [syncStatus, firstPage] = await Promise.all([
       getDashboardCloudAssetsSyncStatusApi(),
-      grouped.value
-        ? getDashboardCloudAssetsGroupedApi({ keyword: keyword.value.trim() })
-        : getDashboardCloudAssetsApi({ keyword: keyword.value.trim() }),
+      getDashboardCloudAssetsPageApi({
+        keyword: keywordText,
+        page: 1,
+        page_size: ASSET_PAGE_SIZE,
+      }),
     ]);
+    if (sequence !== loadSequence) return;
     autoSyncEverySeconds.value = syncStatus.auto_sync_every_seconds || 10 * 60;
     lastSyncedAt.value = syncStatus.last_synced_at
       ? dayjs(syncStatus.last_synced_at)
@@ -246,29 +300,42 @@ async function loadData() {
     aliyunExistingCount.value = syncStatus.aliyun_existing_count || 0;
     unattachedIpCount.value = syncStatus.unattached_ip_count || 0;
 
+    items.value = sortAssets(firstPage.items || []);
+    loadProgress.total = firstPage.total || items.value.length;
+    loadProgress.loaded = items.value.length;
     if (grouped.value) {
-      const groupedResponse = response as any;
-      groups.value = groupedResponse.groups.map(
-        (group: DashboardCloudAssetGroup) => ({
-          ...group,
-          items: sortAssets(group.items),
-        }),
-      );
-      items.value = sortAssets(groupedResponse.items);
-      expandedGroupKeys.value = groupedResponse.groups
-        .filter(
-          (group: DashboardCloudAssetGroup) => group.default_expanded !== false,
-        )
-        .map((group: DashboardCloudAssetGroup) => group.user_key);
-      return;
+      refreshGroupedItems(items.value);
+    } else {
+      groups.value = [];
+      expandedGroupKeys.value = [];
     }
-    items.value = sortAssets(response as DashboardCloudAssetItem[]);
-    groups.value = [];
-    expandedGroupKeys.value = [];
-  } finally {
     loading.value = false;
-    lastRefreshedAt.value = dayjs();
-    resetRefreshCountdown();
+
+    const totalPages = Math.ceil(loadProgress.total / ASSET_PAGE_SIZE);
+    loadingMore.value = totalPages > 1;
+    for (let page = 2; page <= totalPages; page += 1) {
+      const response = await getDashboardCloudAssetsPageApi({
+        keyword: keywordText,
+        page,
+        page_size: ASSET_PAGE_SIZE,
+      });
+      if (sequence !== loadSequence) return;
+      items.value = sortAssets([...items.value, ...(response.items || [])]);
+      loadProgress.total = response.total || loadProgress.total;
+      loadProgress.loaded = items.value.length;
+      if (grouped.value) {
+        refreshGroupedItems(items.value);
+      }
+    }
+    loadProgress.done = true;
+  } finally {
+    if (sequence === loadSequence) {
+      loading.value = false;
+      loadingMore.value = false;
+      loadProgress.done = true;
+      lastRefreshedAt.value = dayjs();
+      resetRefreshCountdown();
+    }
   }
 }
 
@@ -457,12 +524,12 @@ function startAutoRefresh() {
   }
   resetRefreshCountdown();
   autoRefreshTimer = setInterval(() => {
-    if (!editOpen.value && !loading.value && !saving.value && !syncing.value) {
+    if (!editOpen.value && !loading.value && !loadingMore.value && !saving.value && !syncing.value) {
       loadData();
     }
   }, AUTO_REFRESH_MS);
   countdownTimer = setInterval(() => {
-    if (!editOpen.value && !loading.value && !saving.value && !syncing.value) {
+    if (!editOpen.value && !loading.value && !loadingMore.value && !saving.value && !syncing.value) {
       nextRefreshInSeconds.value = Math.max(0, nextRefreshInSeconds.value - 1);
     }
   }, 1000);
@@ -589,6 +656,7 @@ onBeforeUnmount(() => {
           <Button size="small" @click="loadData">刷新</Button>
           <Tag v-if="syncing" color="processing">同步中…</Tag>
           <Tag v-else-if="loading" color="processing">刷新中…</Tag>
+          <Tag v-else-if="loadingMore" color="processing">继续加载中…</Tag>
           <Tag color="blue">
             最后刷新：{{ formatRefreshTime(lastRefreshedAt) }}
           </Tag>
@@ -609,6 +677,32 @@ onBeforeUnmount(() => {
           <Switch v-model:checked="grouped" @change="loadData" />
         </Space>
       </template>
+
+      <div v-if="!loadProgress.done || loadProgress.total" class="mb-3">
+        <Space wrap>
+          <span>加载进度</span>
+          <Progress
+            :percent="
+              loadProgress.total
+                ? Math.min(
+                    100,
+                    Math.round(
+                      (loadProgress.loaded / loadProgress.total) * 100,
+                    ),
+                  )
+                : 0
+            "
+            :show-info="false"
+            style="width: 260px"
+          />
+          <Tag color="blue">总量 {{ loadProgress.total }}</Tag>
+          <Tag color="green">已加载 {{ loadProgress.loaded }}</Tag>
+          <Tag color="orange">
+            剩余 {{ Math.max(loadProgress.total - loadProgress.loaded, 0) }}
+          </Tag>
+          <Tag color="purple">每批 {{ loadProgress.pageSize }} 条</Tag>
+        </Space>
+      </div>
 
       <Collapse
         v-if="grouped"
@@ -699,6 +793,14 @@ onBeforeUnmount(() => {
                   {{ record.account_label }}
                 </TypographyParagraph>
                 <span v-else>-</span>
+              </template>
+              <template v-else-if="column.key === 'region_label'">
+                <Space direction="vertical" :size="2">
+                  <span>{{ regionDisplay(record) }}</span>
+                  <Tag v-if="record.region_code" color="geekblue">
+                    {{ record.region_code }}
+                  </Tag>
+                </Space>
               </template>
               <template v-else-if="column.key === 'mtproxy_link'">
                 <div
@@ -918,6 +1020,14 @@ onBeforeUnmount(() => {
               {{ record.account_label }}
             </TypographyParagraph>
             <span v-else>-</span>
+          </template>
+          <template v-else-if="column.key === 'region_label'">
+            <Space direction="vertical" :size="2">
+              <span>{{ regionDisplay(record) }}</span>
+              <Tag v-if="record.region_code" color="geekblue">
+                {{ record.region_code }}
+              </Tag>
+            </Space>
           </template>
           <template v-else-if="column.key === 'mtproxy_link'">
             <div v-if="record.mtproxy_link" class="max-w-full overflow-hidden">

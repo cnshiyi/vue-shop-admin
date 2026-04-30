@@ -266,6 +266,7 @@ export interface DashboardCloudAssetItem {
   provider_label?: string;
   provider_resource_id: null | string;
   public_ip: null | string;
+  region_code?: null | string;
   region_label?: null | string;
   region_name: null | string;
   source: string;
@@ -791,6 +792,14 @@ export async function getDashboardCloudAssetsApi(
   });
 }
 
+export async function getDashboardCloudAssetsPageApi(
+  params: DashboardListQuery = {},
+) {
+  return requestClient.get<DashboardCloudAssetsResponse>('/admin/cloud-assets/', {
+    params: { ...params, paginated: 1 },
+  });
+}
+
 export async function getDashboardCloudAssetsGroupedApi(
   params: DashboardListQuery = {},
 ) {
@@ -815,7 +824,7 @@ export async function syncDashboardCloudAssetsApi(
   return requestClient.post(
     '/admin/cloud-assets/sync/',
     { aws_region: awsRegion, region },
-    { timeout: 300_000 },
+    { timeout: 0 },
   );
 }
 
