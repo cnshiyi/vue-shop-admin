@@ -135,11 +135,11 @@ onMounted(loadData);
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <Tag :color="statusColor(asDashboardTaskItem(record).status)">
-{{
-              asDashboardTaskItem(record).status_label ||
-              asDashboardTaskItem(record).status
-            }}
-</Tag>
+              {{
+                asDashboardTaskItem(record).status_label ||
+                asDashboardTaskItem(record).status
+              }}
+            </Tag>
           </template>
           <template v-else-if="column.key === 'execution_status'">
             <Tag
@@ -149,13 +149,13 @@ onMounted(loadData);
                     asDashboardTaskItem(record).status,
                 )
               "
-              >
-{{
+            >
+              {{
                 asDashboardTaskItem(record).execution_status_label ||
                 asDashboardTaskItem(record).execution_status ||
                 '-'
               }}
-</Tag>
+            </Tag>
           </template>
           <template v-else-if="column.key === 'updated_at'">
             <span>{{
@@ -171,9 +171,9 @@ onMounted(loadData);
               type="link"
               size="small"
               @click="openTask(asDashboardTaskItem(record))"
-              >
-查看
-</Button>
+            >
+              查看
+            </Button>
           </template>
         </template>
       </Table>
