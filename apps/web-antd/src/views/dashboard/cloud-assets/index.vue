@@ -23,6 +23,7 @@ import {
   Popconfirm,
   Progress,
   Space,
+  Switch,
   Table,
   Tag,
   TypographyParagraph,
@@ -36,6 +37,7 @@ import {
   getDashboardCloudAssetsSyncStatusApi,
   rebuildDashboardServerPreserveLinkApi,
   syncDashboardCloudAssetsApi,
+  toggleDashboardCloudAssetAutoRenewApi,
   updateDashboardCloudAssetApi,
 } from '#/api/admin';
 
@@ -47,6 +49,7 @@ const loading = ref(false);
 const saving = ref(false);
 const syncing = ref(false);
 const rebuildingServerId = ref<null | number>(null);
+const autoRenewSavingIds = ref<number[]>([]);
 const keyword = ref('');
 const grouped = ref(true);
 const lastRefreshedAt = ref<dayjs.Dayjs | null>(null);
@@ -250,6 +253,7 @@ const columns = [
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 120 },
   { title: '公网IP', dataIndex: 'public_ip', key: 'public_ip', width: 140 },
   { title: '价格', dataIndex: 'price', key: 'price', width: 130 },
+  { title: '自动续费', dataIndex: 'auto_renew_enabled', key: 'auto_renew_enabled', width: 130 },
   { title: '代理链接', dataIndex: 'mtproxy_link', key: 'mtproxy_link' },
   { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
   {
@@ -541,6 +545,32 @@ async function rebuildPreserveLink(record: DashboardCloudAssetItem) {
     message.error(error?.message || '发起重装迁移失败');
   } finally {
     rebuildingServerId.value = null;
+  }
+}
+
+function isAutoRenewSaving(id: number) {
+  return autoRenewSavingIds.value.includes(id);
+}
+
+async function toggleAutoRenew(record: DashboardCloudAssetItem, enabled: boolean) {
+  if (!record.order_id) {
+    message.error('该代理未绑定订单，无法设置自动续费');
+    return;
+  }
+  autoRenewSavingIds.value = [...autoRenewSavingIds.value, record.id];
+  try {
+    const updatedAsset = await toggleDashboardCloudAssetAutoRenewApi(
+      record.id,
+      enabled,
+    );
+    replaceAssetInList(updatedAsset);
+    message.success(enabled ? '已开启自动续费' : '已关闭自动续费');
+  } catch (error: any) {
+    message.error(error?.message || '自动续费设置失败');
+  } finally {
+    autoRenewSavingIds.value = autoRenewSavingIds.value.filter(
+      (id) => id !== record.id,
+    );
   }
 }
 
@@ -862,6 +892,27 @@ onBeforeUnmount(() => {
                   {{ assetPriceLabel(record) }}
                 </Tag>
               </template>
+              <template v-else-if="column.key === 'auto_renew_enabled'">
+                <Space direction="vertical" :size="2">
+                  <Tag :color="record.auto_renew_enabled ? 'success' : 'error'">
+                    {{ record.auto_renew_enabled ? '已开启' : '已关闭' }}
+                  </Tag>
+                  <Switch
+                    :checked="Boolean(record.auto_renew_enabled)"
+                    checked-children="开"
+                    un-checked-children="关"
+                    :disabled="!record.order_id"
+                    :loading="isAutoRenewSaving(record.id)"
+                    @change="
+                      (checked) =>
+                        toggleAutoRenew(
+                          record as DashboardCloudAssetItem,
+                          Boolean(checked),
+                        )
+                    "
+                  />
+                </Space>
+              </template>
               <template v-else-if="column.key === 'mtproxy_link'">
                 <div
                   v-if="record.mtproxy_link"
@@ -1093,6 +1144,27 @@ onBeforeUnmount(() => {
             <Tag :color="hasAssetPrice(record) ? 'success' : 'error'">
               {{ assetPriceLabel(record) }}
             </Tag>
+          </template>
+          <template v-else-if="column.key === 'auto_renew_enabled'">
+            <Space direction="vertical" :size="2">
+              <Tag :color="record.auto_renew_enabled ? 'success' : 'error'">
+                {{ record.auto_renew_enabled ? '已开启' : '已关闭' }}
+              </Tag>
+              <Switch
+                :checked="Boolean(record.auto_renew_enabled)"
+                checked-children="开"
+                un-checked-children="关"
+                :disabled="!record.order_id"
+                :loading="isAutoRenewSaving(record.id)"
+                @change="
+                  (checked) =>
+                    toggleAutoRenew(
+                      record as DashboardCloudAssetItem,
+                      Boolean(checked),
+                    )
+                "
+              />
+            </Space>
           </template>
           <template v-else-if="column.key === 'mtproxy_link'">
             <div v-if="record.mtproxy_link" class="max-w-full overflow-hidden">

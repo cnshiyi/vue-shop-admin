@@ -242,6 +242,7 @@ export interface DashboardCloudAssetItem {
   currency: string;
   days_left?: null | number;
   id: number;
+  auto_renew_enabled?: boolean;
   sort_order: number;
   instance_id: null | string;
   is_active: boolean;
@@ -909,6 +910,16 @@ export async function updateDashboardCloudAssetApi(
   return requestClient.post<DashboardCloudAssetItem>(
     `/admin/cloud-assets/${assetId}/`,
     payload,
+  );
+}
+
+export async function toggleDashboardCloudAssetAutoRenewApi(
+  assetId: number,
+  enabled: boolean,
+) {
+  return requestClient.post<DashboardCloudAssetItem>(
+    `/admin/cloud-assets/${assetId}/auto-renew/`,
+    { enabled },
   );
 }
 
