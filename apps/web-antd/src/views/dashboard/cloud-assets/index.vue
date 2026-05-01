@@ -253,7 +253,12 @@ const columns = [
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 120 },
   { title: '公网IP', dataIndex: 'public_ip', key: 'public_ip', width: 140 },
   { title: '价格', dataIndex: 'price', key: 'price', width: 130 },
-  { title: '自动续费', dataIndex: 'auto_renew_enabled', key: 'auto_renew_enabled', width: 130 },
+  {
+    title: '自动续费',
+    dataIndex: 'auto_renew_enabled',
+    key: 'auto_renew_enabled',
+    width: 130,
+  },
   { title: '代理链接', dataIndex: 'mtproxy_link', key: 'mtproxy_link' },
   { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
   {
@@ -552,7 +557,10 @@ function isAutoRenewSaving(id: number) {
   return autoRenewSavingIds.value.includes(id);
 }
 
-async function toggleAutoRenew(record: DashboardCloudAssetItem, enabled: boolean) {
+async function toggleAutoRenew(
+  record: DashboardCloudAssetItem,
+  enabled: boolean,
+) {
   if (!record.order_id) {
     message.error('该代理未绑定订单，无法设置自动续费');
     return;
