@@ -179,6 +179,7 @@ async function bindTotp() {
 }
 
 const switchConfigKeys = new Set([
+  'cloud_auto_renew_execution_notify_enabled',
   'cloud_renew_notice_debug_repeat',
   'scanner_block_log_enabled',
   'scanner_verbose',
@@ -188,6 +189,7 @@ const switchConfigKeys = new Set([
 const textInputConfigKeys = new Set([
   'cleanup_retention_days',
   'cloud_asset_sync_interval_seconds',
+  'cloud_auto_renew_execution_notify_events',
   'cloud_delete_after_days',
   'cloud_delete_time',
   'cloud_renew_notice_days',
