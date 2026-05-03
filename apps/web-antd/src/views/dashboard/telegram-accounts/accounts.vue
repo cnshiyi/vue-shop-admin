@@ -1,5 +1,8 @@
 <script lang="ts" setup>
-import type { DashboardTelegramAccountsOverview } from '#/api/admin';
+import type {
+  DashboardTelegramAccountsOverview,
+  DashboardTelegramLoginAccountItem,
+} from '#/api/admin';
 
 import { onMounted, reactive, ref } from 'vue';
 
@@ -21,6 +24,7 @@ import {
 } from 'ant-design-vue';
 
 import {
+  checkDashboardTelegramAccountStatusApi,
   getDashboardTelegramAccountsApi,
   startDashboardTelegramLoginApi,
   submitDashboardTelegramLoginCodeApi,
@@ -30,6 +34,7 @@ import {
 
 const loading = ref(false);
 const saving = ref(false);
+const checkingAccountIds = ref<number[]>([]);
 const open = ref(false);
 const loginStep = ref(0);
 const overview = ref<DashboardTelegramAccountsOverview>({
@@ -79,6 +84,47 @@ function openCreate() {
   loginStep.value = 0;
   accountId.value = null;
   open.value = true;
+}
+
+function needsRelogin(account: DashboardTelegramLoginAccountItem) {
+  return ['error', 'listener_error', 'session_expired'].includes(
+    account.status,
+  );
+}
+
+function openRelogin(account: DashboardTelegramLoginAccountItem) {
+  form.phone = account.phone || '';
+  form.code = '';
+  form.password = '';
+  loginStep.value = 0;
+  accountId.value = null;
+  open.value = true;
+}
+
+async function checkAccountStatus(account: DashboardTelegramLoginAccountItem) {
+  checkingAccountIds.value = [...checkingAccountIds.value, account.id];
+  try {
+    const updated = await checkDashboardTelegramAccountStatusApi(account.id);
+    const index = overview.value.accounts.findIndex(
+      (item) => item.id === updated.id,
+    );
+    if (index !== -1) {
+      overview.value.accounts = [
+        ...overview.value.accounts.slice(0, index),
+        updated,
+        ...overview.value.accounts.slice(index + 1),
+      ];
+    }
+    message.success(
+      needsRelogin(updated) ? '账号状态异常，请重新登录' : '账号状态正常',
+    );
+  } catch (error: any) {
+    message.error(error?.message || '状态检查失败');
+  } finally {
+    checkingAccountIds.value = checkingAccountIds.value.filter(
+      (id) => id !== account.id,
+    );
+  }
 }
 
 async function handleLoginStep() {
@@ -204,7 +250,26 @@ onMounted(loadData);
                 :checked="item.notify_enabled"
                 @change="(checked) => toggleNotify(item.id, !!checked)"
               />
-              <Tag color="blue">{{ statusText(item.status) }}</Tag>
+              <Tag :color="needsRelogin(item) ? 'error' : 'blue'">
+                {{ statusText(item.status) }}
+              </Tag>
+              <Button
+                v-if="needsRelogin(item)"
+                size="small"
+                type="primary"
+                danger
+                @click="openRelogin(item)"
+              >
+                重新登录
+              </Button>
+              <Button
+                v-else
+                size="small"
+                :loading="checkingAccountIds.includes(item.id)"
+                @click="checkAccountStatus(item)"
+              >
+                状态检查
+              </Button>
             </Space>
           </List.Item>
         </template>

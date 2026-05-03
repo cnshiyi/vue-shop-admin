@@ -3,9 +3,10 @@ import type {
   DashboardCloudAssetGroup,
   DashboardCloudAssetItem,
   DashboardCloudAssetUpdatePayload,
+  DashboardTelegramGroupFilterItem,
 } from '#/api/admin';
 
-import { onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
@@ -22,6 +23,7 @@ import {
   Modal,
   Popconfirm,
   Progress,
+  Select,
   Space,
   Switch,
   Table,
@@ -32,9 +34,9 @@ import dayjs from 'dayjs';
 
 import {
   deleteDashboardCloudAssetApi,
-  deleteDashboardServerApi,
   getDashboardCloudAssetsPageApi,
   getDashboardCloudAssetsSyncStatusApi,
+  getDashboardTelegramGroupsApi,
   rebuildDashboardServerPreserveLinkApi,
   syncDashboardCloudAssetsApi,
   toggleDashboardCloudAssetAutoRenewApi,
@@ -52,6 +54,7 @@ const rebuildingServerId = ref<null | number>(null);
 const autoRenewSavingIds = ref<number[]>([]);
 const keyword = ref('');
 const grouped = ref(true);
+const groupMode = ref<'telegram_group' | 'user'>('telegram_group');
 const lastRefreshedAt = ref<dayjs.Dayjs | null>(null);
 const lastSyncedAt = ref<dayjs.Dayjs | null>(null);
 const nextRefreshInSeconds = ref(DEFAULT_AUTO_REFRESH_SECONDS);
@@ -62,6 +65,7 @@ const aliyunExistingCount = ref(0);
 const unattachedIpCount = ref(0);
 const items = ref<DashboardCloudAssetItem[]>([]);
 const groups = ref<DashboardCloudAssetGroup[]>([]);
+const telegramGroups = ref<DashboardTelegramGroupFilterItem[]>([]);
 const loadingMore = ref(false);
 const loadProgress = reactive({
   done: true,
@@ -83,6 +87,8 @@ const formState = reactive({
   price: '',
   public_ip: '',
   sort_order: 99,
+  telegram_group_id: undefined as number | undefined,
+  telegram_group_query: '',
   user_query: '',
 });
 let countdownTimer: null | ReturnType<typeof setInterval> = null;
@@ -186,20 +192,63 @@ function activeAssetCount(records: DashboardCloudAssetItem[]) {
   ).length;
 }
 
+function userGroupTitle(item: DashboardCloudAssetItem) {
+  return item.user_display_name || '未绑定用户';
+}
+
+function userGroupLabel(item: DashboardCloudAssetItem) {
+  return item.username_label || String(item.tg_user_id || item.user_id || '-');
+}
+
+function userGroupId(item: DashboardCloudAssetItem) {
+  return item.user_id || item.tg_user_id || null;
+}
+
+function telegramGroupTitle(item: DashboardCloudAssetItem) {
+  if (!item.telegram_group_id) return '未绑定群组';
+  return (
+    item.telegram_group_title ||
+    String(item.telegram_group_chat_id || item.telegram_group_id)
+  );
+}
+
+function telegramGroupLabel(item: DashboardCloudAssetItem) {
+  if (!item.telegram_group_id) return '-';
+  return item.telegram_group_username
+    ? `@${item.telegram_group_username}`
+    : String(item.telegram_group_chat_id || '-');
+}
+
 function buildAssetGroups(records: DashboardCloudAssetItem[]) {
   const groupMap = new Map<string, DashboardCloudAssetGroup>();
   for (const item of sortAssets(records)) {
-    const key = String(item.tg_user_id || 'unbound');
-    const group = groupMap.get(key) || {
+    const fallbackUserId = userGroupId(item);
+    const useUserGroup = groupMode.value === 'user' || !item.telegram_group_id;
+    const groupKey = useUserGroup
+      ? `user:${fallbackUserId || 'unbound'}`
+      : `group:${item.telegram_group_id}`;
+    const group = groupMap.get(groupKey) || {
       default_expanded: true,
       items: [],
-      tg_user_id: item.tg_user_id,
-      user_display_name: item.user_display_name,
-      user_key: key,
-      username_label: item.username_label,
+      telegram_group_chat_id: useUserGroup
+        ? undefined
+        : item.telegram_group_chat_id,
+      telegram_group_id: useUserGroup ? undefined : item.telegram_group_id,
+      telegram_group_title: useUserGroup ? undefined : telegramGroupTitle(item),
+      telegram_group_username: useUserGroup
+        ? undefined
+        : item.telegram_group_username,
+      tg_user_id: useUserGroup ? fallbackUserId : null,
+      user_display_name: useUserGroup
+        ? userGroupTitle(item)
+        : telegramGroupTitle(item),
+      user_key: groupKey,
+      username_label: useUserGroup
+        ? userGroupLabel(item)
+        : telegramGroupLabel(item),
     };
     group.items.push(item);
-    groupMap.set(key, group);
+    groupMap.set(groupKey, group);
   }
   return [...groupMap.values()].toSorted((a, b) => {
     const aExpires = Math.min(
@@ -209,8 +258,10 @@ function buildAssetGroups(records: DashboardCloudAssetItem[]) {
       ...b.items.map((item) => normalizeExpiresAt(item.actual_expires_at)),
     );
     if (aExpires !== bExpires) return aExpires - bExpires;
-    return String(a.tg_user_id || 'zzzz').localeCompare(
-      String(b.tg_user_id || 'zzzz'),
+    return String(
+      a.user_display_name || a.telegram_group_title || '未绑定',
+    ).localeCompare(
+      String(b.user_display_name || b.telegram_group_title || '未绑定'),
     );
   });
 }
@@ -253,12 +304,6 @@ const columns = [
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 120 },
   { title: '公网IP', dataIndex: 'public_ip', key: 'public_ip', width: 140 },
   { title: '价格', dataIndex: 'price', key: 'price', width: 130 },
-  {
-    title: '自动续费',
-    dataIndex: 'auto_renew_enabled',
-    key: 'auto_renew_enabled',
-    width: 130,
-  },
   { title: '代理链接', dataIndex: 'mtproxy_link', key: 'mtproxy_link' },
   { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
   {
@@ -273,8 +318,48 @@ const columns = [
     key: 'actual_expires_at',
     width: 130,
   },
+  {
+    title: '自动续费',
+    dataIndex: 'auto_renew_enabled',
+    key: 'auto_renew_enabled',
+    width: 130,
+  },
   { title: '操作', key: 'actions', fixed: 'right' as const, width: 180 },
 ];
+
+const assetTableColumns = computed(() => {
+  if (grouped.value && groupMode.value === 'telegram_group') {
+    return columns.filter(
+      (column) => !['user_display_name', 'username_label'].includes(column.key),
+    );
+  }
+  return columns;
+});
+
+function groupUserSummary(group: DashboardCloudAssetGroup) {
+  if (!group.telegram_group_id) return '';
+  const labels = group.items
+    .map((item) => {
+      if (item.user_display_name && item.user_display_name !== '未绑定用户') {
+        return item.user_display_name;
+      }
+      if (item.username_label && item.username_label !== '-') {
+        return item.username_label;
+      }
+      if (item.tg_user_id) return `TG ${item.tg_user_id}`;
+      if (item.user_id) return `用户 ${item.user_id}`;
+      return '';
+    })
+    .filter(Boolean);
+  const uniqueLabels = [...new Set(labels)];
+  if (uniqueLabels.length === 0) return '未绑定用户';
+  if (uniqueLabels.length <= 2) return uniqueLabels.join('、');
+  return `${uniqueLabels.slice(0, 2).join('、')} 等 ${uniqueLabels.length} 个用户`;
+}
+
+function asDashboardCloudAssetItem(record: Record<string, any>) {
+  return record as DashboardCloudAssetItem;
+}
 
 function openDetail(record: DashboardCloudAssetItem) {
   router.push(`/admin/cloud-assets/${record.id}`).catch(() => {});
@@ -390,6 +475,21 @@ function resetSearch() {
   loadData();
 }
 
+async function loadTelegramGroups() {
+  try {
+    telegramGroups.value = await getDashboardTelegramGroupsApi();
+  } catch {
+    telegramGroups.value = [];
+  }
+}
+
+function telegramGroupOptions() {
+  return telegramGroups.value.map((item) => ({
+    label: `${item.title || item.chat_id}${item.username ? ` (@${item.username})` : ''}`,
+    value: item.id,
+  }));
+}
+
 async function syncAssets() {
   syncing.value = true;
   try {
@@ -420,6 +520,10 @@ function openEdit(record: DashboardCloudAssetItem) {
   formState.price = record.price || '0.00';
   formState.public_ip = record.public_ip || '';
   formState.sort_order = record.sort_order || 99;
+  formState.telegram_group_id = record.telegram_group_id || undefined;
+  formState.telegram_group_query = record.telegram_group_chat_id
+    ? String(record.telegram_group_chat_id)
+    : record.telegram_group_username || record.telegram_group_title || '';
   formState.user_query = record.user_id
     ? String(record.user_id)
     : (record.tg_user_id
@@ -584,10 +688,8 @@ async function toggleAutoRenew(
 
 async function deleteAsset(record: DashboardCloudAssetItem) {
   try {
-    await (record.server_id
-      ? deleteDashboardServerApi(record.server_id)
-      : deleteDashboardCloudAssetApi(record.id));
-    message.success('代理已删除');
+    await deleteDashboardCloudAssetApi(record.id);
+    message.success('代理列表记录已删除；后续同步会按云上真实状态重新拉回');
     await loadData();
   } catch (error: any) {
     message.error(error?.message || '删除代理失败');
@@ -691,6 +793,18 @@ function buildAssetEditPayload(record: DashboardCloudAssetItem) {
   if (nextUserQuery !== previousUserQuery) {
     payload.user_query = nextUserQuery || null;
   }
+  const previousTelegramGroupQuery = record.telegram_group_chat_id
+    ? String(record.telegram_group_chat_id)
+    : record.telegram_group_username || record.telegram_group_title || '';
+  const nextTelegramGroupQuery = formState.telegram_group_query.trim();
+  if (nextTelegramGroupQuery === previousTelegramGroupQuery) {
+    const nextTelegramGroupId = formState.telegram_group_id || null;
+    if (nextTelegramGroupId !== (record.telegram_group_id || null)) {
+      payload.telegram_group_id = nextTelegramGroupId;
+    }
+  } else {
+    payload.telegram_group_query = nextTelegramGroupQuery || null;
+  }
   return payload;
 }
 
@@ -720,6 +834,7 @@ async function submitEdit() {
 
 onMounted(() => {
   loadData();
+  loadTelegramGroups();
   startAutoRefresh();
 });
 
@@ -793,6 +908,16 @@ onBeforeUnmount(() => {
             {{ aliyunExistingCount }}
           </Tag>
           <Tag color="purple">下次刷新：{{ nextRefreshInSeconds }}s</Tag>
+          <Select
+            v-if="grouped"
+            v-model:value="groupMode"
+            style="width: 130px"
+            :options="[
+              { label: '按群组分区', value: 'telegram_group' },
+              { label: '按用户分区', value: 'user' },
+            ]"
+            @change="refreshGroupedItems(items)"
+          />
           <Switch v-model:checked="grouped" @change="loadData" />
         </Space>
       </template>
@@ -804,15 +929,24 @@ onBeforeUnmount(() => {
       >
         <Collapse.Panel v-for="group in groups" :key="group.user_key">
           <template #header>
-            <Space>
+            <Space wrap>
               <span>{{ group.user_display_name }}</span>
               <Tag color="blue">{{ group.username_label || '-' }}</Tag>
-              <Tag>{{ group.tg_user_id || '未绑定' }}</Tag>
+              <Tag>
+                {{
+                  group.telegram_group_id
+                    ? group.telegram_group_chat_id || '未绑定群组'
+                    : group.tg_user_id || '未绑定用户'
+                }}
+              </Tag>
+              <Tag v-if="group.telegram_group_id" color="green">
+                用户：{{ groupUserSummary(group) }}
+              </Tag>
               <Tag>{{ activeAssetCount(group.items) }} 条</Tag>
             </Space>
           </template>
           <Table
-            :columns="columns"
+            :columns="assetTableColumns"
             :data-source="group.items"
             :loading="loading"
             :pagination="false"
@@ -889,15 +1023,23 @@ onBeforeUnmount(() => {
               </template>
               <template v-else-if="column.key === 'region_label'">
                 <Space direction="vertical" :size="2">
-                  <span>{{ regionDisplay(record) }}</span>
+                  <span>{{
+                    regionDisplay(asDashboardCloudAssetItem(record))
+                  }}</span>
                   <Tag v-if="record.region_code" color="geekblue">
                     {{ record.region_code }}
                   </Tag>
                 </Space>
               </template>
               <template v-else-if="column.key === 'price'">
-                <Tag :color="hasAssetPrice(record) ? 'success' : 'error'">
-                  {{ assetPriceLabel(record) }}
+                <Tag
+                  :color="
+                    hasAssetPrice(asDashboardCloudAssetItem(record))
+                      ? 'success'
+                      : 'error'
+                  "
+                >
+                  {{ assetPriceLabel(asDashboardCloudAssetItem(record)) }}
                 </Tag>
               </template>
               <template v-else-if="column.key === 'auto_renew_enabled'">
@@ -914,7 +1056,7 @@ onBeforeUnmount(() => {
                     @change="
                       (checked) =>
                         toggleAutoRenew(
-                          record as DashboardCloudAssetItem,
+                          asDashboardCloudAssetItem(record),
                           Boolean(checked),
                         )
                     "
@@ -1022,23 +1164,23 @@ onBeforeUnmount(() => {
                 <Space>
                   <Button
                     type="link"
-                    @click="openDetail(record as DashboardCloudAssetItem)"
+                    @click="openDetail(asDashboardCloudAssetItem(record))"
                   >
                     详情
                   </Button>
                   <Button
                     type="link"
-                    @click="openEdit(record as DashboardCloudAssetItem)"
+                    @click="openEdit(asDashboardCloudAssetItem(record))"
                   >
                     编辑
                   </Button>
                   <Popconfirm
                     v-if="
-                      canRebuildPreserveLink(record as DashboardCloudAssetItem)
+                      canRebuildPreserveLink(asDashboardCloudAssetItem(record))
                     "
                     title="确认按 AWS 方案重装并保持链接不变吗？系统会后台创建新实例、切换固定 IP、复用 MTProxy 密钥，成功后删除旧实例。"
                     @confirm="
-                      rebuildPreserveLink(record as DashboardCloudAssetItem)
+                      rebuildPreserveLink(asDashboardCloudAssetItem(record))
                     "
                   >
                     <Button
@@ -1051,8 +1193,8 @@ onBeforeUnmount(() => {
                     </Button>
                   </Popconfirm>
                   <Popconfirm
-                    title="确认删除该代理/服务器记录吗？"
-                    @confirm="deleteAsset(record as DashboardCloudAssetItem)"
+                    title="确认只删除代理列表记录吗？不会删除真实云服务器；后续同步会按云上真实状态重新拉回。"
+                    @confirm="deleteAsset(asDashboardCloudAssetItem(record))"
                   >
                     <Button danger type="link">删除</Button>
                   </Popconfirm>
@@ -1065,7 +1207,7 @@ onBeforeUnmount(() => {
 
       <Table
         v-else
-        :columns="columns"
+        :columns="assetTableColumns"
         :data-source="items"
         :loading="loading"
         :pagination="{ pageSize: 10 }"
@@ -1142,15 +1284,23 @@ onBeforeUnmount(() => {
           </template>
           <template v-else-if="column.key === 'region_label'">
             <Space direction="vertical" :size="2">
-              <span>{{ regionDisplay(record) }}</span>
+              <span>{{
+                regionDisplay(asDashboardCloudAssetItem(record))
+              }}</span>
               <Tag v-if="record.region_code" color="geekblue">
                 {{ record.region_code }}
               </Tag>
             </Space>
           </template>
           <template v-else-if="column.key === 'price'">
-            <Tag :color="hasAssetPrice(record) ? 'success' : 'error'">
-              {{ assetPriceLabel(record) }}
+            <Tag
+              :color="
+                hasAssetPrice(asDashboardCloudAssetItem(record))
+                  ? 'success'
+                  : 'error'
+              "
+            >
+              {{ assetPriceLabel(asDashboardCloudAssetItem(record)) }}
             </Tag>
           </template>
           <template v-else-if="column.key === 'auto_renew_enabled'">
@@ -1297,7 +1447,7 @@ onBeforeUnmount(() => {
                 </Button>
               </Popconfirm>
               <Popconfirm
-                title="确认删除该代理/服务器记录吗？"
+                title="确认只删除代理列表记录吗？不会删除真实云服务器；后续同步会按云上真实状态重新拉回。"
                 @confirm="deleteAsset(record as DashboardCloudAssetItem)"
               >
                 <Button danger type="link">删除</Button>
@@ -1324,6 +1474,28 @@ onBeforeUnmount(() => {
         </Form.Item>
         <Form.Item label="当前显示用户">
           <Input :value="currentRow?.user_display_name || ''" disabled />
+        </Form.Item>
+        <Form.Item label="绑定群组">
+          <Select
+            v-model:value="formState.telegram_group_id"
+            allow-clear
+            show-search
+            :filter-option="true"
+            :options="telegramGroupOptions()"
+            placeholder="选择要绑定的 Telegram 群组"
+          />
+        </Form.Item>
+        <Form.Item
+          extra="可输入后台群组ID、Telegram 群组 Chat ID、@用户名或群名；留空表示解绑群组。"
+          label="群组识别"
+        >
+          <Input
+            v-model:value="formState.telegram_group_query"
+            placeholder="例如：1 / -1001234567890 / @groupname / 群名"
+          />
+        </Form.Item>
+        <Form.Item label="当前显示群组">
+          <Input :value="currentRow?.telegram_group_title || ''" disabled />
         </Form.Item>
         <Form.Item label="云账号ID">
           <Input :value="currentRow?.account_label || ''" disabled />

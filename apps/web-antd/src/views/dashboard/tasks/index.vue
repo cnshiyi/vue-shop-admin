@@ -95,9 +95,13 @@ async function loadData() {
   }
 }
 
+function canOpenTask(record: DashboardTaskItem) {
+  return Boolean(record.related_path);
+}
+
 function openTask(record: DashboardTaskItem) {
-  if (record.related_path) {
-    router.push(record.related_path);
+  if (canOpenTask(record)) {
+    router.push(record.related_path).catch(() => {});
   }
 }
 
@@ -133,7 +137,10 @@ onMounted(loadData);
         :scroll="{ x: 1100 }"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'status'">
+          <template v-if="column.key === 'order_no'">
+            <span>{{ asDashboardTaskItem(record).order_no }}</span>
+          </template>
+          <template v-else-if="column.key === 'status'">
             <Tag :color="statusColor(asDashboardTaskItem(record).status)">
               {{
                 asDashboardTaskItem(record).status_label ||
@@ -168,12 +175,14 @@ onMounted(loadData);
           </template>
           <template v-else-if="column.key === 'actions'">
             <Button
+              v-if="canOpenTask(asDashboardTaskItem(record))"
               type="link"
               size="small"
               @click="openTask(asDashboardTaskItem(record))"
             >
-              查看
+              详情
             </Button>
+            <span v-else>-</span>
           </template>
         </template>
       </Table>

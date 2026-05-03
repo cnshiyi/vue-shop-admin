@@ -90,6 +90,35 @@ function empty(value: unknown) {
   return value === null || value === undefined || value === '' ? '-' : value;
 }
 
+function sourceTagColor(source?: string) {
+  if (source === 'manual_owner_change') return 'purple';
+  if (source === 'manual_expiry_change') return 'gold';
+  if (source === 'manual_price_change') return 'cyan';
+  if (source === 'manual_owner_expiry_change') return 'magenta';
+  if (source === 'renewal' || source === 'renewal_rebuild') return 'blue';
+  return 'default';
+}
+
+function orderSourceItems(item?: DashboardCloudOrderDetail | null) {
+  if (!item) return [] as Array<{ key: string; label: string }>;
+  const tagKeys = item.order_source_tags || [];
+  const tagLabels = item.order_source_tag_labels || [];
+  if (tagLabels.length > 0) {
+    return tagLabels.map((label, index) => ({
+      key: tagKeys[index] || item.order_source || label,
+      label,
+    }));
+  }
+  return item.order_source_label
+    ? [
+        {
+          key: item.order_source || item.order_source_label,
+          label: item.order_source_label,
+        },
+      ]
+    : [];
+}
+
 async function loadData(options?: { silent?: boolean }) {
   if (!orderId.value) {
     message.error('订单 ID 不正确');
@@ -182,6 +211,18 @@ onMounted(loadData);
             <Tag :color="statusColor(detail.status)">
               {{ statusLabel(detail.status) }}
             </Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="来源">
+            <Space :size="4" wrap>
+              <Tag
+                v-for="tag in orderSourceItems(detail)"
+                :key="tag.key"
+                :color="sourceTagColor(tag.key)"
+              >
+                {{ tag.label }}
+              </Tag>
+              <span v-if="orderSourceItems(detail).length === 0">-</span>
+            </Space>
           </Descriptions.Item>
           <Descriptions.Item label="用户">
             {{ empty(detail.user_display_name) }}

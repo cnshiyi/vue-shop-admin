@@ -2,6 +2,7 @@
 import type {
   DashboardCloudAssetDetail,
   DashboardCloudAssetIpLogItem,
+  DashboardCloudOrderSummaryItem,
 } from '#/api/admin';
 
 import { computed, onMounted, ref } from 'vue';
@@ -30,6 +31,9 @@ const loading = ref(false);
 const detail = ref<DashboardCloudAssetDetail | null>(null);
 
 const assetId = computed(() => Number(route.params.id || 0));
+const historyOrders = computed<DashboardCloudOrderSummaryItem[]>(
+  () => detail.value?.history_orders || [],
+);
 
 const logColumns = [
   { title: '时间', dataIndex: 'created_at', key: 'created_at', width: 170 },
@@ -91,6 +95,57 @@ async function loadData() {
 
 function goBack() {
   router.push('/admin/cloud-assets').catch(() => {});
+}
+
+const canOpenOrder = Boolean;
+
+function openOrder(path?: null | string) {
+  if (!path) {
+    return;
+  }
+  router.push(path).catch(() => {});
+}
+
+function historyOrderTagColor(status?: string) {
+  if (['completed', 'paid'].includes(status || '')) return 'green';
+  if (
+    ['expiring', 'provisioning', 'renew_pending', 'suspended'].includes(
+      status || '',
+    )
+  )
+    return 'orange';
+  if (['cancelled', 'deleted', 'expired', 'failed'].includes(status || ''))
+    return 'red';
+  return 'blue';
+}
+
+function historySourceTagColor(source?: string) {
+  if (source === 'manual_owner_change') return 'purple';
+  if (source === 'manual_expiry_change') return 'gold';
+  if (source === 'manual_price_change') return 'cyan';
+  if (source === 'manual_owner_expiry_change') return 'magenta';
+  if (source === 'renewal' || source === 'renewal_rebuild') return 'blue';
+  return 'default';
+}
+
+function orderSourceItems(item?: DashboardCloudOrderSummaryItem | null) {
+  if (!item) return [] as Array<{ key: string; label: string }>;
+  const tagKeys = item.order_source_tags || [];
+  const tagLabels = item.order_source_tag_labels || [];
+  if (tagLabels.length > 0) {
+    return tagLabels.map((label, index) => ({
+      key: tagKeys[index] || item.order_source || label,
+      label,
+    }));
+  }
+  return item.order_source_label
+    ? [
+        {
+          key: item.order_source || item.order_source_label,
+          label: item.order_source_label,
+        },
+      ]
+    : [];
 }
 
 onMounted(loadData);
@@ -282,7 +337,18 @@ onMounted(loadData);
             {{ empty(detail.user_id) }}
           </Descriptions.Item>
           <Descriptions.Item label="订单号">
-            {{ empty(detail.order_no) }}
+            <Space v-if="detail.order_no">
+              <span>{{ detail.order_no }}</span>
+              <Button
+                v-if="canOpenOrder(detail.order_link_path)"
+                size="small"
+                type="link"
+                @click="openOrder(detail.order_link_path)"
+              >
+                查看订单
+              </Button>
+            </Space>
+            <span v-else>{{ empty(detail.order_no) }}</span>
           </Descriptions.Item>
           <Descriptions.Item label="订单状态">
             {{ empty(detail.order_status_label || detail.order_status) }}
@@ -297,6 +363,103 @@ onMounted(loadData);
             </Tag>
           </Descriptions.Item>
         </Descriptions>
+
+        <Card class="mt-4" size="small" title="关联订单">
+          <template v-if="detail.related_order">
+            <Descriptions bordered :column="2" size="small">
+              <Descriptions.Item label="订单号">
+                <Space>
+                  <span>{{ detail.related_order.order_no }}</span>
+                  <Button
+                    v-if="canOpenOrder(detail.related_order.order_link_path)"
+                    size="small"
+                    type="link"
+                    @click="openOrder(detail.related_order.order_link_path)"
+                  >
+                    跳转
+                  </Button>
+                </Space>
+              </Descriptions.Item>
+              <Descriptions.Item label="状态">
+                <Space wrap>
+                  <Tag
+                    :color="historyOrderTagColor(detail.related_order.status)"
+                  >
+                    {{
+                      detail.related_order.status_label ||
+                      detail.related_order.status
+                    }}
+                  </Tag>
+                  <Tag
+                    v-for="tag in orderSourceItems(detail.related_order)"
+                    :key="tag.key"
+                    :color="historySourceTagColor(tag.key)"
+                  >
+                    {{ tag.label }}
+                  </Tag>
+                </Space>
+              </Descriptions.Item>
+              <Descriptions.Item label="公网 IP">
+                {{ empty(detail.related_order.public_ip) }}
+              </Descriptions.Item>
+              <Descriptions.Item label="服务到期">
+                {{ formatExpiryTime(detail.related_order.service_expires_at) }}
+              </Descriptions.Item>
+            </Descriptions>
+          </template>
+          <Empty v-else description="暂无关联订单" />
+        </Card>
+
+        <Card class="mt-4" size="small" title="历史订单">
+          <template v-if="historyOrders.length > 0">
+            <div
+              v-for="item in historyOrders"
+              :key="item.id"
+              class="mb-3 rounded border border-solid border-gray-200 p-3 last:mb-0"
+            >
+              <Space class="mb-2" wrap>
+                <span class="font-medium">{{ item.order_no }}</span>
+                <Tag :color="historyOrderTagColor(item.status)">
+                  {{ item.status_label || item.status }}
+                </Tag>
+                <Tag
+                  v-for="tag in orderSourceItems(item)"
+                  :key="`${item.id}-${tag.key}-${tag.label}`"
+                  :color="historySourceTagColor(tag.key)"
+                >
+                  {{ tag.label }}
+                </Tag>
+                <Tag v-if="item.id === detail.order_id" color="processing">
+                  当前关联
+                </Tag>
+                <Button
+                  v-if="canOpenOrder(item.order_link_path)"
+                  size="small"
+                  type="link"
+                  @click="openOrder(item.order_link_path)"
+                >
+                  跳转订单详情
+                </Button>
+              </Space>
+              <div class="text-sm opacity-80">
+                来源：{{
+                  orderSourceItems(item)
+                    .map((tag) => tag.label)
+                    .join(' / ') ||
+                  item.order_source ||
+                  '-'
+                }}
+              </div>
+              <div class="mt-1 text-sm opacity-80">
+                到期：{{ formatExpiryTime(item.service_expires_at) }}
+              </div>
+              <div class="mt-1 text-sm opacity-80">
+                创建：{{ formatTime(item.created_at) }}
+              </div>
+            </div>
+          </template>
+          <Empty v-else description="暂无历史订单" />
+        </Card>
 
         <Card class="mt-4" size="small" title="构建过程 / 创建说明">
           <Typography.Paragraph class="!mb-0 whitespace-pre-wrap break-all">

@@ -2,6 +2,7 @@ import { requestClient } from '#/api/request';
 
 interface DashboardListQuery {
   archived?: 0 | 1;
+  group_by?: 'telegram_group' | 'user';
   grouped?: 0 | 1;
   keyword?: string;
   page?: number;
@@ -129,6 +130,8 @@ export interface DashboardCloudOrderItem {
   order_no: string;
   order_source?: string;
   order_source_label?: string;
+  order_source_tags?: string[];
+  order_source_tag_labels?: string[];
   pay_amount: null | string;
   plan_name: string;
   provider: string;
@@ -234,12 +237,39 @@ export interface DashboardCloudAssetIpLogItem {
   public_ip?: null | string;
 }
 
+export interface DashboardCloudOrderSummaryItem {
+  created_at: null | string;
+  detail_path?: string;
+  id: number;
+  order_detail_path?: string;
+  order_id: number;
+  order_link_path?: string;
+  order_no: string;
+  order_source?: string;
+  order_source_label?: string;
+  order_source_tags?: string[];
+  order_source_tag_labels?: string[];
+  provider?: string;
+  provider_label?: string;
+  public_ip?: null | string;
+  replacement_for_id?: null | number;
+  service_expires_at?: null | string;
+  service_started_at?: null | string;
+  status: string;
+  status_label?: string;
+  updated_at: null | string;
+}
+
 export interface DashboardCloudAssetItem {
   account_label: null | string;
   actual_expires_at: null | string;
   asset_name: null | string;
   cloud_account_id: null | number;
   currency: string;
+  telegram_group_chat_id?: null | number;
+  telegram_group_id?: null | number;
+  telegram_group_title?: string;
+  telegram_group_username?: string;
   days_left?: null | number;
   id: number;
   auto_renew_enabled?: boolean;
@@ -260,7 +290,9 @@ export interface DashboardCloudAssetItem {
   mtproxy_port: null | number;
   mtproxy_secret: null | string;
   note?: null | string;
+  order_detail_path?: string;
   order_id: null | number;
+  order_link_path?: string;
   order_no: string;
   price: string;
   provider: null | string;
@@ -282,12 +314,14 @@ export interface DashboardCloudAssetItem {
 export interface DashboardCloudAssetDetail extends DashboardCloudAssetItem {
   created_at?: null | string;
   delete_at?: null | string;
+  history_orders?: DashboardCloudOrderSummaryItem[];
   ip_logs?: DashboardCloudAssetIpLogItem[];
   ip_recycle_at?: null | string;
   last_renewed_at?: null | string;
   order_status?: string;
   order_status_label?: string;
   provision_note?: null | string;
+  related_order?: DashboardCloudOrderSummaryItem | null;
   renew_grace_expires_at?: null | string;
   service_expires_at?: null | string;
   service_started_at?: null | string;
@@ -297,6 +331,10 @@ export interface DashboardCloudAssetDetail extends DashboardCloudAssetItem {
 export interface DashboardCloudAssetGroup {
   default_expanded: boolean;
   items: DashboardCloudAssetItem[];
+  telegram_group_chat_id?: null | number;
+  telegram_group_id?: null | number;
+  telegram_group_title?: string;
+  telegram_group_username?: string;
   tg_user_id: null | number;
   user_display_name: string;
   user_key: string;
@@ -508,6 +546,75 @@ export interface DashboardTaskItem {
   updated_at: null | string;
 }
 
+export interface DashboardAutoRenewTaskDueItem {
+  auto_renew_at: null | string;
+  balance: null | string;
+  delete_at: null | string;
+  id: number;
+  ip: string;
+  ip_recycle_at: null | string;
+  last_failure_reason?: null | string;
+  next_run_at?: null | string;
+  order_no: string;
+  provider: string;
+  provider_label?: string;
+  queue_status?: string;
+  queue_status_label?: string;
+  related_path: string;
+  service_expires_at: null | string;
+  status: string;
+  status_label?: string;
+  suspend_at: null | string;
+  tg_user_id: null | number;
+  user_display_name: string;
+  user_id: null | number;
+  username_label: string;
+}
+
+export interface DashboardAutoRenewTaskHistoryItem {
+  balance_after: null | string;
+  balance_before: null | string;
+  balance_change: null | string;
+  batch_id: string;
+  currency: string;
+  executed_at: null | string;
+  failure_reason: null | string;
+  id: number;
+  ip: string;
+  is_success: boolean;
+  order_id: null | number;
+  order_no: string;
+  provider: null | string;
+  provider_label?: string;
+  related_path: string;
+  result_label: string;
+  service_expires_at: null | string;
+  tg_user_id: null | number;
+  user_display_name: string;
+  user_id: null | number;
+  username_label: string;
+}
+
+export interface DashboardAutoRenewTaskDetail {
+  due_count: number;
+  due_items: DashboardAutoRenewTaskDueItem[];
+  future_plan_items: DashboardAutoRenewTaskDueItem[];
+  history_items: DashboardAutoRenewTaskHistoryItem[];
+  interval_minutes: number;
+  last_run_at: null | string;
+  latest_batch_count: number;
+  latest_batch_failure_count: number;
+  latest_batch_id: string;
+  latest_batch_success_count: number;
+  latest_failed_ips: string[];
+  next_run_at: null | string;
+  recent_failure_count: number;
+  recent_success_count: number;
+  status_label: string;
+  task_key: string;
+  task_label: string;
+}
+
 export interface DashboardCloudAccountConfigItem {
   access_key: string;
   access_key_preview?: string;
@@ -644,6 +751,23 @@ export interface DashboardTelegramMessageItem {
   username_snapshot: string;
 }
 
+export interface DashboardTelegramGroupFilterItem {
+  chat_id: number;
+  created_at: null | string;
+  enabled: boolean;
+  id: number;
+  title: string;
+  updated_at: null | string;
+  username: string;
+}
+
+export interface DashboardTelegramGroupFilterPayload {
+  chat_id?: number | string;
+  enabled?: boolean;
+  title?: string;
+  username?: string;
+}
+
 export interface DashboardTelegramAccountsOverview {
   accounts: DashboardTelegramLoginAccountItem[];
   chats: DashboardTelegramChatItem[];
@@ -703,6 +827,9 @@ export interface DashboardServerStatisticsResponse {
 
 export interface DashboardMonitorItem {
   address: string;
+  chain_balance_error?: null | string;
+  chain_trx_balance?: null | string;
+  chain_usdt_balance?: null | string;
   created_at: null | string;
   daily_expense: string;
   daily_expense_currency: string;
@@ -742,6 +869,12 @@ export async function getDashboardUsersApi(params: DashboardListQuery = {}) {
 
 export async function getDashboardTasksApi() {
   return requestClient.get<DashboardTaskItem[]>('/admin/tasks/');
+}
+
+export async function getDashboardAutoRenewTaskDetailApi() {
+  return requestClient.get<DashboardAutoRenewTaskDetail>(
+    '/admin/tasks/auto-renew/',
+  );
 }
 
 export async function updateDashboardUserBalanceApi(
@@ -900,6 +1033,8 @@ export interface DashboardCloudAssetUpdatePayload {
   price?: null | string;
   public_ip?: null | string;
   sort_order?: number;
+  telegram_group_id?: null | number;
+  telegram_group_query?: null | string;
   user_query?: null | string;
 }
 
@@ -1186,6 +1321,14 @@ export async function createDashboardTelegramAccountApi(
   );
 }
 
+export async function checkDashboardTelegramAccountStatusApi(
+  accountId: number,
+) {
+  return requestClient.post<DashboardTelegramLoginAccountItem>(
+    `/admin/telegram/accounts/${accountId}/status/`,
+  );
+}
+
 export async function updateDashboardTelegramAccountNotifyApi(
   accountId: number,
   payload: { notify_enabled: boolean },
@@ -1247,6 +1390,34 @@ export async function updateDashboardTelegramChatArchiveApi(payload: {
 }) {
   return requestClient.post<{ archived: boolean; chat_id: number }>(
     '/admin/telegram/chats/archive/',
+    payload,
+  );
+}
+
+export async function getDashboardTelegramGroupsApi(
+  params: DashboardListQuery = {},
+) {
+  return requestClient.get<DashboardTelegramGroupFilterItem[]>(
+    '/admin/telegram/groups/',
+    { params },
+  );
+}
+
+export async function createDashboardTelegramGroupApi(
+  payload: DashboardTelegramGroupFilterPayload,
+) {
+  return requestClient.post<DashboardTelegramGroupFilterItem>(
+    '/admin/telegram/groups/create/',
+    payload,
+  );
+}
+
+export async function updateDashboardTelegramGroupApi(
+  groupId: number,
+  payload: DashboardTelegramGroupFilterPayload,
+) {
+  return requestClient.post<DashboardTelegramGroupFilterItem>(
+    `/admin/telegram/groups/${groupId}/`,
     payload,
   );
 }

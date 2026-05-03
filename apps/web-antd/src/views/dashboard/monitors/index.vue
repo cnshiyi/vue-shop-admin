@@ -48,6 +48,12 @@ const columns = [
     width: 180,
   },
   {
+    title: '地址余额',
+    dataIndex: 'chain_balance',
+    key: 'chain_balance',
+    width: 180,
+  },
+  {
     title: '今日收入',
     dataIndex: 'daily_income',
     key: 'daily_income',
@@ -130,6 +136,21 @@ onMounted(loadData);
           <template v-else-if="column.key === 'resource_thresholds'">
             能量 ≥ {{ record.energy_threshold }} / 带宽 ≥
             {{ record.bandwidth_threshold }}
+          </template>
+          <template v-else-if="column.key === 'chain_balance'">
+            <Space direction="vertical" :size="2">
+              <Tag v-if="record.chain_balance_error" color="error">
+查询失败
+</Tag>
+              <template v-else>
+                <Tag color="green">
+USDT {{ record.chain_usdt_balance ?? '0' }}
+</Tag>
+                <Tag color="purple">
+TRX {{ record.chain_trx_balance ?? '0' }}
+</Tag>
+              </template>
+            </Space>
           </template>
           <template v-else-if="column.key === 'daily_income'">
             {{ record.daily_income }} {{ record.daily_income_currency }}

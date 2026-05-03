@@ -64,6 +64,10 @@ function expiryColor(value?: null | string) {
   return 'green';
 }
 
+function asDashboardShutdownLog(record: Record<string, any>) {
+  return record as DashboardShutdownLog;
+}
+
 function accountText(record: DashboardShutdownLog) {
   return (
     record.external_account_id ||
@@ -136,10 +140,12 @@ onMounted(loadData);
             </div>
           </template>
           <template v-else-if="column.key === 'external_account_id'">
-            <span class="leading-7">{{ accountText(record) }}</span>
+            <span class="leading-7">{{
+              accountText(asDashboardShutdownLog(record))
+            }}</span>
           </template>
           <template v-else-if="column.key === 'status'">
-            <Tag :color="statusColor(record)">
+            <Tag :color="statusColor(asDashboardShutdownLog(record))">
               {{ record.status_label || record.status || '-' }}
             </Tag>
           </template>

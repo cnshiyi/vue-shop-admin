@@ -68,6 +68,15 @@ const routes: RouteRecordRaw[] = [
               title: '聊天记录',
             },
           },
+          {
+            name: 'DashboardTelegramGroups',
+            path: 'groups',
+            component: () =>
+              import('#/views/dashboard/telegram-accounts/groups.vue'),
+            meta: {
+              title: '群组通知',
+            },
+          },
         ],
       },
       {
@@ -95,6 +104,25 @@ const routes: RouteRecordRaw[] = [
         meta: {
           hideInMenu: true,
           title: '代理详情',
+        },
+      },
+      {
+        name: 'DashboardTasks',
+        path: 'tasks',
+        component: () => import('#/views/dashboard/tasks/index.vue'),
+        meta: {
+          icon: 'lucide:list-todo',
+          title: '任务列表',
+        },
+      },
+      {
+        name: 'DashboardAutoRenewTaskDetail',
+        path: 'tasks/auto-renew',
+        component: () =>
+          import('#/views/dashboard/tasks/auto-renew-detail.vue'),
+        meta: {
+          hideInMenu: true,
+          title: '自动续费任务详情',
         },
       },
       {
@@ -200,14 +228,6 @@ const routes: RouteRecordRaw[] = [
             component: () => import('#/views/dashboard/recharges/index.vue'),
             meta: {
               title: '充值订单',
-            },
-          },
-          {
-            name: 'DashboardTasks',
-            path: 'tasks',
-            component: () => import('#/views/dashboard/tasks/index.vue'),
-            meta: {
-              title: '任务列表',
             },
           },
           {

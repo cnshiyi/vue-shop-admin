@@ -135,6 +135,22 @@ const {
  * @param menus 原始菜单数据
  * @param deep 是否深度包装。对于双列布局，只需要包装第一层，因为更深层的数据会在扩展菜单中重新包装
  */
+function collectDefaultOpeneds(menus: MenuRecordRaw[]) {
+  const keys: string[] = [];
+
+  const walk = (items: MenuRecordRaw[]) => {
+    items.forEach((item) => {
+      if (item.children?.length) {
+        keys.push(item.path);
+        walk(item.children);
+      }
+    });
+  };
+
+  walk(menus);
+  return keys;
+}
+
 function wrapperMenus(menus: MenuRecordRaw[], deep: boolean = true) {
   return deep
     ? mapTree(menus, (item) => {
@@ -335,10 +351,11 @@ const headerSlots = computed(() => {
     <!-- 侧边菜单区域 -->
     <template #menu>
       <LayoutMenu
-        :accordion="preferences.navigation.accordion"
+        :accordion="false"
         :collapse="preferences.sidebar.collapsed"
         :collapse-show-title="preferences.sidebar.collapsedShowTitle"
         :default-active="sidebarActive"
+        :default-openeds="collectDefaultOpeneds(wrapperMenus(sidebarMenus))"
         :menus="wrapperMenus(sidebarMenus)"
         :rounded="isMenuRounded"
         :theme="sidebarTheme"
@@ -361,8 +378,9 @@ const headerSlots = computed(() => {
     <!-- 侧边额外区域 -->
     <template #side-extra>
       <LayoutExtraMenu
-        :accordion="preferences.navigation.accordion"
+        :accordion="false"
         :collapse="preferences.sidebar.extraCollapse"
+        :default-openeds="collectDefaultOpeneds(wrapperMenus(extraMenus))"
         :menus="wrapperMenus(extraMenus)"
         :rounded="isMenuRounded"
         :theme="sidebarThemeSub"

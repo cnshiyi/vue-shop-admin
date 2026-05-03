@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { TableColumnsType } from 'ant-design-vue';
+
 import type { DashboardCloudOrderItem } from '#/api/admin';
 
 import { onMounted, reactive, ref } from 'vue';
@@ -63,7 +65,7 @@ const statusOptions = [
   { label: '已过期', value: 'expired' },
 ];
 
-const columns = [
+const columns: TableColumnsType<DashboardCloudOrderItem> = [
   { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 220 },
   { title: '厂商', dataIndex: 'provider', key: 'provider', width: 140 },
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 160 },
@@ -72,7 +74,7 @@ const columns = [
     title: '来源',
     dataIndex: 'order_source_label',
     key: 'order_source',
-    width: 100,
+    width: 180,
   },
   { title: '状态', dataIndex: 'status', key: 'status', width: 120 },
   {
@@ -94,7 +96,7 @@ const columns = [
     title: '操作',
     dataIndex: 'action',
     key: 'action',
-    fixed: 'right',
+    fixed: 'right' as const,
     width: 150,
   },
 ];
@@ -143,6 +145,34 @@ function amountText(record: DashboardCloudOrderItem) {
 
 function noteText(record: DashboardCloudOrderItem) {
   return (record.provision_note || '').trim() || '-';
+}
+
+function sourceTagColor(source?: string) {
+  if (source === 'manual_owner_change') return 'purple';
+  if (source === 'manual_expiry_change') return 'gold';
+  if (source === 'manual_price_change') return 'cyan';
+  if (source === 'manual_owner_expiry_change') return 'magenta';
+  if (source === 'renewal' || source === 'renewal_rebuild') return 'blue';
+  return 'default';
+}
+
+function orderSourceItems(record: DashboardCloudOrderItem) {
+  const tagKeys = record.order_source_tags || [];
+  const tagLabels = record.order_source_tag_labels || [];
+  if (tagLabels.length > 0) {
+    return tagLabels.map((label, index) => ({
+      key: tagKeys[index] || record.order_source || label,
+      label,
+    }));
+  }
+  return record.order_source_label
+    ? [
+        {
+          key: record.order_source || record.order_source_label,
+          label: record.order_source_label,
+        },
+      ]
+    : [];
 }
 
 async function loadData() {
@@ -223,7 +253,7 @@ async function saveEdit() {
 
 async function deleteOrder(record: DashboardCloudOrderItem) {
   await deleteDashboardCloudOrderApi(record.id);
-  message.success('订单已删除');
+  message.success('订单记录已删除');
   await loadData();
 }
 </script>
@@ -259,9 +289,22 @@ async function deleteOrder(record: DashboardCloudOrderItem) {
             <a @click="goToDetail(Number(record.id))">{{ record.order_no }}</a>
           </template>
           <template v-else-if="column.key === 'order_source'">
-            <Tag color="purple">
-              {{ record.order_source_label || record.order_source || '新购' }}
-            </Tag>
+            <Space :size="4" wrap>
+              <Tag
+                v-for="tag in orderSourceItems(
+                  record as DashboardCloudOrderItem,
+                )"
+                :key="tag.key"
+                :color="sourceTagColor(tag.key)"
+              >
+                {{ tag.label }}
+              </Tag>
+              <span
+                v-if="
+                  orderSourceItems(record as DashboardCloudOrderItem).length === 0
+                "
+                >-</span>
+            </Space>
           </template>
           <template v-else-if="column.key === 'status'">
             <Tag :color="statusColor(record.status)">
@@ -305,7 +348,7 @@ async function deleteOrder(record: DashboardCloudOrderItem) {
                 编辑
               </Button>
               <Popconfirm
-                title="只删除后台订单记录，不删除云服务器资源。确认删除？"
+                title="只删除后台订单记录，不删除真实云服务器或代理记录。确认删除？"
                 ok-text="删除"
                 cancel-text="取消"
                 @confirm="deleteOrder(record as DashboardCloudOrderItem)"
