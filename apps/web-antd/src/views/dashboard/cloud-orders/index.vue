@@ -274,6 +274,9 @@ async function deleteOrder(record: DashboardCloudOrderItem) {
           />
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
+          <Button size="small" type="primary" @click="router.push('/admin/tasks/auto-renew')">
+            续费列表
+          </Button>
         </Space>
       </template>
       <Table
@@ -301,7 +304,8 @@ async function deleteOrder(record: DashboardCloudOrderItem) {
               </Tag>
               <span
                 v-if="
-                  orderSourceItems(record as DashboardCloudOrderItem).length === 0
+                  orderSourceItems(record as DashboardCloudOrderItem).length ===
+                  0
                 "
                 >-</span>
             </Space>

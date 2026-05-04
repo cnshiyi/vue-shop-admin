@@ -24,9 +24,6 @@ const columns = [
   { title: '用户名', dataIndex: 'username_label', key: 'username_label', width: 220 },
   { title: '服务器名', dataIndex: 'server_name', key: 'server_name', width: 220 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 140 },
-  { title: '来源', dataIndex: 'source', key: 'source', width: 120 },
-  { title: '是否有订单', dataIndex: 'order_no', key: 'has_order', width: 120 },
-  { title: '厂商', dataIndex: 'provider', key: 'provider', width: 140 },
   { title: '账号ID', dataIndex: 'account_label', key: 'account_label', width: 160 },
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 160 },
   { title: '公网 IP', dataIndex: 'public_ip', key: 'public_ip', width: 150 },
@@ -35,10 +32,65 @@ const columns = [
   { title: '更新时间', dataIndex: 'updated_at', key: 'updated_at', width: 200 },
 ];
 
+function getSortWeight(record: DashboardServerItem) {
+  const status = (record.status || '').toLowerCase();
+  if (['deleted', 'terminated'].includes(status)) {
+    return 3;
+  }
+
+  const expireTime = record.expires_at ? dayjs(record.expires_at) : null;
+  const now = dayjs();
+  if (expireTime?.isValid()) {
+    if (expireTime.isBefore(now)) {
+      return 0;
+    }
+    if (expireTime.isSame(now, 'day')) {
+      return 1;
+    }
+  }
+
+  if (!record.is_active) {
+    return 2;
+  }
+  return 2;
+}
+
+function getExpireSortValue(expiresAt: null | string) {
+  if (!expiresAt) {
+    return Number.POSITIVE_INFINITY;
+  }
+  const expireTime = dayjs(expiresAt);
+  if (!expireTime.isValid()) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return expireTime.valueOf();
+}
+
+function sortServerItems(records: DashboardServerItem[]) {
+  return [...records].sort((left, right) => {
+    const weightDiff = getSortWeight(left) - getSortWeight(right);
+    if (weightDiff !== 0) {
+      return weightDiff;
+    }
+
+    const expireDiff = getExpireSortValue(left.expires_at) - getExpireSortValue(right.expires_at);
+    if (expireDiff !== 0) {
+      return expireDiff;
+    }
+
+    return dayjs(right.updated_at).valueOf() - dayjs(left.updated_at).valueOf();
+  });
+}
+
 async function loadData() {
   loading.value = true;
   try {
-    items.value = await getDashboardServersApi({ keyword: keyword.value.trim() });
+    const records = await getDashboardServersApi({
+      keyword: keyword.value.trim(),
+      page_size: 500,
+      paginated: 0,
+    });
+    items.value = sortServerItems(records);
   } finally {
     loading.value = false;
   }
@@ -69,15 +121,44 @@ function goToCloudOrder(orderId: null | number, orderDetailPath?: string) {
   router.push(orderDetailPath).catch(() => {});
 }
 
+function formatTimeLeft(expiresAt: null | string) {
+  if (!expiresAt) {
+    return '-';
+  }
+
+  const expireTime = dayjs(expiresAt);
+  if (!expireTime.isValid()) {
+    return '-';
+  }
+
+  const now = dayjs();
+  const diffMinutes = expireTime.diff(now, 'minute');
+
+  if (diffMinutes < 0) {
+    return '已到期';
+  }
+  if (diffMinutes < 60) {
+    return diffMinutes === 0 ? '0 天' : `剩余 ${diffMinutes} 分钟`;
+  }
+
+  const diffHours = expireTime.diff(now, 'hour');
+  if (diffHours < 24) {
+    return `剩余 ${diffHours} 小时`;
+  }
+
+  const diffDays = expireTime.diff(now, 'day');
+  return `剩余 ${Math.max(diffDays, 0)} 天`;
+}
+
 onMounted(loadData);
 </script>
 
 <template>
-  <Page description="从真实服务器 API 查看同步后的服务器记录" title="服务列表">
+  <Page description="从真实服务器 API 查看同步后的服务器记录" title="服务器表">
     <Card>
       <template #title>
         <Space>
-          <span>服务数据</span>
+          <span>服务器数据</span>
           <Input.Search
             v-model:value="keyword"
             allow-clear
@@ -95,7 +176,7 @@ onMounted(loadData);
         :columns="columns"
         :data-source="items"
         :loading="loading"
-        :pagination="{ pageSize: 10 }"
+        :pagination="{ pageSize: 50, showSizeChanger: true, pageSizeOptions: [10, 20, 50, 100], showTotal: (total) => `共 ${total} 条` }"
         row-key="id"
         :scroll="{ x: 2100 }"
       >
@@ -106,17 +187,6 @@ onMounted(loadData);
           <template v-else-if="column.key === 'server_name'">
             <div>{{ record.server_name || '-' }}</div>
             <div class="text-xs text-gray-400">{{ record.instance_id || '-' }}</div>
-          </template>
-          <template v-else-if="column.key === 'provider'">
-            <Tag color="blue">{{ record.provider_label || record.provider || '-' }}</Tag>
-          </template>
-          <template v-else-if="column.key === 'source'">
-            <Tag color="purple">{{ record.source_label || record.source || '-' }}</Tag>
-          </template>
-          <template v-else-if="column.key === 'has_order'">
-            <Tag :color="record.order_no ? 'success' : 'default'">
-              {{ record.order_no ? '有订单' : '无订单' }}
-            </Tag>
           </template>
           <template v-else-if="column.key === 'order_no'">
             <Button
@@ -140,8 +210,8 @@ onMounted(loadData);
             </div>
           </template>
           <template v-else-if="column.key === 'expires_at'">
-            <div>{{ record.expires_at ? dayjs(record.expires_at).format('YYYY-MM-DD') : '待人工添加' }}</div>
-            <div class="text-xs text-gray-400">{{ typeof record.days_left === 'number' ? `剩余 ${record.days_left} 天` : '-' }}</div>
+            <div>{{ record.expires_at ? dayjs(record.expires_at).format('YYYY-MM-DD HH:mm') : '待人工添加' }}</div>
+            <div class="text-xs text-gray-400">{{ formatTimeLeft(record.expires_at) }}</div>
           </template>
         </template>
       </Table>

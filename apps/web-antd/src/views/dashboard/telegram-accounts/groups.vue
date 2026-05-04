@@ -38,6 +38,7 @@ const groups = ref<DashboardTelegramGroupFilterItem[]>([]);
 
 const form = reactive<DashboardTelegramGroupFilterPayload>({
   chat_id: '',
+  collapsed: false,
   enabled: false,
   title: '',
   username: '',
@@ -46,6 +47,7 @@ const form = reactive<DashboardTelegramGroupFilterPayload>({
 const columns: TableColumnsType<DashboardTelegramGroupFilterItem> = [
   { title: '群组', key: 'group' },
   { title: '转发给管理员', key: 'enabled', width: 160 },
+  { title: '绑定页显示', key: 'collapsed', width: 160 },
   { title: '更新时间', key: 'updated_at', width: 190 },
   { title: '操作', key: 'action', width: 100 },
 ];
@@ -53,6 +55,7 @@ const columns: TableColumnsType<DashboardTelegramGroupFilterItem> = [
 function resetForm() {
   current.value = null;
   form.chat_id = '';
+  form.collapsed = false;
   form.enabled = false;
   form.title = '';
   form.username = '';
@@ -82,6 +85,7 @@ function openCreate() {
 function openEdit(item: DashboardTelegramGroupFilterItem) {
   current.value = item;
   form.chat_id = item.chat_id;
+  form.collapsed = item.collapsed;
   form.enabled = item.enabled;
   form.title = item.title;
   form.username = item.username;
@@ -123,6 +127,23 @@ async function toggleEnabled(
     message.success(enabled ? '已开启群组转发' : '已关闭群组转发');
   } catch (error: any) {
     item.enabled = previous;
+    message.error(error?.message || '操作失败');
+  }
+}
+
+
+async function toggleCollapsed(
+  item: DashboardTelegramGroupFilterItem,
+  collapsed: boolean,
+) {
+  const previous = item.collapsed;
+  item.collapsed = collapsed;
+  try {
+    const updated = await updateDashboardTelegramGroupApi(item.id, { collapsed });
+    Object.assign(item, updated);
+    message.success(collapsed ? '已在绑定页隐藏群组' : '已在绑定页显示群组');
+  } catch (error: any) {
+    item.collapsed = previous;
     message.error(error?.message || '操作失败');
   }
 }
@@ -191,6 +212,20 @@ onMounted(() => loadData());
               "
             />
           </template>
+          <template v-else-if="column.key === 'collapsed'">
+            <Switch
+              :checked="!(record as DashboardTelegramGroupFilterItem).collapsed"
+              checked-children="显示"
+              un-checked-children="隐藏"
+              @change="
+                (checked) =>
+                  toggleCollapsed(
+                    record as DashboardTelegramGroupFilterItem,
+                    !Boolean(checked),
+                  )
+              "
+            />
+          </template>
           <template v-else-if="column.key === 'updated_at'">
             {{
               formatTime(
@@ -238,6 +273,14 @@ onMounted(() => loadData());
             v-model:checked="form.enabled"
             checked-children="开启"
             un-checked-children="关闭"
+          />
+        </Form.Item>
+        <Form.Item label="在绑定页显示">
+          <Switch
+            :checked="!form.collapsed"
+            checked-children="显示"
+            un-checked-children="隐藏"
+            @change="(checked) => (form.collapsed = !Boolean(checked))"
           />
         </Form.Item>
       </Form>

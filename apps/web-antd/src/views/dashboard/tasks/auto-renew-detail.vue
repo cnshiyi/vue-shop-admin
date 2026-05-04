@@ -23,10 +23,16 @@ import {
 } from 'ant-design-vue';
 import dayjs from 'dayjs';
 
-import { getDashboardAutoRenewTaskDetailApi } from '#/api/admin';
+import {
+  getDashboardAutoRenewTaskDetailApi,
+  runDashboardAutoRenewOrderApi,
+  runDashboardAutoRenewTasksApi,
+} from '#/api/admin';
 
 const router = useRouter();
 const loading = ref(false);
+const runningAll = ref(false);
+const runningOrderIds = reactive<Record<number, boolean>>({});
 const detail = ref<DashboardAutoRenewTaskDetail | null>(null);
 
 const dueColumns = [
@@ -64,7 +70,7 @@ const dueColumns = [
   },
   { title: '余额', dataIndex: 'balance', key: 'balance', width: 140 },
   { title: '计划', dataIndex: 'plan', key: 'plan', width: 220 },
-  { title: '操作', key: 'actions', width: 100, fixed: 'right' as const },
+  { title: '操作', key: 'actions', width: 180, fixed: 'right' as const },
 ];
 
 const historyColumns = [
@@ -153,15 +159,77 @@ function queueColor(status?: string) {
   return 'default';
 }
 
-async function loadData() {
-  loading.value = true;
+async function loadData(options?: { silent?: boolean }) {
+  if (!options?.silent) {
+    loading.value = true;
+  }
   try {
     detail.value = await getDashboardAutoRenewTaskDetailApi();
   } catch (error: any) {
-    message.error(error?.message || '自动续费任务详情加载失败');
+    message.error(error?.message || '续费列表加载失败');
     detail.value = null;
   } finally {
     loading.value = false;
+  }
+}
+
+async function runAllRenewals() {
+  if (runningAll.value) {
+    return;
+  }
+  runningAll.value = true;
+  message.loading({ content: '正在执行全部续费任务...', key: 'renew-run-all', duration: 0 });
+  try {
+    const result = await runDashboardAutoRenewTasksApi();
+    message.success({
+      content:
+        result.total > 0
+          ? `已执行 ${result.total} 条，成功 ${result.success_count}，失败 ${result.failure_count}`
+          : result.message || '当前没有可执行的续费任务',
+      key: 'renew-run-all',
+    });
+    await loadData({ silent: true });
+  } catch (error: any) {
+    message.error({
+      content: error?.message || '执行全部续费任务失败',
+      key: 'renew-run-all',
+    });
+  } finally {
+    runningAll.value = false;
+  }
+}
+
+async function runSingleRenewal(record: DashboardAutoRenewTaskDueItem) {
+  if (!record.order_id || runningOrderIds[record.order_id]) {
+    return;
+  }
+  runningOrderIds[record.order_id] = true;
+  message.loading({
+    content: `正在执行 ${record.ip || record.order_no} 的续费...`,
+    key: `renew-run-${record.order_id}`,
+    duration: 0,
+  });
+  try {
+    const result = await runDashboardAutoRenewOrderApi(record.order_id);
+    if (result.failure_count > 0) {
+      message.error({
+        content: result.items[0]?.error || '续费执行失败',
+        key: `renew-run-${record.order_id}`,
+      });
+    } else {
+      message.success({
+        content: '续费执行完成',
+        key: `renew-run-${record.order_id}`,
+      });
+    }
+    await loadData({ silent: true });
+  } catch (error: any) {
+    message.error({
+      content: error?.message || '执行续费失败',
+      key: `renew-run-${record.order_id}`,
+    });
+  } finally {
+    runningOrderIds[record.order_id] = false;
   }
 }
 
@@ -172,7 +240,7 @@ function openOrder(path: string) {
 }
 
 function goBack() {
-  router.push('/admin/tasks').catch(() => {});
+  router.push('/admin/cloud-orders/list').catch(() => {});
 }
 
 onMounted(loadData);
@@ -180,29 +248,33 @@ onMounted(loadData);
 
 <template>
   <Page
-    description="查看自动续费巡检的执行计划、待执行 IP 和历史记录"
-    title="自动续费任务详情"
+    description="独立查看续费列表结果，支持一键执行全部任务与单项续费"
+    title="续费列表"
   >
     <Space direction="vertical" style="width: 100%" :size="16">
       <Card :loading="loading">
         <template #title>
-          <Space>
-            <Button size="small" @click="goBack">返回任务列表</Button>
-            <span>{{ summary?.task_label || '自动续费巡检' }}</span>
+          <Space wrap>
+            <Button size="small" @click="goBack">返回云订单</Button>
+            <Button
+              type="primary"
+              size="small"
+              :loading="runningAll"
+              @click="runAllRenewals"
+            >
+              一键执行全部任务
+            </Button>
+            <span>{{ summary?.task_label || '续费列表' }}</span>
             <Tag color="processing">
-{{
-              summary?.status_label || '置顶任务'
-            }}
-</Tag>
+              {{ summary?.status_label || '置顶任务' }}
+            </Tag>
           </Space>
         </template>
 
         <Descriptions bordered :column="2" size="small">
           <Descriptions.Item label="任务名称">
-{{
-            summary?.task_label || '-'
-          }}
-</Descriptions.Item>
+            {{ summary?.task_label || '-' }}
+          </Descriptions.Item>
           <Descriptions.Item label="巡检频率">
             {{
               summary?.interval_minutes
@@ -235,28 +307,20 @@ onMounted(loadData);
       <Card title="本批次执行摘要">
         <Descriptions bordered :column="2" size="small">
           <Descriptions.Item label="批次号">
-{{
-            summary?.latest_batch_id || '-'
-          }}
-</Descriptions.Item>
+            {{ summary?.latest_batch_id || '-' }}
+          </Descriptions.Item>
           <Descriptions.Item label="总记录数">
-{{
-            summary?.latest_batch_count ?? 0
-          }}
-</Descriptions.Item>
+            {{ summary?.latest_batch_count ?? 0 }}
+          </Descriptions.Item>
           <Descriptions.Item label="成功数">
             <Tag color="success">
-{{
-              summary?.latest_batch_success_count ?? 0
-            }}
-</Tag>
+              {{ summary?.latest_batch_success_count ?? 0 }}
+            </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="失败数">
             <Tag color="error">
-{{
-              summary?.latest_batch_failure_count ?? 0
-            }}
-</Tag>
+              {{ summary?.latest_batch_failure_count ?? 0 }}
+            </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="失败 IP" :span="2">
             <template v-if="summary?.latest_failed_ips?.length">
@@ -265,9 +329,9 @@ onMounted(loadData);
                   v-for="ip in summary.latest_failed_ips"
                   :key="ip"
                   color="error"
-                  >
-{{ ip }}
-</Tag>
+                >
+                  {{ ip }}
+                </Tag>
               </Space>
             </template>
             <span v-else>-</span>
@@ -300,7 +364,7 @@ onMounted(loadData);
         </div>
       </Card>
 
-      <Card title="待执行 IP（含失败待重试）">
+      <Card title="待执行 IP（含失败待重试 / 过期兜底重试）">
         <Table
           :columns="dueColumns"
           :data-source="summary?.due_items || []"
@@ -379,9 +443,7 @@ onMounted(loadData);
               </div>
             </template>
             <template v-else-if="column.key === 'balance'">
-              {{
-                fmtValue((record as DashboardAutoRenewTaskDueItem).balance)
-              }}
+              {{ fmtValue((record as DashboardAutoRenewTaskDueItem).balance) }}
               USDT
             </template>
             <template v-else-if="column.key === 'service_expires_at'">
@@ -425,17 +487,31 @@ onMounted(loadData);
               </div>
             </template>
             <template v-else-if="column.key === 'actions'">
-              <Button
-                type="link"
-                size="small"
-                @click="
-                  openOrder(
-                    (record as DashboardAutoRenewTaskDueItem).related_path,
-                  )
-                "
-              >
-                订单详情
-              </Button>
+              <Space :size="4">
+                <Button
+                  type="link"
+                  size="small"
+                  :loading="
+                    runningOrderIds[
+                      (record as DashboardAutoRenewTaskDueItem).order_id
+                    ]
+                  "
+                  @click="runSingleRenewal(record as DashboardAutoRenewTaskDueItem)"
+                >
+                  执行续费
+                </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  @click="
+                    openOrder(
+                      (record as DashboardAutoRenewTaskDueItem).related_path,
+                    )
+                  "
+                >
+                  待执行IP详情
+                </Button>
+              </Space>
             </template>
           </template>
         </Table>
@@ -470,9 +546,7 @@ onMounted(loadData);
               </Tag>
             </template>
             <template v-else-if="column.key === 'balance'">
-              {{
-                fmtValue((record as DashboardAutoRenewTaskDueItem).balance)
-              }}
+              {{ fmtValue((record as DashboardAutoRenewTaskDueItem).balance) }}
               USDT
             </template>
             <template v-else-if="column.key === 'service_expires_at'">

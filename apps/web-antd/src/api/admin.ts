@@ -622,6 +622,7 @@ export interface DashboardCloudAccountConfigItem {
   external_account_id?: string;
   id: number;
   is_active: boolean;
+  shutdown_enabled: boolean;
   last_checked_at?: null | string;
   name: string;
   provider: string;
@@ -681,10 +682,38 @@ export interface DashboardCloudAccountCreatePayload {
   access_key: string;
   external_account_id?: string;
   is_active: boolean;
+  shutdown_enabled: boolean;
   name: string;
   provider: string;
   region_hint?: null | string;
   secret_key: string;
+}
+
+export interface DashboardCloudAccountLogItem {
+  action: string;
+  created_at: null | string;
+  error_message: string;
+  id: number;
+  is_success: boolean;
+  request_payload: string;
+  response_payload: string;
+  source: string;
+  source_label?: string;
+  target: string;
+}
+
+export interface DashboardCloudAccountDetail
+  extends DashboardCloudAccountConfigItem {
+  active_cloud_asset_count: number;
+  cloud_asset_count: number;
+  cloud_order_count: number;
+  created_at: null | string;
+  latest_failed_log_at: null | string;
+  latest_success_log_at: null | string;
+  recent_logs: DashboardCloudAccountLogItem[];
+  running_cloud_order_count: number;
+  sync_log_count: number;
+  updated_at: null | string;
 }
 
 export type DashboardCloudAccountUpdatePayload =
@@ -753,6 +782,7 @@ export interface DashboardTelegramMessageItem {
 
 export interface DashboardTelegramGroupFilterItem {
   chat_id: number;
+  collapsed: boolean;
   created_at: null | string;
   enabled: boolean;
   id: number;
@@ -763,6 +793,7 @@ export interface DashboardTelegramGroupFilterItem {
 
 export interface DashboardTelegramGroupFilterPayload {
   chat_id?: number | string;
+  collapsed?: boolean;
   enabled?: boolean;
   title?: string;
   username?: string;
@@ -874,6 +905,37 @@ export async function getDashboardTasksApi() {
 export async function getDashboardAutoRenewTaskDetailApi() {
   return requestClient.get<DashboardAutoRenewTaskDetail>(
     '/admin/tasks/auto-renew/',
+  );
+}
+
+export interface DashboardAutoRenewRunResultItem {
+  error?: null | string;
+  ip: string;
+  ok: boolean;
+  order_id: number;
+  order_no: string;
+  queue_status: string;
+  renewed_order_id: number;
+}
+
+export interface DashboardAutoRenewRunResult {
+  batch_id: string;
+  failure_count: number;
+  items: DashboardAutoRenewRunResultItem[];
+  message?: string;
+  success_count: number;
+  total: number;
+}
+
+export async function runDashboardAutoRenewTasksApi() {
+  return requestClient.post<DashboardAutoRenewRunResult>(
+    '/admin/tasks/auto-renew/run/',
+  );
+}
+
+export async function runDashboardAutoRenewOrderApi(orderId: number) {
+  return requestClient.post<DashboardAutoRenewRunResult>(
+    `/admin/tasks/auto-renew/orders/${orderId}/run/`,
   );
 }
 
@@ -1281,6 +1343,12 @@ export async function updateDashboardCloudAccountApi(
   return requestClient.post<DashboardCloudAccountConfigItem>(
     `/admin/settings/cloud-accounts/${accountId}/`,
     payload,
+  );
+}
+
+export async function getDashboardCloudAccountDetailApi(accountId: number) {
+  return requestClient.get<DashboardCloudAccountDetail>(
+    `/admin/settings/cloud-accounts/${accountId}/`,
   );
 }
 

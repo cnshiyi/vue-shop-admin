@@ -10,7 +10,7 @@ interface Props extends MenuProps {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  accordion: true,
+  accordion: false,
   menus: () => [],
 });
 

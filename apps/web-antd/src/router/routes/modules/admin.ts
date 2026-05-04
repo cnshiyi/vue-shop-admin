@@ -107,22 +107,40 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        name: 'DashboardServers',
+        path: 'servers',
+        component: () => import('#/views/dashboard/servers/index.vue'),
+        meta: {
+          icon: 'lucide:server',
+          title: '服务器表',
+        },
+      },
+      {
+        name: 'DashboardAutoRenewTaskDetail',
+        path: 'tasks/auto-renew',
+        component: () => import('#/views/dashboard/tasks/auto-renew-detail.vue'),
+        meta: {
+          icon: 'lucide:rotate-cw-square',
+          title: '续费列表',
+        },
+      },
+      {
+        name: 'DashboardCloudAccounts',
+        path: 'cloud-accounts',
+        component: () =>
+          import('#/views/dashboard/settings/cloud-accounts.vue'),
+        meta: {
+          icon: 'lucide:key-round',
+          title: '云账号设置',
+        },
+      },
+      {
         name: 'DashboardTasks',
         path: 'tasks',
         component: () => import('#/views/dashboard/tasks/index.vue'),
         meta: {
           icon: 'lucide:list-todo',
           title: '任务列表',
-        },
-      },
-      {
-        name: 'DashboardAutoRenewTaskDetail',
-        path: 'tasks/auto-renew',
-        component: () =>
-          import('#/views/dashboard/tasks/auto-renew-detail.vue'),
-        meta: {
-          hideInMenu: true,
-          title: '自动续费任务详情',
         },
       },
       {
@@ -191,7 +209,7 @@ const routes: RouteRecordRaw[] = [
             path: 'cloud-accounts',
             component: () =>
               import('#/views/dashboard/settings/cloud-accounts.vue'),
-            meta: { title: '云账号设置' },
+            meta: { hideInMenu: true, title: '云账号设置' },
           },
         ],
       },
@@ -220,6 +238,16 @@ const routes: RouteRecordRaw[] = [
             component: () => import('#/views/dashboard/cloud-orders/index.vue'),
             meta: {
               title: '订单列表',
+            },
+          },
+          {
+            name: 'DashboardCloudOrderRenewals',
+            path: 'renewals',
+            component: () =>
+              import('#/views/dashboard/tasks/auto-renew-detail.vue'),
+            meta: {
+              hideInMenu: true,
+              title: '续费列表',
             },
           },
           {

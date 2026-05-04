@@ -484,10 +484,12 @@ async function loadTelegramGroups() {
 }
 
 function telegramGroupOptions() {
-  return telegramGroups.value.map((item) => ({
-    label: `${item.title || item.chat_id}${item.username ? ` (@${item.username})` : ''}`,
-    value: item.id,
-  }));
+  return telegramGroups.value
+    .filter((item) => !item.collapsed)
+    .map((item) => ({
+      label: `${item.title || item.chat_id}${item.username ? ` (@${item.username})` : ''}`,
+      value: item.id,
+    }));
 }
 
 async function syncAssets() {

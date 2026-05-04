@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue';
 
 import { AuthenticationLoginExpiredModal } from '@vben/common-ui';
 import { useWatermark } from '@vben/hooks';
@@ -16,6 +16,50 @@ const accessStore = useAccessStore();
 const { destroyWatermark, updateWatermark } = useWatermark();
 
 const menus = computed(() => []);
+const AUTO_LOCK_IDLE_MS = 60 * 60 * 1000;
+
+let autoLockTimer: null | ReturnType<typeof window.setTimeout> = null;
+
+function clearAutoLockTimer() {
+  if (autoLockTimer !== null) {
+    window.clearTimeout(autoLockTimer);
+    autoLockTimer = null;
+  }
+}
+
+function triggerAutoLock() {
+  if (accessStore.isLockScreen || accessStore.loginExpired) {
+    return;
+  }
+  const password = accessStore.lockScreenPassword;
+  if (!password) {
+    return;
+  }
+  accessStore.lockScreen(password);
+}
+
+function resetAutoLockTimer() {
+  clearAutoLockTimer();
+  if (accessStore.isLockScreen || accessStore.loginExpired) {
+    return;
+  }
+  autoLockTimer = window.setTimeout(() => {
+    triggerAutoLock();
+  }, AUTO_LOCK_IDLE_MS);
+}
+
+function handleUserActivity() {
+  resetAutoLockTimer();
+}
+
+const autoLockEvents: Array<keyof WindowEventMap> = [
+  'click',
+  'keydown',
+  'mousemove',
+  'mousedown',
+  'scroll',
+  'touchstart',
+];
 
 const avatar = computed(() => {
   return userStore.userInfo?.avatar ?? preferences.app.defaultAvatar;
@@ -45,6 +89,32 @@ watch(
     immediate: true,
   },
 );
+
+watch(
+  () => [
+    accessStore.isLockScreen,
+    accessStore.loginExpired,
+    accessStore.lockScreenPassword,
+  ],
+  () => {
+    resetAutoLockTimer();
+  },
+  { immediate: true },
+);
+
+onMounted(() => {
+  for (const eventName of autoLockEvents) {
+    window.addEventListener(eventName, handleUserActivity, { passive: true });
+  }
+  resetAutoLockTimer();
+});
+
+onBeforeUnmount(() => {
+  clearAutoLockTimer();
+  for (const eventName of autoLockEvents) {
+    window.removeEventListener(eventName, handleUserActivity);
+  }
+});
 </script>
 
 <template>
