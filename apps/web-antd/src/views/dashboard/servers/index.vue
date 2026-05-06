@@ -1,17 +1,23 @@
 <script lang="ts" setup>
-import dayjs from 'dayjs';
+import type { DashboardServerItem } from '#/api/admin';
+
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Card, Input, Space, Table, Tag, message } from 'ant-design-vue';
-
 import {
-  getDashboardServersApi,
-  syncDashboardServersApi,
-  type DashboardServerItem,
-} from '#/api/admin';
+  Button,
+  Card,
+  Input,
+  message,
+  Space,
+  Table,
+  Tag,
+} from 'ant-design-vue';
+import dayjs from 'dayjs';
+
+import { getDashboardServersApi, syncDashboardServersApi } from '#/api/admin';
 
 const loading = ref(false);
 const syncing = ref(false);
@@ -20,11 +26,31 @@ const items = ref<DashboardServerItem[]>([]);
 const router = useRouter();
 
 const columns = [
-  { title: '用户', dataIndex: 'user_display_name', key: 'user_display_name', width: 180 },
-  { title: '用户名', dataIndex: 'username_label', key: 'username_label', width: 220 },
-  { title: '服务器名', dataIndex: 'server_name', key: 'server_name', width: 220 },
+  {
+    title: '用户',
+    dataIndex: 'user_display_name',
+    key: 'user_display_name',
+    width: 180,
+  },
+  {
+    title: '用户名',
+    dataIndex: 'username_label',
+    key: 'username_label',
+    width: 220,
+  },
+  {
+    title: '服务器名',
+    dataIndex: 'server_name',
+    key: 'server_name',
+    width: 220,
+  },
   { title: '状态', dataIndex: 'status', key: 'status', width: 140 },
-  { title: '账号ID', dataIndex: 'account_label', key: 'account_label', width: 160 },
+  {
+    title: '账号ID',
+    dataIndex: 'account_label',
+    key: 'account_label',
+    width: 160,
+  },
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 160 },
   { title: '公网 IP', dataIndex: 'public_ip', key: 'public_ip', width: 150 },
   { title: '关联订单', dataIndex: 'order_no', key: 'order_no', width: 220 },
@@ -67,13 +93,15 @@ function getExpireSortValue(expiresAt: null | string) {
 }
 
 function sortServerItems(records: DashboardServerItem[]) {
-  return [...records].sort((left, right) => {
+  return [...records].toSorted((left, right) => {
     const weightDiff = getSortWeight(left) - getSortWeight(right);
     if (weightDiff !== 0) {
       return weightDiff;
     }
 
-    const expireDiff = getExpireSortValue(left.expires_at) - getExpireSortValue(right.expires_at);
+    const expireDiff =
+      getExpireSortValue(left.expires_at) -
+      getExpireSortValue(right.expires_at);
     if (expireDiff !== 0) {
       return expireDiff;
     }
@@ -167,7 +195,9 @@ onMounted(loadData);
             style="width: 380px"
             @search="loadData"
           />
-          <Button size="small" :loading="syncing" @click="syncServers">同步服务器</Button>
+          <Button size="small" :loading="syncing" @click="syncServers">
+同步服务器
+</Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
         </Space>
@@ -176,7 +206,12 @@ onMounted(loadData);
         :columns="columns"
         :data-source="items"
         :loading="loading"
-        :pagination="{ pageSize: 50, showSizeChanger: true, pageSizeOptions: [10, 20, 50, 100], showTotal: (total) => `共 ${total} 条` }"
+        :pagination="{
+          pageSize: 50,
+          showSizeChanger: true,
+          pageSizeOptions: [10, 20, 50, 100],
+          showTotal: (total) => `共 ${total} 条`,
+        }"
         row-key="id"
         :scroll="{ x: 2100 }"
       >
@@ -186,7 +221,9 @@ onMounted(loadData);
           </template>
           <template v-else-if="column.key === 'server_name'">
             <div>{{ record.server_name || '-' }}</div>
-            <div class="text-xs text-gray-400">{{ record.instance_id || '-' }}</div>
+            <div class="text-xs text-gray-400">
+              {{ record.instance_id || '-' }}
+            </div>
           </template>
           <template v-else-if="column.key === 'order_no'">
             <Button
@@ -201,7 +238,16 @@ onMounted(loadData);
           </template>
           <template v-else-if="column.key === 'status'">
             <div>
-              <Tag :color="record.is_active ? 'success' : (record.status === 'deleted' || record.status === 'terminated' ? 'default' : 'warning')">
+              <Tag
+                :color="
+                  record.is_active
+                    ? 'success'
+                    : record.status === 'deleted' ||
+                        record.status === 'terminated'
+                      ? 'default'
+                      : 'warning'
+                "
+              >
                 {{ record.status_label || record.status || '-' }}
               </Tag>
             </div>
@@ -210,8 +256,16 @@ onMounted(loadData);
             </div>
           </template>
           <template v-else-if="column.key === 'expires_at'">
-            <div>{{ record.expires_at ? dayjs(record.expires_at).format('YYYY-MM-DD HH:mm') : '待人工添加' }}</div>
-            <div class="text-xs text-gray-400">{{ formatTimeLeft(record.expires_at) }}</div>
+            <div>
+              {{
+                record.expires_at
+                  ? dayjs(record.expires_at).format('YYYY-MM-DD HH:mm')
+                  : '待人工添加'
+              }}
+            </div>
+            <div class="text-xs text-gray-400">
+              {{ formatTimeLeft(record.expires_at) }}
+            </div>
           </template>
         </template>
       </Table>

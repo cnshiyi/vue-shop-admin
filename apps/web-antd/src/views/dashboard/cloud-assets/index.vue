@@ -38,6 +38,7 @@ import {
   getDashboardCloudAssetsSyncStatusApi,
   getDashboardTelegramGroupsApi,
   rebuildDashboardServerPreserveLinkApi,
+  syncDashboardCloudAssetStatusApi,
   syncDashboardCloudAssetsApi,
   toggleDashboardCloudAssetAutoRenewApi,
   updateDashboardCloudAssetApi,
@@ -51,6 +52,7 @@ const loading = ref(false);
 const saving = ref(false);
 const syncing = ref(false);
 const rebuildingServerId = ref<null | number>(null);
+const assetSyncingIds = ref<number[]>([]);
 const autoRenewSavingIds = ref<number[]>([]);
 const keyword = ref('');
 const grouped = ref(true);
@@ -324,7 +326,7 @@ const columns = [
     key: 'auto_renew_enabled',
     width: 130,
   },
-  { title: '操作', key: 'actions', fixed: 'right' as const, width: 180 },
+  { title: '操作', key: 'actions', fixed: 'right' as const, width: 220 },
 ];
 
 const assetTableColumns = computed(() => {
@@ -477,7 +479,9 @@ function resetSearch() {
 
 async function loadTelegramGroups() {
   try {
-    telegramGroups.value = await getDashboardTelegramGroupsApi();
+    telegramGroups.value = await getDashboardTelegramGroupsApi({
+      binding_only: true,
+    });
   } catch {
     telegramGroups.value = [];
   }
@@ -490,6 +494,27 @@ function telegramGroupOptions() {
       label: `${item.title || item.chat_id}${item.username ? ` (@${item.username})` : ''}`,
       value: item.id,
     }));
+}
+
+function isAssetSyncing(assetId: number) {
+  return assetSyncingIds.value.includes(assetId);
+}
+
+async function syncAssetStatus(record: DashboardCloudAssetItem) {
+  assetSyncingIds.value = [...assetSyncingIds.value, record.id];
+  try {
+    const result = await syncDashboardCloudAssetStatusApi(record.id);
+    await loadData();
+    if (result?.ok === false || result?.errors?.length) {
+      message.warning(`已尝试更新 ${record.public_ip || record.asset_name || `#${record.id}`}，但同步返回异常`);
+      return;
+    }
+    message.success(`已更新 ${record.public_ip || record.asset_name || `#${record.id}`} 的服务器状态`);
+  } catch (error: any) {
+    message.error(error?.message || '更新状态失败');
+  } finally {
+    assetSyncingIds.value = assetSyncingIds.value.filter((id) => id !== record.id);
+  }
 }
 
 async function syncAssets() {
@@ -1172,6 +1197,13 @@ onBeforeUnmount(() => {
                   </Button>
                   <Button
                     type="link"
+                    :loading="isAssetSyncing(record.id)"
+                    @click="syncAssetStatus(asDashboardCloudAssetItem(record))"
+                  >
+                    更新
+                  </Button>
+                  <Button
+                    type="link"
                     @click="openEdit(asDashboardCloudAssetItem(record))"
                   >
                     编辑
@@ -1427,6 +1459,13 @@ onBeforeUnmount(() => {
                 @click="openDetail(record as DashboardCloudAssetItem)"
               >
                 详情
+              </Button>
+              <Button
+                type="link"
+                :loading="isAssetSyncing(record.id)"
+                @click="syncAssetStatus(record as DashboardCloudAssetItem)"
+              >
+                更新
               </Button>
               <Button
                 type="link"

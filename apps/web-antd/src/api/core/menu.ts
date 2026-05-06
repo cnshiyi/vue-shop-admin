@@ -21,6 +21,10 @@ const routeComponentMap: Record<string, string> = {
   DashboardSettingsCloudAccounts:
     '/views/dashboard/settings/cloud-accounts.vue',
   DashboardSettingsDatabase: '/views/dashboard/settings/database.vue',
+  DashboardSettingsLifecycle: '/views/dashboard/settings/lifecycle.vue',
+  DashboardSettingsLogs: '/views/dashboard/settings/logs.vue',
+  DashboardSettingsNotifications: '/views/dashboard/settings/notifications.vue',
+  DashboardSettingsPayment: '/views/dashboard/settings/payment.vue',
   DashboardSettingsSystem: '/views/dashboard/settings/system.vue',
   DashboardSettingsTexts: '/views/dashboard/settings/texts.vue',
   DashboardTasks: '/views/dashboard/tasks/index.vue',

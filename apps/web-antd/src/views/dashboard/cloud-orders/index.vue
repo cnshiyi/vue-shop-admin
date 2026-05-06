@@ -274,7 +274,11 @@ async function deleteOrder(record: DashboardCloudOrderItem) {
           />
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
-          <Button size="small" type="primary" @click="router.push('/admin/tasks/auto-renew')">
+          <Button
+            size="small"
+            type="primary"
+            @click="router.push('/admin/tasks/auto-renew')"
+          >
             续费列表
           </Button>
         </Space>

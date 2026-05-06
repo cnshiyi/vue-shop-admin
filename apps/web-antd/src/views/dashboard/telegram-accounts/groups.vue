@@ -40,14 +40,16 @@ const form = reactive<DashboardTelegramGroupFilterPayload>({
   chat_id: '',
   collapsed: false,
   enabled: false,
+  push_enabled: false,
   title: '',
   username: '',
 });
 
 const columns: TableColumnsType<DashboardTelegramGroupFilterItem> = [
   { title: '群组', key: 'group' },
-  { title: '转发给管理员', key: 'enabled', width: 160 },
-  { title: '绑定页显示', key: 'collapsed', width: 160 },
+  { title: '转发给管理员', key: 'enabled', width: 140 },
+  { title: '推送', key: 'push_enabled', width: 120 },
+  { title: '绑定页显示', key: 'collapsed', width: 140 },
   { title: '更新时间', key: 'updated_at', width: 190 },
   { title: '操作', key: 'action', width: 100 },
 ];
@@ -57,6 +59,7 @@ function resetForm() {
   form.chat_id = '';
   form.collapsed = false;
   form.enabled = false;
+  form.push_enabled = false;
   form.title = '';
   form.username = '';
 }
@@ -87,6 +90,7 @@ function openEdit(item: DashboardTelegramGroupFilterItem) {
   form.chat_id = item.chat_id;
   form.collapsed = item.collapsed;
   form.enabled = item.enabled;
+  form.push_enabled = item.push_enabled;
   form.title = item.title;
   form.username = item.username;
   modalOpen.value = true;
@@ -131,6 +135,23 @@ async function toggleEnabled(
   }
 }
 
+async function togglePushEnabled(
+  item: DashboardTelegramGroupFilterItem,
+  pushEnabled: boolean,
+) {
+  const previous = item.push_enabled;
+  item.push_enabled = pushEnabled;
+  try {
+    const updated = await updateDashboardTelegramGroupApi(item.id, {
+      push_enabled: pushEnabled,
+    });
+    Object.assign(item, updated);
+    message.success(pushEnabled ? '已开启群组推送' : '已关闭群组推送');
+  } catch (error: any) {
+    item.push_enabled = previous;
+    message.error(error?.message || '操作失败');
+  }
+}
 
 async function toggleCollapsed(
   item: DashboardTelegramGroupFilterItem,
@@ -139,7 +160,9 @@ async function toggleCollapsed(
   const previous = item.collapsed;
   item.collapsed = collapsed;
   try {
-    const updated = await updateDashboardTelegramGroupApi(item.id, { collapsed });
+    const updated = await updateDashboardTelegramGroupApi(item.id, {
+      collapsed,
+    });
     Object.assign(item, updated);
     message.success(collapsed ? '已在绑定页隐藏群组' : '已在绑定页显示群组');
   } catch (error: any) {
@@ -153,7 +176,7 @@ onMounted(() => loadData());
 
 <template>
   <Page
-    description="控制哪些 Telegram 群组消息允许转发给管理员"
+    description="控制哪些 Telegram 群组消息允许转发给管理员，以及哪些群组允许监听推送"
     title="群组通知"
   >
     <Card :loading="loading" title="群组通知开关">
@@ -206,6 +229,20 @@ onMounted(() => loadData());
               @change="
                 (checked) =>
                   toggleEnabled(
+                    record as DashboardTelegramGroupFilterItem,
+                    Boolean(checked),
+                  )
+              "
+            />
+          </template>
+          <template v-else-if="column.key === 'push_enabled'">
+            <Switch
+              :checked="(record as DashboardTelegramGroupFilterItem).push_enabled"
+              checked-children="开启"
+              un-checked-children="关闭"
+              @change="
+                (checked) =>
+                  togglePushEnabled(
                     record as DashboardTelegramGroupFilterItem,
                     Boolean(checked),
                   )
@@ -271,6 +308,13 @@ onMounted(() => loadData());
         <Form.Item label="转发给管理员">
           <Switch
             v-model:checked="form.enabled"
+            checked-children="开启"
+            un-checked-children="关闭"
+          />
+        </Form.Item>
+        <Form.Item label="Bark 推送">
+          <Switch
+            v-model:checked="form.push_enabled"
             checked-children="开启"
             un-checked-children="关闭"
           />

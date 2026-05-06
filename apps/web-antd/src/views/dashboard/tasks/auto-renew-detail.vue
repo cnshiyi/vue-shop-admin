@@ -178,7 +178,11 @@ async function runAllRenewals() {
     return;
   }
   runningAll.value = true;
-  message.loading({ content: '正在执行全部续费任务...', key: 'renew-run-all', duration: 0 });
+  message.loading({
+    content: '正在执行全部续费任务...',
+    key: 'renew-run-all',
+    duration: 0,
+  });
   try {
     const result = await runDashboardAutoRenewTasksApi();
     message.success({
@@ -496,7 +500,9 @@ onMounted(loadData);
                       (record as DashboardAutoRenewTaskDueItem).order_id
                     ]
                   "
-                  @click="runSingleRenewal(record as DashboardAutoRenewTaskDueItem)"
+                  @click="
+                    runSingleRenewal(record as DashboardAutoRenewTaskDueItem)
+                  "
                 >
                   执行续费
                 </Button>

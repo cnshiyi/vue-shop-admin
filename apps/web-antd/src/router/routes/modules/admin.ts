@@ -118,7 +118,8 @@ const routes: RouteRecordRaw[] = [
       {
         name: 'DashboardAutoRenewTaskDetail',
         path: 'tasks/auto-renew',
-        component: () => import('#/views/dashboard/tasks/auto-renew-detail.vue'),
+        component: () =>
+          import('#/views/dashboard/tasks/auto-renew-detail.vue'),
         meta: {
           icon: 'lucide:rotate-cw-square',
           title: '续费列表',
@@ -185,6 +186,31 @@ const routes: RouteRecordRaw[] = [
             path: 'system',
             component: () => import('#/views/dashboard/settings/system.vue'),
             meta: { title: '系统设置' },
+          },
+          {
+            name: 'DashboardSettingsPayment',
+            path: 'payment',
+            component: () => import('#/views/dashboard/settings/payment.vue'),
+            meta: { title: '收款设置' },
+          },
+          {
+            name: 'DashboardSettingsLogs',
+            path: 'logs',
+            component: () => import('#/views/dashboard/settings/logs.vue'),
+            meta: { title: '日志设置' },
+          },
+          {
+            name: 'DashboardSettingsNotifications',
+            path: 'notifications',
+            component: () =>
+              import('#/views/dashboard/settings/notifications.vue'),
+            meta: { title: '通知设置' },
+          },
+          {
+            name: 'DashboardSettingsLifecycle',
+            path: 'lifecycle',
+            component: () => import('#/views/dashboard/settings/lifecycle.vue'),
+            meta: { title: '生命周期设置' },
           },
           {
             name: 'DashboardSettingsDatabase',

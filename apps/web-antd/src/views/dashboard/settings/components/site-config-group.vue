@@ -13,6 +13,7 @@ import {
   Alert,
   Button,
   Card,
+  Form,
   Input,
   message,
   Space,
@@ -23,6 +24,7 @@ import QRCode from 'qrcode';
 
 import {
   bindDashboardTotpApi,
+  changeDashboardMyPasswordApi,
   getDashboardSiteConfigGroupsApi,
   getDashboardSiteConfigsApi,
   initDashboardSiteConfigsApi,
@@ -33,6 +35,7 @@ import {
 const props = defineProps<{
   description?: string;
   groupKey: string;
+  showPasswordCard?: boolean;
   title: string;
 }>();
 
@@ -66,6 +69,12 @@ const totpToken = ref('');
 const totpOldToken = ref('');
 const totpGenerating = ref(false);
 const totpBinding = ref(false);
+const passwordSaving = ref(false);
+const passwordForm = reactive({
+  old_password: '',
+  new_password: '',
+  confirm_password: '',
+});
 
 function syncDrafts() {
   for (const item of items.value) {
@@ -154,6 +163,21 @@ async function generateTotpQrCode() {
     message.error(error?.message || '生成二维码失败，请确认当前动态码是否正确');
   } finally {
     totpGenerating.value = false;
+  }
+}
+
+async function savePassword() {
+  passwordSaving.value = true;
+  try {
+    await changeDashboardMyPasswordApi({ ...passwordForm });
+    message.success('密码修改成功，请重新登录');
+    passwordForm.old_password = '';
+    passwordForm.new_password = '';
+    passwordForm.confirm_password = '';
+  } catch (error: any) {
+    message.error(error?.message || '密码修改失败');
+  } finally {
+    passwordSaving.value = false;
   }
 }
 
@@ -266,6 +290,36 @@ onMounted(loadData);
       </Button>
       <Button :loading="loading" @click="loadData">刷新</Button>
     </Space>
+
+    <Card v-if="props.showPasswordCard" class="mb-4" :bordered="false">
+      <div class="config-title mb-3">后台密码设置</div>
+      <Form layout="vertical">
+        <Form.Item label="旧密码">
+          <Input.Password
+            v-model:value="passwordForm.old_password"
+            :visibility-toggle="true"
+            placeholder="请输入旧密码"
+          />
+        </Form.Item>
+        <Form.Item label="新密码">
+          <Input.Password
+            v-model:value="passwordForm.new_password"
+            :visibility-toggle="true"
+            placeholder="请输入新密码"
+          />
+        </Form.Item>
+        <Form.Item label="确认新密码">
+          <Input.Password
+            v-model:value="passwordForm.confirm_password"
+            :visibility-toggle="true"
+            placeholder="再次输入新密码"
+          />
+        </Form.Item>
+        <Button type="primary" :loading="passwordSaving" @click="savePassword">
+          保存新密码
+        </Button>
+      </Form>
+    </Card>
 
     <Card v-if="totpItem" class="mb-4" :bordered="false">
       <div class="totp-head">

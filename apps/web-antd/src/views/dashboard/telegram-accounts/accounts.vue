@@ -212,6 +212,22 @@ async function toggleNotify(accountId: number, notifyEnabled: boolean) {
   }
 }
 
+async function toggleListenerPush(
+  accountId: number,
+  listenerPushEnabled: boolean,
+) {
+  try {
+    await updateDashboardTelegramAccountNotifyApi(accountId, {
+      listener_push_enabled: listenerPushEnabled,
+    });
+    message.success(listenerPushEnabled ? '已开启监听推送' : '已关闭监听推送');
+    await loadData();
+  } catch (error: any) {
+    message.error(error?.message || '更新监听推送开关失败');
+    await loadData();
+  }
+}
+
 function prevLoginStep() {
   if (loginStep.value > 0) loginStep.value -= 1;
 }
@@ -249,6 +265,12 @@ onMounted(loadData);
                 size="small"
                 :checked="item.notify_enabled"
                 @change="(checked) => toggleNotify(item.id, !!checked)"
+              />
+              <span class="text-xs text-[var(--ant-color-text-description)]">监听推送</span>
+              <Switch
+                size="small"
+                :checked="item.listener_push_enabled"
+                @change="(checked) => toggleListenerPush(item.id, !!checked)"
               />
               <Tag :color="needsRelogin(item) ? 'error' : 'blue'">
                 {{ statusText(item.status) }}

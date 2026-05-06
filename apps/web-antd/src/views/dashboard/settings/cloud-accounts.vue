@@ -124,7 +124,12 @@ const columns: TableColumnsType<DashboardCloudAccountConfigItem> = [
     width: 260,
   },
   { title: '启用', dataIndex: 'is_active', key: 'is_active', width: 80 },
-  { title: '关机计划', dataIndex: 'shutdown_enabled', key: 'shutdown_enabled', width: 120 },
+  {
+    title: '关机计划',
+    dataIndex: 'shutdown_enabled',
+    key: 'shutdown_enabled',
+    width: 120,
+  },
   { title: '操作', key: 'actions', width: 280, fixed: 'right' as const },
 ];
 
@@ -333,7 +338,9 @@ onMounted(loadData);
             "
             checked-children="执行关机"
             :loading="
-              shutdownTogglingMap[(record as DashboardCloudAccountConfigItem).id]
+              shutdownTogglingMap[
+                (record as DashboardCloudAccountConfigItem).id
+              ]
             "
             un-checked-children="只同步"
             @change="
@@ -392,46 +399,138 @@ onMounted(loadData);
       </template>
     </Table>
 
-    <Drawer
-      v-model:open="detailOpen"
-      :width="980"
-      title="云账号详情"
-    >
+    <Drawer v-model:open="detailOpen" :width="980" title="云账号详情">
       <template v-if="detail">
         <Descriptions bordered :column="2" size="small" title="基础信息">
           <Descriptions.Item label="ID">{{ detail.id }}</Descriptions.Item>
-          <Descriptions.Item label="云厂商">{{ detail.provider_label || detail.provider }}</Descriptions.Item>
-          <Descriptions.Item label="备注">{{ detail.name || '-' }}</Descriptions.Item>
-          <Descriptions.Item label="账号ID">{{ detail.external_account_id || '-' }}</Descriptions.Item>
-          <Descriptions.Item label="默认地区">{{ detail.effective_region || '-' }}</Descriptions.Item>
+          <Descriptions.Item label="云厂商">
+{{
+            detail.provider_label || detail.provider
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="备注">
+{{
+            detail.name || '-'
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="账号ID">
+{{
+            detail.external_account_id || '-'
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="默认地区">
+{{
+            detail.effective_region || '-'
+          }}
+</Descriptions.Item>
           <Descriptions.Item label="巡检状态">
-            <Tag :color="detail.status === 'ok' ? 'success' : detail.status === 'error' ? 'error' : 'default'">
+            <Tag
+              :color="
+                detail.status === 'ok'
+                  ? 'success'
+                  : detail.status === 'error'
+                    ? 'error'
+                    : 'default'
+              "
+            >
               {{ detail.status_label || detail.status || '待检查' }}
             </Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="Access Key">{{ detail.access_key_preview || '-' }}</Descriptions.Item>
-          <Descriptions.Item label="Secret Key">{{ detail.secret_key_preview || '-' }}</Descriptions.Item>
-          <Descriptions.Item label="启用">{{ detail.is_active ? '是' : '否' }}</Descriptions.Item>
-          <Descriptions.Item label="关机计划">{{ detail.shutdown_enabled ? '执行关机' : '只同步' }}</Descriptions.Item>
-          <Descriptions.Item label="创建时间">{{ detail.created_at || '-' }}</Descriptions.Item>
-          <Descriptions.Item label="更新时间">{{ detail.updated_at || '-' }}</Descriptions.Item>
-          <Descriptions.Item label="最近巡检">{{ detail.last_checked_at || '-' }}</Descriptions.Item>
-          <Descriptions.Item label="状态说明" :span="2">{{ detail.status_note || '-' }}</Descriptions.Item>
+          <Descriptions.Item label="Access Key">
+{{
+            detail.access_key_preview || '-'
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="Secret Key">
+{{
+            detail.secret_key_preview || '-'
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="启用">
+{{
+            detail.is_active ? '是' : '否'
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="关机计划">
+{{
+            detail.shutdown_enabled ? '执行关机' : '只同步'
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="创建时间">
+{{
+            detail.created_at || '-'
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="更新时间">
+{{
+            detail.updated_at || '-'
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="最近巡检">
+{{
+            detail.last_checked_at || '-'
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="状态说明" :span="2">
+{{
+            detail.status_note || '-'
+          }}
+</Descriptions.Item>
         </Descriptions>
 
-        <Descriptions bordered :column="3" class="mt-4" size="small" title="关联统计">
-          <Descriptions.Item label="关联资产">{{ detail.cloud_asset_count }}</Descriptions.Item>
-          <Descriptions.Item label="活跃资产">{{ detail.active_cloud_asset_count }}</Descriptions.Item>
-          <Descriptions.Item label="关联订单">{{ detail.cloud_order_count }}</Descriptions.Item>
-          <Descriptions.Item label="运行中订单">{{ detail.running_cloud_order_count }}</Descriptions.Item>
-          <Descriptions.Item label="日志总数">{{ detail.sync_log_count }}</Descriptions.Item>
-          <Descriptions.Item label="最近成功">{{ detail.latest_success_log_at || '-' }}</Descriptions.Item>
-          <Descriptions.Item label="最近失败" :span="3">{{ detail.latest_failed_log_at || '-' }}</Descriptions.Item>
+        <Descriptions
+          bordered
+          :column="3"
+          class="mt-4"
+          size="small"
+          title="关联统计"
+        >
+          <Descriptions.Item label="关联资产">
+{{
+            detail.cloud_asset_count
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="活跃资产">
+{{
+            detail.active_cloud_asset_count
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="关联订单">
+{{
+            detail.cloud_order_count
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="运行中订单">
+{{
+            detail.running_cloud_order_count
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="日志总数">
+{{
+            detail.sync_log_count
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="最近成功">
+{{
+            detail.latest_success_log_at || '-'
+          }}
+</Descriptions.Item>
+          <Descriptions.Item label="最近失败" :span="3">
+{{
+            detail.latest_failed_log_at || '-'
+          }}
+</Descriptions.Item>
         </Descriptions>
 
         <div class="mt-4 flex items-center justify-between">
           <div class="text-base font-medium">执行日志</div>
-          <Button size="small" :loading="detailLoading" @click="openDetail(detail)">刷新日志</Button>
+          <Button
+            size="small"
+            :loading="detailLoading"
+            @click="openDetail(detail)"
+            >
+刷新日志
+</Button>
         </div>
         <Table
           class="mt-3"
@@ -453,17 +552,23 @@ onMounted(loadData);
           <template #expandedRowRender="{ record }">
             <Descriptions bordered :column="1" size="small">
               <Descriptions.Item label="错误信息">
-                <Typography.Paragraph class="!mb-0 whitespace-pre-wrap break-all font-mono">
+                <Typography.Paragraph
+                  class="!mb-0 whitespace-pre-wrap break-all font-mono"
+                >
                   {{ record.error_message || '-' }}
                 </Typography.Paragraph>
               </Descriptions.Item>
               <Descriptions.Item label="请求载荷">
-                <Typography.Paragraph class="!mb-0 whitespace-pre-wrap break-all font-mono">
+                <Typography.Paragraph
+                  class="!mb-0 whitespace-pre-wrap break-all font-mono"
+                >
                   {{ record.request_payload || '-' }}
                 </Typography.Paragraph>
               </Descriptions.Item>
               <Descriptions.Item label="响应载荷">
-                <Typography.Paragraph class="!mb-0 whitespace-pre-wrap break-all font-mono">
+                <Typography.Paragraph
+                  class="!mb-0 whitespace-pre-wrap break-all font-mono"
+                >
                   {{ record.response_payload || '-' }}
                 </Typography.Paragraph>
               </Descriptions.Item>

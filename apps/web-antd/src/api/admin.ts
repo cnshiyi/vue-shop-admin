@@ -702,8 +702,7 @@ export interface DashboardCloudAccountLogItem {
   target: string;
 }
 
-export interface DashboardCloudAccountDetail
-  extends DashboardCloudAccountConfigItem {
+export interface DashboardCloudAccountDetail extends DashboardCloudAccountConfigItem {
   active_cloud_asset_count: number;
   cloud_asset_count: number;
   cloud_order_count: number;
@@ -725,6 +724,7 @@ export interface DashboardTelegramLoginAccountItem {
   id: number;
   label: string;
   last_synced_at: null | string;
+  listener_push_enabled: boolean;
   note: string;
   notify_enabled: boolean;
   phone: string;
@@ -786,6 +786,7 @@ export interface DashboardTelegramGroupFilterItem {
   created_at: null | string;
   enabled: boolean;
   id: number;
+  push_enabled: boolean;
   title: string;
   updated_at: null | string;
   username: string;
@@ -795,6 +796,7 @@ export interface DashboardTelegramGroupFilterPayload {
   chat_id?: number | string;
   collapsed?: boolean;
   enabled?: boolean;
+  push_enabled?: boolean;
   title?: string;
   username?: string;
 }
@@ -1062,6 +1064,21 @@ export interface DashboardCloudAssetsSyncStatus {
   unattached_ip_count?: number;
 }
 
+export interface DashboardCloudAssetSyncResult {
+  account?: null | {
+    id: number;
+    label: string;
+    name: string;
+    provider: string;
+  };
+  asset?: DashboardCloudAssetItem | null;
+  errors?: string[];
+  logs?: string[];
+  ok?: boolean;
+  provider?: string;
+  region_code?: string;
+}
+
 export async function getDashboardCloudAssetsSyncStatusApi() {
   return requestClient.get<DashboardCloudAssetsSyncStatus>(
     '/admin/cloud-assets/sync-status/',
@@ -1122,6 +1139,12 @@ export async function toggleDashboardCloudAssetAutoRenewApi(
 
 export async function deleteDashboardServerApi(serverId: number) {
   return requestClient.post<boolean>(`/admin/servers/${serverId}/delete/`);
+}
+
+export async function syncDashboardCloudAssetStatusApi(assetId: number) {
+  return requestClient.post<DashboardCloudAssetSyncResult>(
+    `/admin/cloud-assets/${assetId}/sync/`,
+  );
 }
 
 export async function deleteDashboardCloudAssetApi(assetId: number) {
@@ -1399,7 +1422,10 @@ export async function checkDashboardTelegramAccountStatusApi(
 
 export async function updateDashboardTelegramAccountNotifyApi(
   accountId: number,
-  payload: { notify_enabled: boolean },
+  payload: {
+    listener_push_enabled?: boolean;
+    notify_enabled?: boolean;
+  },
 ) {
   return requestClient.post<DashboardTelegramLoginAccountItem>(
     `/admin/telegram/accounts/${accountId}/notify/`,
@@ -1463,7 +1489,7 @@ export async function updateDashboardTelegramChatArchiveApi(payload: {
 }
 
 export async function getDashboardTelegramGroupsApi(
-  params: DashboardListQuery = {},
+  params: (DashboardListQuery & { binding_only?: boolean }) = {},
 ) {
   return requestClient.get<DashboardTelegramGroupFilterItem[]>(
     '/admin/telegram/groups/',
