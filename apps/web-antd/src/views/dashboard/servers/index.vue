@@ -196,8 +196,8 @@ onMounted(loadData);
             @search="loadData"
           />
           <Button size="small" :loading="syncing" @click="syncServers">
-同步服务器
-</Button>
+            同步服务器
+          </Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
         </Space>

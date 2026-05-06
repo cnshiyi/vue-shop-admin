@@ -404,25 +404,17 @@ onMounted(loadData);
         <Descriptions bordered :column="2" size="small" title="基础信息">
           <Descriptions.Item label="ID">{{ detail.id }}</Descriptions.Item>
           <Descriptions.Item label="云厂商">
-{{
-            detail.provider_label || detail.provider
-          }}
-</Descriptions.Item>
+            {{ detail.provider_label || detail.provider }}
+          </Descriptions.Item>
           <Descriptions.Item label="备注">
-{{
-            detail.name || '-'
-          }}
-</Descriptions.Item>
+            {{ detail.name || '-' }}
+          </Descriptions.Item>
           <Descriptions.Item label="账号ID">
-{{
-            detail.external_account_id || '-'
-          }}
-</Descriptions.Item>
+            {{ detail.external_account_id || '-' }}
+          </Descriptions.Item>
           <Descriptions.Item label="默认地区">
-{{
-            detail.effective_region || '-'
-          }}
-</Descriptions.Item>
+            {{ detail.effective_region || '-' }}
+          </Descriptions.Item>
           <Descriptions.Item label="巡检状态">
             <Tag
               :color="
@@ -437,45 +429,29 @@ onMounted(loadData);
             </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="Access Key">
-{{
-            detail.access_key_preview || '-'
-          }}
-</Descriptions.Item>
+            {{ detail.access_key_preview || '-' }}
+          </Descriptions.Item>
           <Descriptions.Item label="Secret Key">
-{{
-            detail.secret_key_preview || '-'
-          }}
-</Descriptions.Item>
+            {{ detail.secret_key_preview || '-' }}
+          </Descriptions.Item>
           <Descriptions.Item label="启用">
-{{
-            detail.is_active ? '是' : '否'
-          }}
-</Descriptions.Item>
+            {{ detail.is_active ? '是' : '否' }}
+          </Descriptions.Item>
           <Descriptions.Item label="关机计划">
-{{
-            detail.shutdown_enabled ? '执行关机' : '只同步'
-          }}
-</Descriptions.Item>
+            {{ detail.shutdown_enabled ? '执行关机' : '只同步' }}
+          </Descriptions.Item>
           <Descriptions.Item label="创建时间">
-{{
-            detail.created_at || '-'
-          }}
-</Descriptions.Item>
+            {{ detail.created_at || '-' }}
+          </Descriptions.Item>
           <Descriptions.Item label="更新时间">
-{{
-            detail.updated_at || '-'
-          }}
-</Descriptions.Item>
+            {{ detail.updated_at || '-' }}
+          </Descriptions.Item>
           <Descriptions.Item label="最近巡检">
-{{
-            detail.last_checked_at || '-'
-          }}
-</Descriptions.Item>
+            {{ detail.last_checked_at || '-' }}
+          </Descriptions.Item>
           <Descriptions.Item label="状态说明" :span="2">
-{{
-            detail.status_note || '-'
-          }}
-</Descriptions.Item>
+            {{ detail.status_note || '-' }}
+          </Descriptions.Item>
         </Descriptions>
 
         <Descriptions
@@ -486,40 +462,26 @@ onMounted(loadData);
           title="关联统计"
         >
           <Descriptions.Item label="关联资产">
-{{
-            detail.cloud_asset_count
-          }}
-</Descriptions.Item>
+            {{ detail.cloud_asset_count }}
+          </Descriptions.Item>
           <Descriptions.Item label="活跃资产">
-{{
-            detail.active_cloud_asset_count
-          }}
-</Descriptions.Item>
+            {{ detail.active_cloud_asset_count }}
+          </Descriptions.Item>
           <Descriptions.Item label="关联订单">
-{{
-            detail.cloud_order_count
-          }}
-</Descriptions.Item>
+            {{ detail.cloud_order_count }}
+          </Descriptions.Item>
           <Descriptions.Item label="运行中订单">
-{{
-            detail.running_cloud_order_count
-          }}
-</Descriptions.Item>
+            {{ detail.running_cloud_order_count }}
+          </Descriptions.Item>
           <Descriptions.Item label="日志总数">
-{{
-            detail.sync_log_count
-          }}
-</Descriptions.Item>
+            {{ detail.sync_log_count }}
+          </Descriptions.Item>
           <Descriptions.Item label="最近成功">
-{{
-            detail.latest_success_log_at || '-'
-          }}
-</Descriptions.Item>
+            {{ detail.latest_success_log_at || '-' }}
+          </Descriptions.Item>
           <Descriptions.Item label="最近失败" :span="3">
-{{
-            detail.latest_failed_log_at || '-'
-          }}
-</Descriptions.Item>
+            {{ detail.latest_failed_log_at || '-' }}
+          </Descriptions.Item>
         </Descriptions>
 
         <div class="mt-4 flex items-center justify-between">
@@ -528,9 +490,9 @@ onMounted(loadData);
             size="small"
             :loading="detailLoading"
             @click="openDetail(detail)"
-            >
-刷新日志
-</Button>
+          >
+            刷新日志
+          </Button>
         </div>
         <Table
           class="mt-3"

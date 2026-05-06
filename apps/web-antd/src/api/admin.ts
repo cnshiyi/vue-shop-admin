@@ -1489,7 +1489,7 @@ export async function updateDashboardTelegramChatArchiveApi(payload: {
 }
 
 export async function getDashboardTelegramGroupsApi(
-  params: (DashboardListQuery & { binding_only?: boolean }) = {},
+  params: DashboardListQuery & { binding_only?: boolean } = {},
 ) {
   return requestClient.get<DashboardTelegramGroupFilterItem[]>(
     '/admin/telegram/groups/',

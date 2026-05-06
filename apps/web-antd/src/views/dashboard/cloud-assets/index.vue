@@ -38,8 +38,8 @@ import {
   getDashboardCloudAssetsSyncStatusApi,
   getDashboardTelegramGroupsApi,
   rebuildDashboardServerPreserveLinkApi,
-  syncDashboardCloudAssetStatusApi,
   syncDashboardCloudAssetsApi,
+  syncDashboardCloudAssetStatusApi,
   toggleDashboardCloudAssetAutoRenewApi,
   updateDashboardCloudAssetApi,
 } from '#/api/admin';
@@ -506,14 +506,20 @@ async function syncAssetStatus(record: DashboardCloudAssetItem) {
     const result = await syncDashboardCloudAssetStatusApi(record.id);
     await loadData();
     if (result?.ok === false || result?.errors?.length) {
-      message.warning(`已尝试更新 ${record.public_ip || record.asset_name || `#${record.id}`}，但同步返回异常`);
+      message.warning(
+        `已尝试更新 ${record.public_ip || record.asset_name || `#${record.id}`}，但同步返回异常`,
+      );
       return;
     }
-    message.success(`已更新 ${record.public_ip || record.asset_name || `#${record.id}`} 的服务器状态`);
+    message.success(
+      `已更新 ${record.public_ip || record.asset_name || `#${record.id}`} 的服务器状态`,
+    );
   } catch (error: any) {
     message.error(error?.message || '更新状态失败');
   } finally {
-    assetSyncingIds.value = assetSyncingIds.value.filter((id) => id !== record.id);
+    assetSyncingIds.value = assetSyncingIds.value.filter(
+      (id) => id !== record.id,
+    );
   }
 }
 

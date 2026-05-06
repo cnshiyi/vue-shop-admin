@@ -237,7 +237,9 @@ onMounted(() => loadData());
           </template>
           <template v-else-if="column.key === 'push_enabled'">
             <Switch
-              :checked="(record as DashboardTelegramGroupFilterItem).push_enabled"
+              :checked="
+                (record as DashboardTelegramGroupFilterItem).push_enabled
+              "
               checked-children="开启"
               un-checked-children="关闭"
               @change="
