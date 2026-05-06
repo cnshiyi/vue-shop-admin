@@ -792,6 +792,22 @@ export interface DashboardTelegramGroupFilterItem {
   username: string;
 }
 
+export interface DashboardTelegramGroupMemberItem {
+  display_label: string;
+  display_name: string;
+  first_name: string;
+  last_seen_at: null | string;
+  message_count: number;
+  tg_user_id: number;
+  username: string;
+}
+
+export interface DashboardTelegramGroupDetail {
+  group: DashboardTelegramGroupFilterItem;
+  members: DashboardTelegramGroupMemberItem[];
+  messages: DashboardTelegramMessageItem[];
+}
+
 export interface DashboardTelegramGroupFilterPayload {
   chat_id?: number | string;
   collapsed?: boolean;
@@ -1513,6 +1529,12 @@ export async function updateDashboardTelegramGroupApi(
   return requestClient.post<DashboardTelegramGroupFilterItem>(
     `/admin/telegram/groups/${groupId}/`,
     payload,
+  );
+}
+
+export async function getDashboardTelegramGroupDetailApi(groupId: number) {
+  return requestClient.get<DashboardTelegramGroupDetail>(
+    `/admin/telegram/groups/${groupId}/detail/`,
   );
 }
 

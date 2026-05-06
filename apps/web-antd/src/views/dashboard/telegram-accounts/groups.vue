@@ -2,8 +2,11 @@
 import type { TableColumnsType } from 'ant-design-vue';
 
 import type {
+  DashboardTelegramGroupDetail,
   DashboardTelegramGroupFilterItem,
   DashboardTelegramGroupFilterPayload,
+  DashboardTelegramGroupMemberItem,
+  DashboardTelegramMessageItem,
 } from '#/api/admin';
 
 import { onMounted, reactive, ref } from 'vue';
@@ -25,6 +28,7 @@ import {
 
 import {
   createDashboardTelegramGroupApi,
+  getDashboardTelegramGroupDetailApi,
   getDashboardTelegramGroupsApi,
   updateDashboardTelegramGroupApi,
 } from '#/api/admin';
@@ -35,6 +39,8 @@ const modalOpen = ref(false);
 const keyword = ref('');
 const current = ref<DashboardTelegramGroupFilterItem | null>(null);
 const groups = ref<DashboardTelegramGroupFilterItem[]>([]);
+const details = ref<Record<number, DashboardTelegramGroupDetail>>({});
+const detailLoading = ref<Record<number, boolean>>({});
 
 const form = reactive<DashboardTelegramGroupFilterPayload>({
   chat_id: '',
@@ -54,6 +60,18 @@ const columns: TableColumnsType<DashboardTelegramGroupFilterItem> = [
   { title: '操作', key: 'action', width: 100 },
 ];
 
+const memberColumns: TableColumnsType<DashboardTelegramGroupMemberItem> = [
+  { title: '成员', key: 'member' },
+  { title: '消息数', dataIndex: 'message_count', width: 100 },
+  { title: '最后出现', key: 'last_seen_at', width: 180 },
+];
+
+const messageColumns: TableColumnsType<DashboardTelegramMessageItem> = [
+  { title: '成员', key: 'sender', width: 220 },
+  { title: '内容', key: 'text' },
+  { title: '时间', key: 'created_at', width: 180 },
+];
+
 function resetForm() {
   current.value = null;
   form.chat_id = '';
@@ -67,6 +85,16 @@ function resetForm() {
 function formatTime(value?: null | string) {
   if (!value) return '-';
   return value.replace('T', ' ').slice(0, 19);
+}
+
+function senderLabel(item: DashboardTelegramMessageItem) {
+  const name = item.first_name_snapshot || item.username_snapshot || String(item.tg_user_id);
+  return `${name} (ID: ${item.tg_user_id})`;
+}
+
+function messageText(item: DashboardTelegramMessageItem) {
+  if (item.text) return item.text;
+  return `[${item.content_type || '非文本消息'}]`;
 }
 
 async function loadData() {
@@ -153,6 +181,23 @@ async function togglePushEnabled(
   }
 }
 
+async function loadGroupDetail(item: DashboardTelegramGroupFilterItem) {
+  if (details.value[item.id] || detailLoading.value[item.id]) return;
+  detailLoading.value = { ...detailLoading.value, [item.id]: true };
+  try {
+    const detail = await getDashboardTelegramGroupDetailApi(item.id);
+    details.value = { ...details.value, [item.id]: detail };
+  } catch (error: any) {
+    message.error(error?.message || '加载群组详情失败');
+  } finally {
+    detailLoading.value = { ...detailLoading.value, [item.id]: false };
+  }
+}
+
+function handleExpand(expanded: boolean, item: DashboardTelegramGroupFilterItem) {
+  if (expanded) loadGroupDetail(item);
+}
+
 async function toggleCollapsed(
   item: DashboardTelegramGroupFilterItem,
   collapsed: boolean,
@@ -200,7 +245,80 @@ onMounted(() => loadData());
         :pagination="false"
         row-key="id"
         size="middle"
+        @expand="handleExpand"
       >
+        <template #expandedRowRender="{ record }">
+          <div class="group-detail">
+            <Card
+              :loading="detailLoading[(record as DashboardTelegramGroupFilterItem).id]"
+              size="small"
+            >
+              <div
+                v-if="details[(record as DashboardTelegramGroupFilterItem).id]"
+                class="detail-grid"
+              >
+                <div>
+                  <div class="detail-title">
+                    群成员（按聊天记录聚合）
+                  </div>
+                  <Table
+                    :columns="memberColumns"
+                    :data-source="details[(record as DashboardTelegramGroupFilterItem).id]?.members || []"
+                    :pagination="false"
+                    row-key="tg_user_id"
+                    size="small"
+                  >
+                    <template #bodyCell="{ column: memberColumn, record: member }">
+                      <template v-if="memberColumn.key === 'member'">
+                        <div class="member-name">
+                          {{ (member as DashboardTelegramGroupMemberItem).display_label }}
+                        </div>
+                        <div
+                          v-if="(member as DashboardTelegramGroupMemberItem).username"
+                          class="group-meta"
+                        >
+                          @{{ (member as DashboardTelegramGroupMemberItem).username }}
+                        </div>
+                      </template>
+                      <template v-else-if="memberColumn.key === 'last_seen_at'">
+                        {{ formatTime((member as DashboardTelegramGroupMemberItem).last_seen_at) }}
+                      </template>
+                    </template>
+                  </Table>
+                </div>
+
+                <div>
+                  <div class="detail-title">最近聊天记录</div>
+                  <Table
+                    :columns="messageColumns"
+                    :data-source="details[(record as DashboardTelegramGroupFilterItem).id]?.messages || []"
+                    :pagination="false"
+                    row-key="id"
+                    size="small"
+                  >
+                    <template #bodyCell="{ column: messageColumn, record: chatMessage }">
+                      <template v-if="messageColumn.key === 'sender'">
+                        {{ senderLabel(chatMessage as DashboardTelegramMessageItem) }}
+                      </template>
+                      <template v-else-if="messageColumn.key === 'text'">
+                        <span class="message-text">
+                          {{ messageText(chatMessage as DashboardTelegramMessageItem) }}
+                        </span>
+                      </template>
+                      <template v-else-if="messageColumn.key === 'created_at'">
+                        {{ formatTime((chatMessage as DashboardTelegramMessageItem).created_at) }}
+                      </template>
+                    </template>
+                  </Table>
+                </div>
+              </div>
+              <div v-else class="empty-detail">
+                暂无群成员或聊天记录。只要个人号监听收到该群消息，就会在这里出现。
+              </div>
+            </Card>
+          </div>
+        </template>
+
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'group'">
             <div class="group-title">
@@ -344,6 +462,38 @@ onMounted(() => loadData());
   gap: 8px;
   align-items: center;
   margin-top: 4px;
+  color: hsl(var(--muted-foreground));
+}
+
+.group-detail {
+  padding: 8px 24px;
+  background: hsl(var(--muted) / 30%);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(360px, 1.2fr);
+  gap: 16px;
+}
+
+.detail-title {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.member-name {
+  font-weight: 500;
+}
+
+.message-text {
+  display: inline-block;
+  max-width: 520px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty-detail {
   color: hsl(var(--muted-foreground));
 }
 </style>

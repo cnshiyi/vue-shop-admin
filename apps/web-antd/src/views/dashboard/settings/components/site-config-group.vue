@@ -207,6 +207,8 @@ const switchConfigKeys = new Set([
   'cloud_renew_notice_debug_repeat',
   'scanner_block_log_enabled',
   'scanner_verbose',
+  'telegram_listener_push_enabled',
+  'telegram_listener_push_private_enabled',
   'text_init_enabled',
 ]);
 
@@ -225,6 +227,9 @@ const textInputConfigKeys = new Set([
   'fsm_state_ttl',
   'redis_db',
   'redis_port',
+  'telegram_listener_push_bark_encryption_algorithm',
+  'telegram_listener_push_bark_encryption_mode',
+  'telegram_listener_push_bark_encryption_padding',
 ]);
 
 function isSwitchConfig(item: DashboardSiteConfigGroupItem) {
