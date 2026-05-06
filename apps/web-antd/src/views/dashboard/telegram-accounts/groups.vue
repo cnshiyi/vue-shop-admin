@@ -88,7 +88,10 @@ function formatTime(value?: null | string) {
 }
 
 function senderLabel(item: DashboardTelegramMessageItem) {
-  const name = item.first_name_snapshot || item.username_snapshot || String(item.tg_user_id);
+  const name =
+    item.first_name_snapshot ||
+    item.username_snapshot ||
+    String(item.tg_user_id);
   return `${name} (ID: ${item.tg_user_id})`;
 }
 
@@ -194,7 +197,10 @@ async function loadGroupDetail(item: DashboardTelegramGroupFilterItem) {
   }
 }
 
-function handleExpand(expanded: boolean, item: DashboardTelegramGroupFilterItem) {
+function handleExpand(
+  expanded: boolean,
+  item: DashboardTelegramGroupFilterItem,
+) {
   if (expanded) loadGroupDetail(item);
 }
 
@@ -250,7 +256,9 @@ onMounted(() => loadData());
         <template #expandedRowRender="{ record }">
           <div class="group-detail">
             <Card
-              :loading="detailLoading[(record as DashboardTelegramGroupFilterItem).id]"
+              :loading="
+                detailLoading[(record as DashboardTelegramGroupFilterItem).id]
+              "
               size="small"
             >
               <div
@@ -258,30 +266,47 @@ onMounted(() => loadData());
                 class="detail-grid"
               >
                 <div>
-                  <div class="detail-title">
-                    群成员（按聊天记录聚合）
-                  </div>
+                  <div class="detail-title">群成员（按聊天记录聚合）</div>
                   <Table
                     :columns="memberColumns"
-                    :data-source="details[(record as DashboardTelegramGroupFilterItem).id]?.members || []"
+                    :data-source="
+                      details[(record as DashboardTelegramGroupFilterItem).id]
+                        ?.members || []
+                    "
                     :pagination="false"
                     row-key="tg_user_id"
                     size="small"
                   >
-                    <template #bodyCell="{ column: memberColumn, record: member }">
+                    <template
+                      #bodyCell="{ column: memberColumn, record: member }"
+                    >
                       <template v-if="memberColumn.key === 'member'">
                         <div class="member-name">
-                          {{ (member as DashboardTelegramGroupMemberItem).display_label }}
+                          {{
+                            (member as DashboardTelegramGroupMemberItem)
+                              .display_label
+                          }}
                         </div>
                         <div
-                          v-if="(member as DashboardTelegramGroupMemberItem).username"
+                          v-if="
+                            (member as DashboardTelegramGroupMemberItem)
+                              .username
+                          "
                           class="group-meta"
                         >
-                          @{{ (member as DashboardTelegramGroupMemberItem).username }}
+                          @{{
+                            (member as DashboardTelegramGroupMemberItem)
+                              .username
+                          }}
                         </div>
                       </template>
                       <template v-else-if="memberColumn.key === 'last_seen_at'">
-                        {{ formatTime((member as DashboardTelegramGroupMemberItem).last_seen_at) }}
+                        {{
+                          formatTime(
+                            (member as DashboardTelegramGroupMemberItem)
+                              .last_seen_at,
+                          )
+                        }}
                       </template>
                     </template>
                   </Table>
@@ -291,22 +316,40 @@ onMounted(() => loadData());
                   <div class="detail-title">最近聊天记录</div>
                   <Table
                     :columns="messageColumns"
-                    :data-source="details[(record as DashboardTelegramGroupFilterItem).id]?.messages || []"
+                    :data-source="
+                      details[(record as DashboardTelegramGroupFilterItem).id]
+                        ?.messages || []
+                    "
                     :pagination="false"
                     row-key="id"
                     size="small"
                   >
-                    <template #bodyCell="{ column: messageColumn, record: chatMessage }">
+                    <template
+                      #bodyCell="{ column: messageColumn, record: chatMessage }"
+                    >
                       <template v-if="messageColumn.key === 'sender'">
-                        {{ senderLabel(chatMessage as DashboardTelegramMessageItem) }}
+                        {{
+                          senderLabel(
+                            chatMessage as DashboardTelegramMessageItem,
+                          )
+                        }}
                       </template>
                       <template v-else-if="messageColumn.key === 'text'">
                         <span class="message-text">
-                          {{ messageText(chatMessage as DashboardTelegramMessageItem) }}
+                          {{
+                            messageText(
+                              chatMessage as DashboardTelegramMessageItem,
+                            )
+                          }}
                         </span>
                       </template>
                       <template v-else-if="messageColumn.key === 'created_at'">
-                        {{ formatTime((chatMessage as DashboardTelegramMessageItem).created_at) }}
+                        {{
+                          formatTime(
+                            (chatMessage as DashboardTelegramMessageItem)
+                              .created_at,
+                          )
+                        }}
                       </template>
                     </template>
                   </Table>
