@@ -227,9 +227,6 @@ const textInputConfigKeys = new Set([
   'fsm_state_ttl',
   'redis_db',
   'redis_port',
-  'telegram_listener_push_bark_encryption_algorithm',
-  'telegram_listener_push_bark_encryption_mode',
-  'telegram_listener_push_bark_encryption_padding',
 ]);
 
 function isSwitchConfig(item: DashboardSiteConfigGroupItem) {
