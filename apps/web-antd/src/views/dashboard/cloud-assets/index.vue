@@ -289,9 +289,19 @@ function assetPriceLabel(record: DashboardCloudAssetItem) {
 }
 
 const columns = [
-  { title: '用户', dataIndex: 'user_display_name', key: 'user_display_name' },
-  { title: '用户名', dataIndex: 'username_label', key: 'username_label' },
-  { title: '资产名称', dataIndex: 'asset_name', key: 'asset_name' },
+  {
+    title: '用户',
+    dataIndex: 'user_display_name',
+    key: 'user_display_name',
+    width: 150,
+  },
+  {
+    title: '用户名',
+    dataIndex: 'username_label',
+    key: 'username_label',
+    width: 180,
+  },
+  { title: '资产名称', dataIndex: 'asset_name', key: 'asset_name', width: 210 },
   {
     title: '排序',
     dataIndex: 'sort_order',
@@ -303,7 +313,12 @@ const columns = [
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 120 },
   { title: '公网IP', dataIndex: 'public_ip', key: 'public_ip', width: 140 },
   { title: '价格', dataIndex: 'price', key: 'price', width: 130 },
-  { title: '代理链接', dataIndex: 'mtproxy_link', key: 'mtproxy_link' },
+  {
+    title: '代理链接',
+    dataIndex: 'mtproxy_link',
+    key: 'mtproxy_link',
+    width: 320,
+  },
   { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
   {
     title: '剩余天数',
@@ -323,7 +338,7 @@ const columns = [
     key: 'auto_renew_enabled',
     width: 130,
   },
-  { title: '操作', key: 'actions', fixed: 'right' as const, width: 180 },
+  { title: '操作', key: 'actions', fixed: 'right' as const, width: 160 },
 ];
 
 const assetTableColumns = computed(() => {
@@ -926,12 +941,13 @@ onBeforeUnmount(() => {
             </Space>
           </template>
           <Table
+            class="cloud-assets-table"
             :columns="assetTableColumns"
             :data-source="group.items"
             :loading="loading"
             :pagination="false"
             row-key="id"
-            :scroll="{ x: 'max-content' }"
+            :scroll="{ x: 1420 }"
             size="small"
           >
             <template #bodyCell="{ column, record }">
@@ -1176,12 +1192,13 @@ onBeforeUnmount(() => {
 
       <Table
         v-else
+        class="cloud-assets-table"
         :columns="assetTableColumns"
         :data-source="items"
         :loading="loading"
         :pagination="{ pageSize: 10 }"
         row-key="id"
-        :scroll="{ x: 'max-content' }"
+        :scroll="{ x: 1420 }"
         size="small"
       >
         <template #bodyCell="{ column, record }">
@@ -1505,8 +1522,8 @@ onBeforeUnmount(() => {
 }
 
 .cloud-assets-search {
-  min-width: 180px;
   width: min(360px, 100%);
+  min-width: 180px;
 }
 
 .cloud-assets-actions {
@@ -1520,6 +1537,21 @@ onBeforeUnmount(() => {
 
 :deep(.ant-table-wrapper) {
   max-width: 100%;
+}
+
+.cloud-assets-table :deep(.ant-table) {
+  table-layout: fixed;
+}
+
+.cloud-assets-table :deep(.ant-table-cell) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cloud-assets-table :deep(.ant-typography) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .compact-cloud-assets :deep(.ant-collapse-header) {

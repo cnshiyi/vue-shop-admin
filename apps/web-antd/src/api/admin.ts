@@ -555,6 +555,7 @@ export interface DashboardAutoRenewTaskDueItem {
   ip_recycle_at: null | string;
   last_failure_reason?: null | string;
   next_run_at?: null | string;
+  order_id?: null | number;
   order_no: string;
   provider: string;
   provider_label?: string;

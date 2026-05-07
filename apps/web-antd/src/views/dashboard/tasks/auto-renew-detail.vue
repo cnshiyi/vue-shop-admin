@@ -111,10 +111,139 @@ const historyColumns = [
 ];
 
 const summary = computed(() => detail.value);
-const latestFailedIpsText = computed(() =>
-  (summary.value?.latest_failed_ips || []).join('、'),
-);
+const dueItems = computed(() => summary.value?.due_items || []);
+const futurePlanItems = computed(() => summary.value?.future_plan_items || []);
+const historyItems = computed(() => summary.value?.history_items || []);
+const latestFailedIps = computed(() => summary.value?.latest_failed_ips || []);
+const latestFailedIpsText = computed(() => latestFailedIps.value.join('、'));
 const expandedKeys = reactive<Record<string, boolean>>({});
+
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function asText(value: unknown, fallback = '') {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function asNumber(value: unknown, fallback = 0) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : fallback;
+}
+
+function normalizeDueItem(
+  item: Partial<DashboardAutoRenewTaskDueItem>,
+  index: number,
+): DashboardAutoRenewTaskDueItem {
+  const orderId = Number(item.order_id || 0) || null;
+  return {
+    auto_renew_at: item.auto_renew_at || null,
+    balance: item.balance || null,
+    delete_at: item.delete_at || null,
+    id: Number(item.id || orderId || index + 1),
+    ip: asText(item.ip, '-'),
+    ip_recycle_at: item.ip_recycle_at || null,
+    last_failure_reason: item.last_failure_reason || null,
+    next_run_at: item.next_run_at || null,
+    order_id: orderId,
+    order_no: asText(item.order_no, orderId ? `订单 ${orderId}` : '-'),
+    provider: asText(item.provider),
+    provider_label: asText(item.provider_label, asText(item.provider, '-')),
+    queue_status: asText(item.queue_status, 'unknown'),
+    queue_status_label: asText(item.queue_status_label, '-'),
+    related_path: asText(
+      item.related_path,
+      orderId ? `/admin/cloud-orders/${orderId}` : '',
+    ),
+    service_expires_at: item.service_expires_at || null,
+    status: asText(item.status),
+    status_label: asText(item.status_label, '-'),
+    suspend_at: item.suspend_at || null,
+    tg_user_id: Number(item.tg_user_id || 0) || null,
+    user_display_name: asText(item.user_display_name, '未绑定用户'),
+    user_id: Number(item.user_id || 0) || null,
+    username_label: asText(item.username_label, '-'),
+  };
+}
+
+function normalizeHistoryItem(
+  item: Partial<DashboardAutoRenewTaskHistoryItem>,
+  index: number,
+): DashboardAutoRenewTaskHistoryItem {
+  const orderId = Number(item.order_id || 0) || null;
+  return {
+    balance_after: item.balance_after || null,
+    balance_before: item.balance_before || null,
+    balance_change: item.balance_change || null,
+    batch_id: asText(item.batch_id, '-'),
+    currency: asText(item.currency, 'USDT'),
+    executed_at: item.executed_at || null,
+    failure_reason: item.failure_reason || null,
+    id: Number(item.id || orderId || index + 1),
+    ip: asText(item.ip, '-'),
+    is_success: Boolean(item.is_success),
+    order_id: orderId,
+    order_no: asText(item.order_no, orderId ? `订单 ${orderId}` : '-'),
+    provider: item.provider || null,
+    provider_label: asText(
+      item.provider_label,
+      asText(item.provider || '', '-'),
+    ),
+    related_path: asText(
+      item.related_path,
+      orderId ? `/admin/cloud-orders/${orderId}` : '',
+    ),
+    result_label: asText(item.result_label, item.is_success ? '成功' : '失败'),
+    service_expires_at: item.service_expires_at || null,
+    tg_user_id: Number(item.tg_user_id || 0) || null,
+    user_display_name: asText(item.user_display_name, '未绑定用户'),
+    user_id: Number(item.user_id || 0) || null,
+    username_label: asText(item.username_label, '-'),
+  };
+}
+
+function normalizeTaskDetail(value: unknown): DashboardAutoRenewTaskDetail {
+  const source = (value || {}) as Partial<DashboardAutoRenewTaskDetail>;
+  const due_items = asArray<Partial<DashboardAutoRenewTaskDueItem>>(
+    source.due_items,
+  ).map((item, index) => normalizeDueItem(item, index));
+  return {
+    due_count: asNumber(source.due_count, due_items.length),
+    due_items,
+    future_plan_items: asArray<Partial<DashboardAutoRenewTaskDueItem>>(
+      source.future_plan_items,
+    ).map((item, index) => normalizeDueItem(item, index)),
+    history_items: asArray<Partial<DashboardAutoRenewTaskHistoryItem>>(
+      source.history_items,
+    ).map((item, index) => normalizeHistoryItem(item, index)),
+    interval_minutes: asNumber(source.interval_minutes),
+    last_run_at: source.last_run_at || null,
+    latest_batch_count: asNumber(source.latest_batch_count),
+    latest_batch_failure_count: asNumber(source.latest_batch_failure_count),
+    latest_batch_id: asText(source.latest_batch_id),
+    latest_batch_success_count: asNumber(source.latest_batch_success_count),
+    latest_failed_ips: asArray<unknown>(source.latest_failed_ips)
+      .map((item) => String(item || '').trim())
+      .filter(Boolean),
+    next_run_at: source.next_run_at || null,
+    recent_failure_count: asNumber(source.recent_failure_count),
+    recent_success_count: asNumber(source.recent_success_count),
+    status_label: asText(source.status_label, '置顶任务'),
+    task_key: asText(source.task_key, 'auto_renew_patrol'),
+    task_label: asText(source.task_label, '续费列表'),
+  };
+}
+
+function renewRowKey(record: DashboardAutoRenewTaskDueItem, index?: number) {
+  return record.id || record.order_id || `${record.ip}-${index || 0}`;
+}
+
+function historyRowKey(
+  record: DashboardAutoRenewTaskHistoryItem,
+  index?: number,
+) {
+  return record.id || `${record.batch_id}-${record.order_no}-${index || 0}`;
+}
 
 function isExpanded(key: string) {
   return Boolean(expandedKeys[key]);
@@ -164,7 +293,9 @@ async function loadData(options?: { silent?: boolean }) {
     loading.value = true;
   }
   try {
-    detail.value = await getDashboardAutoRenewTaskDetailApi();
+    detail.value = normalizeTaskDetail(
+      await getDashboardAutoRenewTaskDetailApi(),
+    );
   } catch (error: any) {
     message.error(error?.message || '续费列表加载失败');
     detail.value = null;
@@ -203,37 +334,47 @@ async function runAllRenewals() {
   }
 }
 
+function dueOrderId(record: DashboardAutoRenewTaskDueItem) {
+  return Number(record.order_id || 0) || 0;
+}
+
+function isRenewRunning(record: DashboardAutoRenewTaskDueItem) {
+  const orderId = dueOrderId(record);
+  return orderId > 0 && Boolean(runningOrderIds[orderId]);
+}
+
 async function runSingleRenewal(record: DashboardAutoRenewTaskDueItem) {
-  if (!record.order_id || runningOrderIds[record.order_id]) {
+  const orderId = dueOrderId(record);
+  if (!orderId || runningOrderIds[orderId]) {
     return;
   }
-  runningOrderIds[record.order_id] = true;
+  runningOrderIds[orderId] = true;
   message.loading({
     content: `正在执行 ${record.ip || record.order_no} 的续费...`,
-    key: `renew-run-${record.order_id}`,
+    key: `renew-run-${orderId}`,
     duration: 0,
   });
   try {
-    const result = await runDashboardAutoRenewOrderApi(record.order_id);
+    const result = await runDashboardAutoRenewOrderApi(orderId);
     if (result.failure_count > 0) {
       message.error({
         content: result.items[0]?.error || '续费执行失败',
-        key: `renew-run-${record.order_id}`,
+        key: `renew-run-${orderId}`,
       });
     } else {
       message.success({
         content: '续费执行完成',
-        key: `renew-run-${record.order_id}`,
+        key: `renew-run-${orderId}`,
       });
     }
     await loadData({ silent: true });
   } catch (error: any) {
     message.error({
       content: error?.message || '执行续费失败',
-      key: `renew-run-${record.order_id}`,
+      key: `renew-run-${orderId}`,
     });
   } finally {
-    runningOrderIds[record.order_id] = false;
+    runningOrderIds[orderId] = false;
   }
 }
 
@@ -327,13 +468,9 @@ onMounted(loadData);
             </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="失败 IP" :span="2">
-            <template v-if="summary?.latest_failed_ips?.length">
+            <template v-if="latestFailedIps.length > 0">
               <Space wrap>
-                <Tag
-                  v-for="ip in summary.latest_failed_ips"
-                  :key="ip"
-                  color="error"
-                >
+                <Tag v-for="ip in latestFailedIps" :key="ip" color="error">
                   {{ ip }}
                 </Tag>
               </Space>
@@ -371,9 +508,9 @@ onMounted(loadData);
       <Card title="待执行 IP（含失败待重试 / 过期兜底重试）">
         <Table
           :columns="dueColumns"
-          :data-source="summary?.due_items || []"
+          :data-source="dueItems"
           :loading="loading"
-          row-key="id"
+          :row-key="renewRowKey"
           :pagination="false"
           :scroll="{ x: 1320 }"
         >
@@ -496,9 +633,10 @@ onMounted(loadData);
                   type="link"
                   size="small"
                   :loading="
-                    runningOrderIds[
-                      (record as DashboardAutoRenewTaskDueItem).order_id
-                    ]
+                    isRenewRunning(record as DashboardAutoRenewTaskDueItem)
+                  "
+                  :disabled="
+                    !dueOrderId(record as DashboardAutoRenewTaskDueItem)
                   "
                   @click="
                     runSingleRenewal(record as DashboardAutoRenewTaskDueItem)
@@ -522,7 +660,7 @@ onMounted(loadData);
           </template>
         </Table>
         <Empty
-          v-if="(summary?.due_items || []).length === 0 && !loading"
+          v-if="dueItems.length === 0 && !loading"
           description="当前没有待执行的自动续费任务"
         />
       </Card>
@@ -530,9 +668,9 @@ onMounted(loadData);
       <Card title="未来执行计划">
         <Table
           :columns="dueColumns"
-          :data-source="summary?.future_plan_items || []"
+          :data-source="futurePlanItems"
           :loading="loading"
-          row-key="id"
+          :row-key="renewRowKey"
           :pagination="{ pageSize: 8 }"
           :scroll="{ x: 1500 }"
         >
@@ -615,9 +753,9 @@ onMounted(loadData);
       <Card title="历史执行记录">
         <Table
           :columns="historyColumns"
-          :data-source="summary?.history_items || []"
+          :data-source="historyItems"
           :loading="loading"
-          row-key="id"
+          :row-key="historyRowKey"
           :pagination="{ pageSize: 10 }"
           :scroll="{ x: 1680 }"
         >
