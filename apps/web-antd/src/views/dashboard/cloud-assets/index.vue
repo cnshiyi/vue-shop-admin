@@ -301,7 +301,7 @@ const columns = [
     key: 'username_label',
     width: 180,
   },
-  { title: '资产名称', dataIndex: 'asset_name', key: 'asset_name', width: 210 },
+  { title: '资产名称', dataIndex: 'asset_name', key: 'asset_name', width: 150 },
   {
     title: '排序',
     dataIndex: 'sort_order',
@@ -338,7 +338,7 @@ const columns = [
     key: 'auto_renew_enabled',
     width: 130,
   },
-  { title: '操作', key: 'actions', fixed: 'right' as const, width: 160 },
+  { title: '操作', key: 'actions', fixed: 'right' as const, width: 210 },
 ];
 
 const assetTableColumns = computed(() => {
@@ -1157,7 +1157,7 @@ onBeforeUnmount(() => {
                 </Tag>
               </template>
               <template v-else-if="column.key === 'actions'">
-                <Space class="cloud-assets-actions" wrap>
+                <Space class="cloud-assets-actions" :wrap="false">
                   <Button
                     type="link"
                     @click="openDetail(asDashboardCloudAssetItem(record))"
@@ -1405,7 +1405,7 @@ onBeforeUnmount(() => {
             </Tag>
           </template>
           <template v-else-if="column.key === 'actions'">
-            <Space class="cloud-assets-actions" wrap>
+            <Space class="cloud-assets-actions" :wrap="false">
               <Button
                 type="link"
                 @click="openDetail(record as DashboardCloudAssetItem)"
@@ -1527,7 +1527,9 @@ onBeforeUnmount(() => {
 }
 
 .cloud-assets-actions {
+  flex-wrap: nowrap !important;
   row-gap: 0;
+  white-space: nowrap;
 }
 
 :deep(.ant-card-head-title) {
