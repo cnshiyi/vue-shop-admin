@@ -22,7 +22,6 @@ import {
   message,
   Modal,
   Popconfirm,
-  Progress,
   Select,
   Space,
   Switch,
@@ -37,7 +36,6 @@ import {
   getDashboardCloudAssetsPageApi,
   getDashboardCloudAssetsSyncStatusApi,
   getDashboardTelegramGroupsApi,
-  rebuildDashboardServerPreserveLinkApi,
   syncDashboardCloudAssetsApi,
   syncDashboardCloudAssetStatusApi,
   toggleDashboardCloudAssetAutoRenewApi,
@@ -51,7 +49,6 @@ const router = useRouter();
 const loading = ref(false);
 const saving = ref(false);
 const syncing = ref(false);
-const rebuildingServerId = ref<null | number>(null);
 const assetSyncingIds = ref<number[]>([]);
 const autoRenewSavingIds = ref<number[]>([]);
 const keyword = ref('');
@@ -504,7 +501,9 @@ async function syncAssetStatus(record: DashboardCloudAssetItem) {
   assetSyncingIds.value = [...assetSyncingIds.value, record.id];
   try {
     const result = await syncDashboardCloudAssetStatusApi(record.id);
-    await loadData();
+    if (result?.asset) {
+      replaceAssetInList(result.asset);
+    }
     if (result?.ok === false || result?.errors?.length) {
       message.warning(
         `已尝试更新 ${record.public_ip || record.asset_name || `#${record.id}`}，但同步返回异常`,
@@ -659,35 +658,6 @@ function countdownTagColor(label?: null | string) {
 
 function sortOrderTagColor(sortOrder?: number) {
   return (sortOrder || 99) === 99 ? 'default' : 'success';
-}
-
-function canRebuildPreserveLink(record: DashboardCloudAssetItem) {
-  return (
-    record.kind === 'server' &&
-    record.provider === 'aws_lightsail' &&
-    !!record.server_id &&
-    !!record.order_id &&
-    record.status !== 'deleted'
-  );
-}
-
-async function rebuildPreserveLink(record: DashboardCloudAssetItem) {
-  if (!record.server_id) {
-    message.error('当前记录缺少服务器ID');
-    return;
-  }
-  rebuildingServerId.value = record.server_id;
-  try {
-    const result = await rebuildDashboardServerPreserveLinkApi(
-      record.server_id,
-    );
-    message.success(result.message || '已发起重装迁移');
-    await loadData();
-  } catch (error: any) {
-    message.error(error?.message || '发起重装迁移失败');
-  } finally {
-    rebuildingServerId.value = null;
-  }
 }
 
 function isAutoRenewSaving(id: number) {
@@ -904,29 +874,6 @@ onBeforeUnmount(() => {
           <Tag color="blue">
             最后刷新：{{ formatRefreshTime(lastRefreshedAt) }}
           </Tag>
-          <template v-if="!loadProgress.done || loadProgress.total">
-            <Progress
-              :percent="
-                loadProgress.total
-                  ? Math.min(
-                      100,
-                      Math.round(
-                        (loadProgress.loaded / loadProgress.total) * 100,
-                      ),
-                    )
-                  : 0
-              "
-              :show-info="false"
-              size="small"
-              style="width: 180px"
-            />
-            <Tag color="green">
-              {{ loadProgress.loaded }}/{{ loadProgress.total }}
-            </Tag>
-            <Tag color="orange">
-              剩余 {{ Math.max(loadProgress.total - loadProgress.loaded, 0) }}
-            </Tag>
-          </template>
           <Tag
             v-if="lastSyncedAt"
             :color="recentSyncHighlight ? 'success' : 'cyan'"
@@ -1203,35 +1150,17 @@ onBeforeUnmount(() => {
                   </Button>
                   <Button
                     type="link"
+                    @click="openEdit(asDashboardCloudAssetItem(record))"
+                  >
+                    编辑
+                  </Button>
+                  <Button
+                    type="link"
                     :loading="isAssetSyncing(record.id)"
                     @click="syncAssetStatus(asDashboardCloudAssetItem(record))"
                   >
                     更新
                   </Button>
-                  <Button
-                    type="link"
-                    @click="openEdit(asDashboardCloudAssetItem(record))"
-                  >
-                    编辑
-                  </Button>
-                  <Popconfirm
-                    v-if="
-                      canRebuildPreserveLink(asDashboardCloudAssetItem(record))
-                    "
-                    title="确认按 AWS 方案重装并保持链接不变吗？系统会后台创建新实例、切换固定 IP、复用 MTProxy 密钥，成功后删除旧实例。"
-                    @confirm="
-                      rebuildPreserveLink(asDashboardCloudAssetItem(record))
-                    "
-                  >
-                    <Button
-                      type="link"
-                      :loading="
-                        rebuildingServerId === (record.server_id || null)
-                      "
-                    >
-                      重装
-                    </Button>
-                  </Popconfirm>
                   <Popconfirm
                     title="确认只删除代理列表记录吗？不会删除真实云服务器；后续同步会按云上真实状态重新拉回。"
                     @confirm="deleteAsset(asDashboardCloudAssetItem(record))"
@@ -1468,31 +1397,17 @@ onBeforeUnmount(() => {
               </Button>
               <Button
                 type="link"
+                @click="openEdit(record as DashboardCloudAssetItem)"
+              >
+                编辑
+              </Button>
+              <Button
+                type="link"
                 :loading="isAssetSyncing(record.id)"
                 @click="syncAssetStatus(record as DashboardCloudAssetItem)"
               >
                 更新
               </Button>
-              <Button
-                type="link"
-                @click="openEdit(record as DashboardCloudAssetItem)"
-              >
-                编辑
-              </Button>
-              <Popconfirm
-                v-if="canRebuildPreserveLink(record as DashboardCloudAssetItem)"
-                title="确认按 AWS 方案重装并保持链接不变吗？系统会后台创建新实例、切换固定 IP、复用 MTProxy 密钥，成功后删除旧实例。"
-                @confirm="
-                  rebuildPreserveLink(record as DashboardCloudAssetItem)
-                "
-              >
-                <Button
-                  type="link"
-                  :loading="rebuildingServerId === (record.server_id || null)"
-                >
-                  重装
-                </Button>
-              </Popconfirm>
               <Popconfirm
                 title="确认只删除代理列表记录吗？不会删除真实云服务器；后续同步会按云上真实状态重新拉回。"
                 @confirm="deleteAsset(record as DashboardCloudAssetItem)"
