@@ -323,7 +323,7 @@ const columns = [
     key: 'auto_renew_enabled',
     width: 130,
   },
-  { title: '操作', key: 'actions', fixed: 'right' as const, width: 220 },
+  { title: '操作', key: 'actions', fixed: 'right' as const, width: 180 },
 ];
 
 const assetTableColumns = computed(() => {
@@ -853,14 +853,14 @@ onBeforeUnmount(() => {
   >
     <Card>
       <template #title>
-        <Space>
+        <Space class="cloud-assets-toolbar" wrap>
           <span>代理数据</span>
           <Input.Search
             v-model:value="keyword"
             allow-clear
+            class="cloud-assets-search"
             enter-button="搜索"
             placeholder="搜索用户、用户名、IP、代理链接"
-            style="width: 360px"
             @search="loadData"
           />
           <Button size="small" :loading="syncing" @click="syncAssets">
@@ -931,7 +931,7 @@ onBeforeUnmount(() => {
             :loading="loading"
             :pagination="false"
             row-key="id"
-            :scroll="{ x: 1200 }"
+            :scroll="{ x: 'max-content' }"
             size="small"
           >
             <template #bodyCell="{ column, record }">
@@ -1141,7 +1141,7 @@ onBeforeUnmount(() => {
                 </Tag>
               </template>
               <template v-else-if="column.key === 'actions'">
-                <Space>
+                <Space class="cloud-assets-actions" wrap>
                   <Button
                     type="link"
                     @click="openDetail(asDashboardCloudAssetItem(record))"
@@ -1181,7 +1181,7 @@ onBeforeUnmount(() => {
         :loading="loading"
         :pagination="{ pageSize: 10 }"
         row-key="id"
-        :scroll="{ x: 1200 }"
+        :scroll="{ x: 'max-content' }"
         size="small"
       >
         <template #bodyCell="{ column, record }">
@@ -1388,7 +1388,7 @@ onBeforeUnmount(() => {
             </Tag>
           </template>
           <template v-else-if="column.key === 'actions'">
-            <Space>
+            <Space class="cloud-assets-actions" wrap>
               <Button
                 type="link"
                 @click="openDetail(record as DashboardCloudAssetItem)"
@@ -1424,7 +1424,7 @@ onBeforeUnmount(() => {
       v-model:open="editOpen"
       :confirm-loading="saving"
       title="编辑代理"
-      width="720px"
+      width="min(720px, calc(100vw - 32px))"
       @ok="submitEdit"
     >
       <Form layout="vertical">
@@ -1499,6 +1499,29 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.cloud-assets-toolbar {
+  row-gap: 8px;
+  width: 100%;
+}
+
+.cloud-assets-search {
+  min-width: 180px;
+  width: min(360px, 100%);
+}
+
+.cloud-assets-actions {
+  row-gap: 0;
+}
+
+:deep(.ant-card-head-title) {
+  min-width: 0;
+  white-space: normal;
+}
+
+:deep(.ant-table-wrapper) {
+  max-width: 100%;
+}
+
 .compact-cloud-assets :deep(.ant-collapse-header) {
   padding: 6px 12px !important;
 }
