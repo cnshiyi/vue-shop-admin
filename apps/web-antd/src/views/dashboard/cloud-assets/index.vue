@@ -332,6 +332,7 @@ const columns = [
     key: 'actual_expires_at',
     width: 130,
   },
+  { title: '备注', dataIndex: 'note', key: 'note', width: 150 },
   {
     title: '自动续费',
     dataIndex: 'auto_renew_enabled',
@@ -947,7 +948,7 @@ onBeforeUnmount(() => {
             :loading="loading"
             :pagination="false"
             row-key="id"
-            :scroll="{ x: 1420 }"
+            :scroll="{ x: 2150 }"
             size="small"
           >
             <template #bodyCell="{ column, record }">
@@ -1198,7 +1199,7 @@ onBeforeUnmount(() => {
         :loading="loading"
         :pagination="{ pageSize: 10 }"
         row-key="id"
-        :scroll="{ x: 1420 }"
+        :scroll="{ x: 2150 }"
         size="small"
       >
         <template #bodyCell="{ column, record }">
