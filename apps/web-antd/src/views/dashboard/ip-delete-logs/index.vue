@@ -37,11 +37,36 @@ const filteredItems = computed(() => {
 
 const columns: TableColumnsType<DashboardUnattachedIpDeletePlan> = [
   { title: 'IP', dataIndex: 'public_ip', key: 'public_ip', width: 150 },
-  { title: '固定IP名/资产名', dataIndex: 'asset_name', key: 'asset_name', width: 220 },
-  { title: '状态', dataIndex: 'provider_status', key: 'provider_status', width: 160 },
-  { title: '用户', dataIndex: 'user_display_name', key: 'user_display_name', width: 170 },
-  { title: '用户名', dataIndex: 'username_label', key: 'username_label', width: 170 },
-  { title: '服务到期/发现时间', dataIndex: 'service_expires_at', key: 'service_expires_at', width: 190 },
+  {
+    title: '固定IP名/资产名',
+    dataIndex: 'asset_name',
+    key: 'asset_name',
+    width: 220,
+  },
+  {
+    title: '状态',
+    dataIndex: 'provider_status',
+    key: 'provider_status',
+    width: 160,
+  },
+  {
+    title: '用户',
+    dataIndex: 'user_display_name',
+    key: 'user_display_name',
+    width: 170,
+  },
+  {
+    title: '用户名',
+    dataIndex: 'username_label',
+    key: 'username_label',
+    width: 170,
+  },
+  {
+    title: '服务到期/发现时间',
+    dataIndex: 'service_expires_at',
+    key: 'service_expires_at',
+    width: 190,
+  },
   { title: 'IP删除时间', dataIndex: 'delete_at', key: 'delete_at', width: 190 },
   { title: '说明', dataIndex: 'note', key: 'note', width: 420 },
   { title: '操作', key: 'actions', fixed: 'right', width: 110 },
@@ -144,7 +169,9 @@ onMounted(loadData);
               v-if="record.asset_detail_path || record.detail_path"
               type="link"
               size="small"
-              @click="openDetail(record.asset_detail_path || record.detail_path)"
+              @click="
+                openDetail(record.asset_detail_path || record.detail_path)
+              "
             >
               资产详情
             </Button>
