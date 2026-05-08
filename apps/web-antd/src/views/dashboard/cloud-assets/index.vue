@@ -977,17 +977,20 @@ onBeforeUnmount(() => {
             placeholder="搜索用户、用户名、IP、代理链接"
             @search="loadData"
           />
+          <Space size="small">
+            <span class="cloud-assets-sort-label">总排序</span>
+            <Select
+              v-model:value="totalSortMode"
+              :options="totalSortOptions"
+              style="width: 170px"
+              @change="loadData"
+            />
+          </Space>
           <Button size="small" :loading="syncing" @click="syncAssets">
             同步代理
           </Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
-          <Select
-            v-model:value="totalSortMode"
-            :options="totalSortOptions"
-            style="width: 150px"
-            @change="loadData"
-          />
           <Tag v-if="syncing" color="processing">同步中…</Tag>
           <Tag v-else-if="loading" color="processing">刷新中…</Tag>
           <Tag v-else-if="loadingMore" color="processing">继续加载中…</Tag>
@@ -1649,6 +1652,12 @@ onBeforeUnmount(() => {
 .cloud-assets-search {
   width: min(360px, 100%);
   min-width: 180px;
+}
+
+.cloud-assets-sort-label {
+  color: rgb(100 116 139);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .cloud-assets-actions {
