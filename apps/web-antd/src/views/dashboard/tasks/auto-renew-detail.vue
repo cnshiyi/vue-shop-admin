@@ -1,5 +1,7 @@
 <script lang="ts" setup>
 import type {
+  DashboardAutoRenewRunResult,
+  DashboardAutoRenewRunResultItem,
   DashboardAutoRenewTaskDetail,
   DashboardAutoRenewTaskDueItem,
   DashboardAutoRenewTaskHistoryItem,
@@ -11,11 +13,13 @@ import { useRouter } from 'vue-router';
 import { Page } from '@vben/common-ui';
 
 import {
+  Alert,
   Button,
   Card,
   Descriptions,
   Empty,
   message,
+  Modal,
   Space,
   Table,
   Tag,
@@ -34,6 +38,8 @@ const loading = ref(false);
 const runningAll = ref(false);
 const runningOrderIds = reactive<Record<number, boolean>>({});
 const detail = ref<DashboardAutoRenewTaskDetail | null>(null);
+const lastRunResult = ref<DashboardAutoRenewRunResult | null>(null);
+const failurePanelOpen = ref(false);
 
 const dueColumns = [
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
@@ -71,6 +77,13 @@ const dueColumns = [
   { title: '余额', dataIndex: 'balance', key: 'balance', width: 140 },
   { title: '计划', dataIndex: 'plan', key: 'plan', width: 220 },
   { title: '操作', key: 'actions', width: 180, fixed: 'right' as const },
+];
+
+const failureColumns = [
+  { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
+  { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 190 },
+  { title: '队列状态', dataIndex: 'queue_status', key: 'queue_status', width: 140 },
+  { title: '失败原因', dataIndex: 'error', key: 'error', width: 420 },
 ];
 
 const historyColumns = [
@@ -116,6 +129,14 @@ const futurePlanItems = computed(() => summary.value?.future_plan_items || []);
 const historyItems = computed(() => summary.value?.history_items || []);
 const latestFailedIps = computed(() => summary.value?.latest_failed_ips || []);
 const latestFailedIpsText = computed(() => latestFailedIps.value.join('、'));
+const lastRunFailures = computed(() =>
+  (lastRunResult.value?.items || []).filter((item) => !item.ok),
+);
+const lastRunFailureText = computed(() =>
+  lastRunFailures.value
+    .map((item) => `${item.ip || item.order_no}: ${item.error || '续费失败'}`)
+    .join('\n'),
+);
 const expandedKeys = reactive<Record<string, boolean>>({});
 
 function asArray<T>(value: unknown): T[] {
@@ -245,6 +266,10 @@ function historyRowKey(
   return record.id || `${record.batch_id}-${record.order_no}-${index || 0}`;
 }
 
+function failureRowKey(record: DashboardAutoRenewRunResultItem, index?: number) {
+  return `${record.order_id || 0}-${record.ip || record.order_no}-${index || 0}`;
+}
+
 function isExpanded(key: string) {
   return Boolean(expandedKeys[key]);
 }
@@ -316,13 +341,22 @@ async function runAllRenewals() {
   });
   try {
     const result = await runDashboardAutoRenewTasksApi();
-    message.success({
-      content:
-        result.total > 0
-          ? `已执行 ${result.total} 条，成功 ${result.success_count}，失败 ${result.failure_count}`
-          : result.message || '当前没有可执行的续费任务',
-      key: 'renew-run-all',
-    });
+    lastRunResult.value = result;
+    if (result.failure_count > 0) {
+      failurePanelOpen.value = true;
+      message.error({
+        content: `已执行 ${result.total} 条，成功 ${result.success_count}，失败 ${result.failure_count}，请查看失败面板`,
+        key: 'renew-run-all',
+      });
+    } else {
+      message.success({
+        content:
+          result.total > 0
+            ? `已执行 ${result.total} 条，成功 ${result.success_count}，失败 ${result.failure_count}`
+            : result.message || '当前没有可执行的续费任务',
+        key: 'renew-run-all',
+      });
+    }
     await loadData({ silent: true });
   } catch (error: any) {
     message.error({
@@ -356,9 +390,11 @@ async function runSingleRenewal(record: DashboardAutoRenewTaskDueItem) {
   });
   try {
     const result = await runDashboardAutoRenewOrderApi(orderId);
+    lastRunResult.value = result;
     if (result.failure_count > 0) {
+      failurePanelOpen.value = true;
       message.error({
-        content: result.items[0]?.error || '续费执行失败',
+        content: result.items[0]?.error || '续费执行失败，请查看失败面板',
         key: `renew-run-${orderId}`,
       });
     } else {
@@ -447,6 +483,31 @@ onMounted(loadData);
             {{ summary?.latest_batch_count ?? 0 }} 条
           </Descriptions.Item>
         </Descriptions>
+      </Card>
+
+      <Card v-if="lastRunFailures.length > 0" title="本次执行失败面板">
+        <Alert
+          type="error"
+          show-icon
+          :message="`本次执行失败 ${lastRunFailures.length} 条`"
+          description="以下为刚刚手动执行产生的失败原因，方便直接定位处理。"
+          style="margin-bottom: 12px"
+        />
+        <Table
+          :columns="failureColumns"
+          :data-source="lastRunFailures"
+          :pagination="false"
+          :row-key="failureRowKey"
+          :scroll="{ x: 900 }"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'error'">
+              <TypographyParagraph class="mb-0 break-all text-sm leading-6">
+                {{ (record as DashboardAutoRenewRunResultItem).error || '-' }}
+              </TypographyParagraph>
+            </template>
+          </template>
+        </Table>
       </Card>
 
       <Card title="本批次执行摘要">
@@ -864,5 +925,41 @@ onMounted(loadData);
         </Table>
       </Card>
     </Space>
+    <Modal
+      v-model:open="failurePanelOpen"
+      title="续费执行失败原因"
+      width="760px"
+      :footer="null"
+    >
+      <Alert
+        type="error"
+        show-icon
+        :message="`失败 ${lastRunFailures.length} 条`"
+        description="续费执行已完成，以下 IP 失败，需要按原因处理后重试。"
+        style="margin-bottom: 12px"
+      />
+      <TypographyParagraph
+        :copyable="lastRunFailureText ? { text: lastRunFailureText } : false"
+        class="mb-3 whitespace-pre-wrap break-all text-sm leading-6"
+      >
+        {{ lastRunFailureText || '暂无失败原因' }}
+      </TypographyParagraph>
+      <Table
+        :columns="failureColumns"
+        :data-source="lastRunFailures"
+        :pagination="false"
+        :row-key="failureRowKey"
+        :scroll="{ x: 900 }"
+        size="small"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'error'">
+            <TypographyParagraph class="mb-0 break-all text-sm leading-6">
+              {{ (record as DashboardAutoRenewRunResultItem).error || '-' }}
+            </TypographyParagraph>
+          </template>
+        </template>
+      </Table>
+    </Modal>
   </Page>
 </template>

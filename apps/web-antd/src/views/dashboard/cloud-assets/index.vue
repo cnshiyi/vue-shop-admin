@@ -54,6 +54,16 @@ const autoRenewSavingIds = ref<number[]>([]);
 const keyword = ref('');
 const grouped = ref(true);
 const groupMode = ref<'telegram_group' | 'user'>('telegram_group');
+const totalSortMode = ref<
+  'default' | 'expires_asc' | 'expires_desc' | 'remaining_asc' | 'remaining_desc'
+>('default');
+const totalSortOptions = [
+  { label: '默认排序', value: 'default' },
+  { label: '到期时间升序', value: 'expires_asc' },
+  { label: '到期时间降序', value: 'expires_desc' },
+  { label: '剩余天数升序', value: 'remaining_asc' },
+  { label: '剩余天数降序', value: 'remaining_desc' },
+];
 const lastRefreshedAt = ref<dayjs.Dayjs | null>(null);
 const lastSyncedAt = ref<dayjs.Dayjs | null>(null);
 const nextRefreshInSeconds = ref(DEFAULT_AUTO_REFRESH_SECONDS);
@@ -185,7 +195,26 @@ function compareByDisplayOrder(
 }
 
 function sortAssets(records: DashboardCloudAssetItem[]) {
+  if (totalSortMode.value !== 'default') {
+    return [...records];
+  }
   return [...records].toSorted(compareByDisplayOrder);
+}
+
+function totalSortParams() {
+  if (totalSortMode.value === 'expires_asc') {
+    return { sort_by: 'actual_expires_at' as const, sort_order: 'asc' as const };
+  }
+  if (totalSortMode.value === 'expires_desc') {
+    return { sort_by: 'actual_expires_at' as const, sort_order: 'desc' as const };
+  }
+  if (totalSortMode.value === 'remaining_asc') {
+    return { sort_by: 'days_left' as const, sort_order: 'asc' as const };
+  }
+  if (totalSortMode.value === 'remaining_desc') {
+    return { sort_by: 'days_left' as const, sort_order: 'desc' as const };
+  }
+  return {};
 }
 
 function activeAssetCount(records: DashboardCloudAssetItem[]) {
@@ -257,6 +286,9 @@ function buildAssetGroups(records: DashboardCloudAssetItem[]) {
     group.items.push(item);
     groupMap.set(groupKey, group);
   }
+  if (totalSortMode.value !== 'default') {
+    return [...groupMap.values()];
+  }
   return [...groupMap.values()].toSorted((a, b) => {
     const aExpires = Math.min(
       ...a.items.map((item) => normalizeExpiresAt(item.actual_expires_at)),
@@ -306,8 +338,8 @@ function handleGroupModeChange() {
   refreshGroupedItems(items.value, true);
 }
 
-function handleGroupedChange(enabled: boolean) {
-  if (enabled) {
+function handleGroupedChange(enabled: boolean | number | string) {
+  if (Boolean(enabled)) {
     refreshGroupedItems(items.value, true);
     return;
   }
@@ -315,11 +347,11 @@ function handleGroupedChange(enabled: boolean) {
   expandedGroupKeys.value = [];
 }
 
-function handleExpandedGroupKeysChange(activeKeys: string | string[]) {
+function handleExpandedGroupKeysChange(activeKeys: Array<number | string> | number | string) {
   expandedGroupKeys.value = Array.isArray(activeKeys)
-    ? activeKeys
+    ? activeKeys.map((key) => String(key))
     : (activeKeys
-      ? [activeKeys]
+      ? [String(activeKeys)]
       : []);
 }
 
@@ -477,12 +509,14 @@ async function loadData() {
   loadProgress.pageSize = ASSET_PAGE_SIZE;
   try {
     const keywordText = keyword.value.trim();
+    const sortParams = totalSortParams();
     const [syncStatus, firstPage] = await Promise.all([
       getDashboardCloudAssetsSyncStatusApi(),
       getDashboardCloudAssetsPageApi({
         keyword: keywordText,
         page: 1,
         page_size: ASSET_PAGE_SIZE,
+        ...sortParams,
       }),
     ]);
     if (sequence !== loadSequence) return;
@@ -515,6 +549,7 @@ async function loadData() {
         keyword: keywordText,
         page,
         page_size: ASSET_PAGE_SIZE,
+        ...sortParams,
       });
       if (sequence !== loadSequence) return;
       items.value = sortAssets([...items.value, ...(response.items || [])]);
@@ -935,6 +970,12 @@ onBeforeUnmount(() => {
           </Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
+          <Select
+            v-model:value="totalSortMode"
+            :options="totalSortOptions"
+            style="width: 150px"
+            @change="loadData"
+          />
           <Tag v-if="syncing" color="processing">同步中…</Tag>
           <Tag v-else-if="loading" color="processing">刷新中…</Tag>
           <Tag v-else-if="loadingMore" color="processing">继续加载中…</Tag>

@@ -8,6 +8,8 @@ interface DashboardListQuery {
   page?: number;
   page_size?: number;
   paginated?: 0 | 1;
+  sort_by?: 'actual_expires_at' | 'days_left' | 'expires_at' | 'remaining_days';
+  sort_order?: 'asc' | 'desc';
 }
 
 export interface DashboardSummary {

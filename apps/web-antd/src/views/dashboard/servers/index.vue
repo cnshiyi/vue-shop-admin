@@ -11,6 +11,7 @@ import {
   Card,
   Input,
   message,
+  Select,
   Space,
   Table,
   Tag,
@@ -22,6 +23,16 @@ import { getDashboardServersApi, syncDashboardServersApi } from '#/api/admin';
 const loading = ref(false);
 const syncing = ref(false);
 const keyword = ref('');
+const totalSortMode = ref<
+  'default' | 'expires_asc' | 'expires_desc' | 'remaining_asc' | 'remaining_desc'
+>('default');
+const totalSortOptions = [
+  { label: '默认排序', value: 'default' },
+  { label: '到期时间升序', value: 'expires_asc' },
+  { label: '到期时间降序', value: 'expires_desc' },
+  { label: '剩余天数升序', value: 'remaining_asc' },
+  { label: '剩余天数降序', value: 'remaining_desc' },
+];
 const items = ref<DashboardServerItem[]>([]);
 const router = useRouter();
 
@@ -110,6 +121,22 @@ function sortServerItems(records: DashboardServerItem[]) {
   });
 }
 
+function totalSortParams() {
+  if (totalSortMode.value === 'expires_asc') {
+    return { sort_by: 'expires_at' as const, sort_order: 'asc' as const };
+  }
+  if (totalSortMode.value === 'expires_desc') {
+    return { sort_by: 'expires_at' as const, sort_order: 'desc' as const };
+  }
+  if (totalSortMode.value === 'remaining_asc') {
+    return { sort_by: 'days_left' as const, sort_order: 'asc' as const };
+  }
+  if (totalSortMode.value === 'remaining_desc') {
+    return { sort_by: 'days_left' as const, sort_order: 'desc' as const };
+  }
+  return {};
+}
+
 async function loadData() {
   loading.value = true;
   try {
@@ -117,8 +144,10 @@ async function loadData() {
       keyword: keyword.value.trim(),
       page_size: 500,
       paginated: 0,
+      ...totalSortParams(),
     });
-    items.value = sortServerItems(records);
+    items.value =
+      totalSortMode.value === 'default' ? sortServerItems(records) : records;
   } finally {
     loading.value = false;
   }
@@ -200,6 +229,12 @@ onMounted(loadData);
           </Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
+          <Select
+            v-model:value="totalSortMode"
+            :options="totalSortOptions"
+            style="width: 150px"
+            @change="loadData"
+          />
         </Space>
       </template>
       <Table
