@@ -11,6 +11,7 @@ const routeComponentMap: Record<string, string> = {
   DashboardCloudPlansList: '/views/dashboard/cloud-plans/index.vue',
   DashboardCloudPricing: '/views/dashboard/cloud-pricing/index.vue',
   DashboardMonitors: '/views/dashboard/monitors/index.vue',
+  DashboardIpDeleteLogs: '/views/dashboard/ip-delete-logs/index.vue',
   DashboardOperationLogs: '/views/dashboard/operation-logs/index.vue',
   DashboardRechargeDetail: '/views/dashboard/recharges/detail.vue',
   DashboardRecharges: '/views/dashboard/recharges/index.vue',

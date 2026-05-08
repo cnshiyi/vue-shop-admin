@@ -332,6 +332,15 @@ const routes: RouteRecordRaw[] = [
             },
           },
           {
+            name: 'DashboardIpDeleteLogs',
+            path: 'ip-deletes',
+            component: () =>
+              import('#/views/dashboard/ip-delete-logs/index.vue'),
+            meta: {
+              title: 'IP删除表',
+            },
+          },
+          {
             name: 'DashboardOperationLogs',
             path: 'operations',
             component: () =>

@@ -924,6 +924,15 @@ export async function getDashboardShutdownLogsApi(
   );
 }
 
+export async function getDashboardIpDeleteLogsApi(
+  params: { limit?: number } = {},
+) {
+  return requestClient.get<DashboardUnattachedIpDeletePlan[]>(
+    '/admin/dashboard/ip-delete-logs/',
+    { params },
+  );
+}
+
 export async function getDashboardUsersApi(params: DashboardListQuery = {}) {
   return requestClient.get<DashboardUserItem[]>('/admin/users/', { params });
 }
