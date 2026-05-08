@@ -1655,8 +1655,8 @@ onBeforeUnmount(() => {
 }
 
 .cloud-assets-sort-label {
-  color: rgb(100 116 139);
   font-size: 12px;
+  color: rgb(100 116 139);
   white-space: nowrap;
 }
 
