@@ -1337,6 +1337,14 @@ export async function initDashboardSiteConfigsApi(
   return requestClient.post('/admin/settings/site-configs/init/', payload);
 }
 
+export async function testDashboardDailyExpirySummaryApi() {
+  return requestClient.post<{
+    expired: number;
+    sent: number;
+    today: number;
+  }>('/admin/settings/site-configs/daily-expiry-summary/test/');
+}
+
 export async function startDashboardTotpBindApi(
   payload: { old_otp_token?: string } = {},
 ) {

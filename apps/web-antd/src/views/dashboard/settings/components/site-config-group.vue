@@ -29,6 +29,7 @@ import {
   getDashboardSiteConfigsApi,
   initDashboardSiteConfigsApi,
   startDashboardTotpBindApi,
+  testDashboardDailyExpirySummaryApi,
   updateDashboardSiteConfigApi,
 } from '#/api/admin';
 
@@ -44,6 +45,7 @@ const initLoading = ref(false);
 const siteConfigs = ref<DashboardSiteConfigItem[]>([]);
 const configGroups = ref<DashboardSiteConfigGroup[]>([]);
 const savingMap = reactive<Record<string, boolean>>({});
+const testSendingMap = reactive<Record<string, boolean>>({});
 const draftMap = reactive<Record<string, string>>({});
 const sensitiveMap = reactive<Record<string, boolean>>({});
 const maskedMap = reactive<Record<string, boolean>>({});
@@ -204,6 +206,7 @@ async function bindTotp() {
 
 const switchConfigKeys = new Set([
   'cloud_auto_renew_execution_notify_enabled',
+  'cloud_daily_expiry_summary_enabled',
   'cloud_renew_notice_debug_repeat',
   'scanner_block_log_enabled',
   'scanner_verbose',
@@ -247,6 +250,20 @@ async function saveSwitchItem(
 ) {
   draftMap[item.key] = checked ? '1' : '0';
   await saveItem(item);
+}
+
+async function testDailyExpirySummary() {
+  testSendingMap.cloud_daily_expiry_summary_enabled = true;
+  try {
+    const result = await testDashboardDailyExpirySummaryApi();
+    message.success(
+      `测试通知已发送：今日到期 ${result.today} 台，已到期 ${result.expired} 台`,
+    );
+  } catch (error: any) {
+    message.error(error?.message || '测试发送失败');
+  } finally {
+    testSendingMap.cloud_daily_expiry_summary_enabled = false;
+  }
 }
 
 async function saveItem(item: DashboardSiteConfigGroupItem) {
@@ -425,6 +442,14 @@ onMounted(loadData);
           <span class="switch-value">
             当前：{{ switchChecked(item) ? '开启' : '关闭' }}
           </span>
+          <Button
+            v-if="item.key === 'cloud_daily_expiry_summary_enabled'"
+            :disabled="!switchChecked(item)"
+            :loading="testSendingMap[item.key]"
+            @click="testDailyExpirySummary"
+          >
+            测试发送
+          </Button>
         </div>
         <Input
           v-else-if="isTextInputConfig(item)"
