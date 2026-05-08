@@ -55,7 +55,11 @@ const keyword = ref('');
 const grouped = ref(true);
 const groupMode = ref<'telegram_group' | 'user'>('telegram_group');
 const totalSortMode = ref<
-  'default' | 'expires_asc' | 'expires_desc' | 'remaining_asc' | 'remaining_desc'
+  | 'default'
+  | 'expires_asc'
+  | 'expires_desc'
+  | 'remaining_asc'
+  | 'remaining_desc'
 >('default');
 const totalSortOptions = [
   { label: '默认排序', value: 'default' },
@@ -203,10 +207,16 @@ function sortAssets(records: DashboardCloudAssetItem[]) {
 
 function totalSortParams() {
   if (totalSortMode.value === 'expires_asc') {
-    return { sort_by: 'actual_expires_at' as const, sort_order: 'asc' as const };
+    return {
+      sort_by: 'actual_expires_at' as const,
+      sort_order: 'asc' as const,
+    };
   }
   if (totalSortMode.value === 'expires_desc') {
-    return { sort_by: 'actual_expires_at' as const, sort_order: 'desc' as const };
+    return {
+      sort_by: 'actual_expires_at' as const,
+      sort_order: 'desc' as const,
+    };
   }
   if (totalSortMode.value === 'remaining_asc') {
     return { sort_by: 'days_left' as const, sort_order: 'asc' as const };
@@ -339,7 +349,7 @@ function handleGroupModeChange() {
 }
 
 function handleGroupedChange(enabled: boolean | number | string) {
-  if (Boolean(enabled)) {
+  if (enabled) {
     refreshGroupedItems(items.value, true);
     return;
   }
@@ -347,9 +357,11 @@ function handleGroupedChange(enabled: boolean | number | string) {
   expandedGroupKeys.value = [];
 }
 
-function handleExpandedGroupKeysChange(activeKeys: Array<number | string> | number | string) {
+function handleExpandedGroupKeysChange(
+  activeKeys: Array<number | string> | number | string,
+) {
   expandedGroupKeys.value = Array.isArray(activeKeys)
-    ? activeKeys.map((key) => String(key))
+    ? activeKeys.map(String)
     : (activeKeys
       ? [String(activeKeys)]
       : []);

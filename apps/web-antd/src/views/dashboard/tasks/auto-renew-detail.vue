@@ -82,7 +82,12 @@ const dueColumns = [
 const failureColumns = [
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
   { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 190 },
-  { title: '队列状态', dataIndex: 'queue_status', key: 'queue_status', width: 140 },
+  {
+    title: '队列状态',
+    dataIndex: 'queue_status',
+    key: 'queue_status',
+    width: 140,
+  },
   { title: '失败原因', dataIndex: 'error', key: 'error', width: 420 },
 ];
 
@@ -266,7 +271,10 @@ function historyRowKey(
   return record.id || `${record.batch_id}-${record.order_no}-${index || 0}`;
 }
 
-function failureRowKey(record: DashboardAutoRenewRunResultItem, index?: number) {
+function failureRowKey(
+  record: DashboardAutoRenewRunResultItem,
+  index?: number,
+) {
   return `${record.order_id || 0}-${record.ip || record.order_no}-${index || 0}`;
 }
 

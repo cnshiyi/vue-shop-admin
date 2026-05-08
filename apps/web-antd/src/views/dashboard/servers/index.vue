@@ -24,7 +24,11 @@ const loading = ref(false);
 const syncing = ref(false);
 const keyword = ref('');
 const totalSortMode = ref<
-  'default' | 'expires_asc' | 'expires_desc' | 'remaining_asc' | 'remaining_desc'
+  | 'default'
+  | 'expires_asc'
+  | 'expires_desc'
+  | 'remaining_asc'
+  | 'remaining_desc'
 >('default');
 const totalSortOptions = [
   { label: '默认排序', value: 'default' },
