@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'ant-design-vue';
 import type { DashboardShutdownLog } from '#/api/admin';
 
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 
@@ -12,6 +13,7 @@ import dayjs from 'dayjs';
 
 import { getDashboardShutdownLogsApi } from '#/api/admin';
 
+const router = useRouter();
 const loading = ref(false);
 const items = ref<DashboardShutdownLog[]>([]);
 
@@ -46,7 +48,7 @@ const columns: TableColumnsType<DashboardShutdownLog> = [
   { title: '关机时间', dataIndex: 'suspend_at', key: 'suspend_at', width: 190 },
   { title: '删机时间', dataIndex: 'delete_at', key: 'delete_at', width: 190 },
   { title: '日志时间', dataIndex: 'logged_at', key: 'logged_at', width: 190 },
-  { title: '说明', dataIndex: 'note', key: 'note', width: 320 },
+  { title: '说明', dataIndex: 'note', key: 'note', width: 520 },
 ];
 
 function formatTime(value?: null | string) {
@@ -78,6 +80,11 @@ function accountText(record: DashboardShutdownLog) {
 
 function rowClassName(record: DashboardShutdownLog) {
   return record.is_old_shutdown ? 'old-shutdown-row' : '';
+}
+
+function openDetail(path?: string) {
+  if (!path) return;
+  router.push(path).catch(() => {});
 }
 
 function statusColor(record: DashboardShutdownLog) {
@@ -127,6 +134,19 @@ onMounted(loadData);
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'public_ip'">
             <Tag>{{ record.public_ip || '-' }}</Tag>
+          </template>
+          <template v-else-if="column.key === 'order_no'">
+            <Button
+              v-if="record.order_detail_path || record.detail_path"
+              size="small"
+              type="link"
+              @click="
+                openDetail(record.order_detail_path || record.detail_path)
+              "
+            >
+              {{ record.order_no || '-' }}
+            </Button>
+            <span v-else>{{ record.order_no || '-' }}</span>
           </template>
           <template v-else-if="column.key === 'provider_label'">
             <div class="flex flex-col gap-2 py-1">
@@ -184,7 +204,7 @@ onMounted(loadData);
             {{ formatTime(record.logged_at) }}
           </template>
           <template v-else-if="column.key === 'note'">
-            <span>{{
+            <span class="whitespace-pre-wrap">{{
               record.note ||
               (record.is_old_shutdown ? '关机超过 7 天，已下沉' : '-')
             }}</span>

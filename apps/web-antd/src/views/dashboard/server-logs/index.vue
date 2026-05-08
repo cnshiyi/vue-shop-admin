@@ -1,15 +1,19 @@
 <script lang="ts" setup>
-import dayjs from 'dayjs';
+import type { TableColumnsType } from 'ant-design-vue';
+
+import type { DashboardCloudIpLogItem } from '#/api/admin';
+
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 
 import { Button, Card, Input, Space, Table, Tag } from 'ant-design-vue';
-import type { TableColumnsType } from 'ant-design-vue';
+import dayjs from 'dayjs';
 
 import { getDashboardCloudIpLogsApi } from '#/api/admin';
-import type { DashboardCloudIpLogItem } from '#/api/admin';
 
+const router = useRouter();
 const loading = ref(false);
 const keyword = ref('');
 const items = ref<DashboardCloudIpLogItem[]>([]);
@@ -27,7 +31,8 @@ const columns: TableColumnsType<DashboardCloudIpLogItem> = [
   { title: '服务器', dataIndex: 'asset_name', key: 'asset_name', width: 180 },
   { title: '当前IP', dataIndex: 'public_ip', key: 'public_ip', width: 140 },
   { title: '实例ID', dataIndex: 'instance_id', key: 'instance_id', width: 180 },
-  { title: '说明', dataIndex: 'note', key: 'note', width: 420 },
+  { title: '说明', dataIndex: 'note', key: 'note', width: 520 },
+  { title: '详情', dataIndex: 'detail_path', key: 'detail_path', width: 100 },
 ];
 
 function eventColor(eventType: string) {
@@ -52,6 +57,11 @@ async function loadData() {
 function resetSearch() {
   keyword.value = '';
   loadData();
+}
+
+function openDetail(path?: string) {
+  if (!path) return;
+  router.push(path).catch(() => {});
 }
 
 onMounted(loadData);
@@ -95,9 +105,45 @@ onMounted(loadData);
             }}</span>
           </template>
           <template v-else-if="column.key === 'event_type'">
-            <Tag :color="eventColor(record.event_type)">{{
-              record.event_label || record.event_type
-            }}</Tag>
+            <Tag :color="eventColor(record.event_type)">
+              {{ record.event_label || record.event_type }}
+            </Tag>
+          </template>
+          <template v-else-if="column.key === 'order_no'">
+            <Button
+              v-if="record.order_detail_path"
+              size="small"
+              type="link"
+              @click="openDetail(record.order_detail_path)"
+            >
+              {{ record.order_no || '-' }}
+            </Button>
+            <span v-else>{{ record.order_no || '-' }}</span>
+          </template>
+          <template v-else-if="column.key === 'asset_name'">
+            <Button
+              v-if="record.asset_detail_path"
+              size="small"
+              type="link"
+              @click="openDetail(record.asset_detail_path)"
+            >
+              {{ record.asset_name || '-' }}
+            </Button>
+            <span v-else>{{ record.asset_name || '-' }}</span>
+          </template>
+          <template v-else-if="column.key === 'note'">
+            <span class="whitespace-pre-wrap">{{ record.note || '-' }}</span>
+          </template>
+          <template v-else-if="column.key === 'detail_path'">
+            <Button
+              v-if="record.detail_path"
+              size="small"
+              type="link"
+              @click="openDetail(record.detail_path)"
+            >
+              详情
+            </Button>
+            <span v-else>-</span>
           </template>
         </template>
       </Table>

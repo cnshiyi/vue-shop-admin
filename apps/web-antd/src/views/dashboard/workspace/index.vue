@@ -47,8 +47,13 @@ function accountText(item: {
 
 function openPlanDetail(item: {
   asset_id?: null | number;
+  detail_path?: string;
   order_id?: null | number;
 }) {
+  if (item.detail_path) {
+    router.push(item.detail_path).catch(() => {});
+    return;
+  }
   if (item.asset_id) {
     router.push(`/admin/cloud-assets/${item.asset_id}`).catch(() => {});
     return;
@@ -185,7 +190,13 @@ onMounted(loadOverview);
                     class="flex flex-wrap items-center gap-2 font-medium leading-8"
                   >
                     <Tag>{{ item.public_ip || '-' }}</Tag>
-                    <span>{{ item.asset_name }}</span>
+                    <Button
+                      size="small"
+                      type="link"
+                      @click="openPlanDetail(item)"
+                    >
+                      {{ item.asset_name }}
+                    </Button>
                   </div>
                   <Tag
                     :color="
@@ -198,6 +209,10 @@ onMounted(loadOverview);
                 <div
                   class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm leading-8"
                 >
+                  <span>过期时间：</span>
+                  <Tag :color="expiryColor(item.service_expires_at)">
+                    {{ formatTime(item.service_expires_at) }}
+                  </Tag>
                   <span>删除时间：</span>
                   <Tag :color="expiryColor(item.delete_at)">
                     {{ formatTime(item.delete_at) }}

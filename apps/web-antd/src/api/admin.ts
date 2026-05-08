@@ -59,6 +59,9 @@ export interface DashboardShutdownLog {
   note: string;
   order_id?: null | number;
   order_no: string;
+  order_detail_path?: string;
+  asset_detail_path?: string;
+  detail_path?: string;
   public_ip: string;
   provider?: string;
   provider_label?: string;
@@ -76,12 +79,15 @@ export interface DashboardShutdownLog {
 
 export interface DashboardUnattachedIpDeletePlan {
   asset_name: string;
+  asset_detail_path?: string;
   delete_at: null | string;
+  detail_path?: string;
   id: number;
   is_overdue?: boolean;
   note: string;
   provider_status: string;
   public_ip: string;
+  service_expires_at?: null | string;
   user_display_name?: string;
   username_label?: string;
 }
@@ -378,6 +384,9 @@ export interface DashboardCloudIpLogItem {
   note: null | string;
   order_id: null | number;
   order_no: null | string;
+  order_detail_path?: string;
+  asset_detail_path?: string;
+  detail_path?: string;
   previous_public_ip: null | string;
   provider: null | string;
   provider_label?: string;
