@@ -73,6 +73,14 @@ const loadProgress = reactive({
   total: 0,
 });
 const expandedGroupKeys = ref<string[]>([]);
+const expandedGroupCount = computed(() => expandedGroupKeys.value.length);
+const totalGroupCount = computed(() => groups.value.length);
+const canExpandAllGroups = computed(
+  () =>
+    totalGroupCount.value > 0 &&
+    expandedGroupCount.value < totalGroupCount.value,
+);
+const canCollapseAllGroups = computed(() => expandedGroupCount.value > 0);
 const expandedLinkKeys = ref<string[]>([]);
 const expandedNoteKeys = ref<string[]>([]);
 const expandedUsernameKeys = ref<string[]>([]);
@@ -265,11 +273,54 @@ function buildAssetGroups(records: DashboardCloudAssetItem[]) {
   });
 }
 
-function refreshGroupedItems(records: DashboardCloudAssetItem[]) {
-  groups.value = buildAssetGroups(records);
-  expandedGroupKeys.value = groups.value
-    .filter((group) => group.default_expanded !== false)
+function refreshGroupedItems(
+  records: DashboardCloudAssetItem[],
+  resetExpanded = false,
+) {
+  const previousGroupKeys = new Set(
+    groups.value.map((group) => group.user_key),
+  );
+  const previousExpandedKeys = new Set(expandedGroupKeys.value);
+  const nextGroups = buildAssetGroups(records);
+
+  groups.value = nextGroups;
+  expandedGroupKeys.value = nextGroups
+    .filter((group) => {
+      if (group.default_expanded === false) return false;
+      if (resetExpanded || previousGroupKeys.size === 0) return true;
+      return (
+        previousExpandedKeys.has(group.user_key) ||
+        !previousGroupKeys.has(group.user_key)
+      );
+    })
     .map((group) => group.user_key);
+}
+
+function setAllGroupsExpanded(expanded: boolean) {
+  expandedGroupKeys.value = expanded
+    ? groups.value.map((group) => group.user_key)
+    : [];
+}
+
+function handleGroupModeChange() {
+  refreshGroupedItems(items.value, true);
+}
+
+function handleGroupedChange(enabled: boolean) {
+  if (enabled) {
+    refreshGroupedItems(items.value, true);
+    return;
+  }
+  groups.value = [];
+  expandedGroupKeys.value = [];
+}
+
+function handleExpandedGroupKeysChange(activeKeys: string | string[]) {
+  expandedGroupKeys.value = Array.isArray(activeKeys)
+    ? activeKeys
+    : (activeKeys
+      ? [activeKeys]
+      : []);
 }
 
 function regionDisplay(record: DashboardCloudAssetItem) {
@@ -912,9 +963,28 @@ onBeforeUnmount(() => {
               { label: '按群组分区', value: 'telegram_group' },
               { label: '按用户分区', value: 'user' },
             ]"
-            @change="refreshGroupedItems(items)"
+            @change="handleGroupModeChange"
           />
-          <Switch v-model:checked="grouped" @change="loadData" />
+          <Button
+            v-if="grouped"
+            size="small"
+            :disabled="!canExpandAllGroups"
+            @click="setAllGroupsExpanded(true)"
+          >
+            全部展开
+          </Button>
+          <Button
+            v-if="grouped"
+            size="small"
+            :disabled="!canCollapseAllGroups"
+            @click="setAllGroupsExpanded(false)"
+          >
+            全部折叠
+          </Button>
+          <Tag v-if="grouped" color="cyan">
+            已展开 {{ expandedGroupCount }} / {{ totalGroupCount }} 组
+          </Tag>
+          <Switch v-model:checked="grouped" @change="handleGroupedChange" />
         </Space>
       </template>
 
@@ -922,6 +992,7 @@ onBeforeUnmount(() => {
         v-if="grouped"
         v-model:active-key="expandedGroupKeys"
         class="compact-cloud-assets space-y-2"
+        @change="handleExpandedGroupKeysChange"
       >
         <Collapse.Panel v-for="group in groups" :key="group.user_key">
           <template #header>
