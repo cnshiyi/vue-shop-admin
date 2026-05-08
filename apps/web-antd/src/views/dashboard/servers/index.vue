@@ -1,21 +1,12 @@
 <script lang="ts" setup>
 import type { DashboardServerItem } from '#/api/admin';
 
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 
-import {
-  Button,
-  Card,
-  Input,
-  message,
-  Select,
-  Space,
-  Table,
-  Tag,
-} from 'ant-design-vue';
+import { Button, Card, Input, message, Space, Table, Tag } from 'ant-design-vue';
 import dayjs from 'dayjs';
 
 import { getDashboardServersApi, syncDashboardServersApi } from '#/api/admin';
@@ -30,17 +21,10 @@ const totalSortMode = ref<
   | 'remaining_asc'
   | 'remaining_desc'
 >('default');
-const totalSortOptions = [
-  { label: '默认排序', value: 'default' },
-  { label: '到期时间升序', value: 'expires_asc' },
-  { label: '到期时间降序', value: 'expires_desc' },
-  { label: '剩余天数升序', value: 'remaining_asc' },
-  { label: '剩余天数降序', value: 'remaining_desc' },
-];
 const items = ref<DashboardServerItem[]>([]);
 const router = useRouter();
 
-const columns = [
+const columns = computed(() => [
   {
     title: '用户',
     dataIndex: 'user_display_name',
@@ -69,9 +53,34 @@ const columns = [
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 160 },
   { title: '公网 IP', dataIndex: 'public_ip', key: 'public_ip', width: 150 },
   { title: '关联订单', dataIndex: 'order_no', key: 'order_no', width: 220 },
-  { title: '到期时间', dataIndex: 'expires_at', key: 'expires_at', width: 200 },
+  {
+    title: '剩余天数',
+    dataIndex: 'status_countdown',
+    key: 'status_countdown',
+    sorter: true,
+    sortOrder:
+      totalSortMode.value === 'remaining_asc'
+        ? 'ascend'
+        : totalSortMode.value === 'remaining_desc'
+          ? 'descend'
+          : null,
+    width: 160,
+  },
+  {
+    title: '到期时间',
+    dataIndex: 'expires_at',
+    key: 'expires_at',
+    sorter: true,
+    sortOrder:
+      totalSortMode.value === 'expires_asc'
+        ? 'ascend'
+        : totalSortMode.value === 'expires_desc'
+          ? 'descend'
+          : null,
+    width: 200,
+  },
   { title: '更新时间', dataIndex: 'updated_at', key: 'updated_at', width: 200 },
-];
+]);
 
 function getSortWeight(record: DashboardServerItem) {
   const status = (record.status || '').toLowerCase();
@@ -139,6 +148,29 @@ function totalSortParams() {
     return { sort_by: 'days_left' as const, sort_order: 'desc' as const };
   }
   return {};
+}
+
+function handleServerTableChange(
+  _pagination: unknown,
+  _filters: unknown,
+  sorter: any,
+) {
+  const activeSorter = Array.isArray(sorter)
+    ? sorter.find((item) => item.order)
+    : sorter;
+  const key = activeSorter?.columnKey || activeSorter?.field;
+  const order = activeSorter?.order;
+  if (!['expires_at', 'status_countdown'].includes(key)) {
+    return;
+  }
+  if (!order) {
+    totalSortMode.value = 'default';
+  } else if (key === 'expires_at') {
+    totalSortMode.value = order === 'ascend' ? 'expires_asc' : 'expires_desc';
+  } else if (key === 'status_countdown') {
+    totalSortMode.value = order === 'ascend' ? 'remaining_asc' : 'remaining_desc';
+  }
+  loadData();
 }
 
 async function loadData() {
@@ -233,12 +265,6 @@ onMounted(loadData);
           </Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
-          <Select
-            v-model:value="totalSortMode"
-            :options="totalSortOptions"
-            style="width: 150px"
-            @change="loadData"
-          />
         </Space>
       </template>
       <Table
@@ -253,6 +279,7 @@ onMounted(loadData);
         }"
         row-key="id"
         :scroll="{ x: 2100 }"
+        @change="handleServerTableChange"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'username_label'">
@@ -293,6 +320,9 @@ onMounted(loadData);
             <div class="text-xs text-gray-400">
               {{ record.status_countdown || record.provider_status || '-' }}
             </div>
+          </template>
+          <template v-else-if="column.key === 'status_countdown'">
+            <span>{{ record.status_countdown || formatTimeLeft(record.expires_at) }}</span>
           </template>
           <template v-else-if="column.key === 'expires_at'">
             <div>

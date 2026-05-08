@@ -61,13 +61,6 @@ const totalSortMode = ref<
   | 'remaining_asc'
   | 'remaining_desc'
 >('default');
-const totalSortOptions = [
-  { label: '默认排序', value: 'default' },
-  { label: '到期时间升序', value: 'expires_asc' },
-  { label: '到期时间降序', value: 'expires_desc' },
-  { label: '剩余天数升序', value: 'remaining_asc' },
-  { label: '剩余天数降序', value: 'remaining_desc' },
-];
 const lastRefreshedAt = ref<dayjs.Dayjs | null>(null);
 const lastSyncedAt = ref<dayjs.Dayjs | null>(null);
 const nextRefreshInSeconds = ref(DEFAULT_AUTO_REFRESH_SECONDS);
@@ -419,12 +412,14 @@ const columns = [
     title: '剩余天数',
     dataIndex: 'status_countdown',
     key: 'status_countdown',
+    sorter: true,
     width: 140,
   },
   {
     title: '到期时间',
     dataIndex: 'actual_expires_at',
     key: 'actual_expires_at',
+    sorter: true,
     width: 130,
   },
   { title: '备注', dataIndex: 'note', key: 'note', width: 150 },
@@ -437,14 +432,53 @@ const columns = [
   { title: '操作', key: 'actions', fixed: 'right' as const, width: 210 },
 ];
 
+function tableColumnSortOrder(key: string) {
+  if (key === 'actual_expires_at') {
+    if (totalSortMode.value === 'expires_asc') return 'ascend';
+    if (totalSortMode.value === 'expires_desc') return 'descend';
+  }
+  if (key === 'status_countdown') {
+    if (totalSortMode.value === 'remaining_asc') return 'ascend';
+    if (totalSortMode.value === 'remaining_desc') return 'descend';
+  }
+  return null;
+}
+
 const assetTableColumns = computed(() => {
+  const mappedColumns = columns.map((column) => ({
+    ...column,
+    sortOrder: tableColumnSortOrder(column.key),
+  }));
   if (grouped.value && groupMode.value === 'telegram_group') {
-    return columns.filter(
+    return mappedColumns.filter(
       (column) => !['user_display_name', 'username_label'].includes(column.key),
     );
   }
-  return columns;
+  return mappedColumns;
 });
+
+function handleAssetTableChange(
+  _pagination: unknown,
+  _filters: unknown,
+  sorter: any,
+) {
+  const activeSorter = Array.isArray(sorter)
+    ? sorter.find((item) => item.order)
+    : sorter;
+  const key = activeSorter?.columnKey || activeSorter?.field;
+  const order = activeSorter?.order;
+  if (!['actual_expires_at', 'status_countdown'].includes(key)) {
+    return;
+  }
+  if (!order) {
+    totalSortMode.value = 'default';
+  } else if (key === 'actual_expires_at') {
+    totalSortMode.value = order === 'ascend' ? 'expires_asc' : 'expires_desc';
+  } else if (key === 'status_countdown') {
+    totalSortMode.value = order === 'ascend' ? 'remaining_asc' : 'remaining_desc';
+  }
+  loadData();
+}
 
 function groupUserSummary(group: DashboardCloudAssetGroup) {
   if (!group.telegram_group_id) return '';
@@ -977,15 +1011,6 @@ onBeforeUnmount(() => {
             placeholder="搜索用户、用户名、IP、代理链接"
             @search="loadData"
           />
-          <Space size="small">
-            <span class="cloud-assets-sort-label">总排序</span>
-            <Select
-              v-model:value="totalSortMode"
-              :options="totalSortOptions"
-              style="width: 170px"
-              @change="loadData"
-            />
-          </Space>
           <Button size="small" :loading="syncing" @click="syncAssets">
             同步代理
           </Button>
@@ -1077,6 +1102,7 @@ onBeforeUnmount(() => {
             row-key="id"
             :scroll="{ x: 2150 }"
             size="small"
+            @change="handleAssetTableChange"
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'username_label'">
@@ -1328,6 +1354,7 @@ onBeforeUnmount(() => {
         row-key="id"
         :scroll="{ x: 2150 }"
         size="small"
+        @change="handleAssetTableChange"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'username_label'">
@@ -1652,12 +1679,6 @@ onBeforeUnmount(() => {
 .cloud-assets-search {
   width: min(360px, 100%);
   min-width: 180px;
-}
-
-.cloud-assets-sort-label {
-  font-size: 12px;
-  color: rgb(100 116 139);
-  white-space: nowrap;
 }
 
 .cloud-assets-actions {
