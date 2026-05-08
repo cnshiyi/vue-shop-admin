@@ -475,7 +475,8 @@ function handleAssetTableChange(
   } else if (key === 'actual_expires_at') {
     totalSortMode.value = order === 'ascend' ? 'expires_asc' : 'expires_desc';
   } else if (key === 'status_countdown') {
-    totalSortMode.value = order === 'ascend' ? 'remaining_asc' : 'remaining_desc';
+    totalSortMode.value =
+      order === 'ascend' ? 'remaining_asc' : 'remaining_desc';
   }
   loadData();
 }

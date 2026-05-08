@@ -6,7 +6,15 @@ import { useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Card, Input, message, Space, Table, Tag } from 'ant-design-vue';
+import {
+  Button,
+  Card,
+  Input,
+  message,
+  Space,
+  Table,
+  Tag,
+} from 'ant-design-vue';
 import dayjs from 'dayjs';
 
 import { getDashboardServersApi, syncDashboardServersApi } from '#/api/admin';
@@ -61,9 +69,9 @@ const columns = computed(() => [
     sortOrder:
       totalSortMode.value === 'remaining_asc'
         ? 'ascend'
-        : totalSortMode.value === 'remaining_desc'
+        : (totalSortMode.value === 'remaining_desc'
           ? 'descend'
-          : null,
+          : null),
     width: 160,
   },
   {
@@ -74,9 +82,9 @@ const columns = computed(() => [
     sortOrder:
       totalSortMode.value === 'expires_asc'
         ? 'ascend'
-        : totalSortMode.value === 'expires_desc'
+        : (totalSortMode.value === 'expires_desc'
           ? 'descend'
-          : null,
+          : null),
     width: 200,
   },
   { title: '更新时间', dataIndex: 'updated_at', key: 'updated_at', width: 200 },
@@ -168,7 +176,8 @@ function handleServerTableChange(
   } else if (key === 'expires_at') {
     totalSortMode.value = order === 'ascend' ? 'expires_asc' : 'expires_desc';
   } else if (key === 'status_countdown') {
-    totalSortMode.value = order === 'ascend' ? 'remaining_asc' : 'remaining_desc';
+    totalSortMode.value =
+      order === 'ascend' ? 'remaining_asc' : 'remaining_desc';
   }
   loadData();
 }
@@ -322,7 +331,9 @@ onMounted(loadData);
             </div>
           </template>
           <template v-else-if="column.key === 'status_countdown'">
-            <span>{{ record.status_countdown || formatTimeLeft(record.expires_at) }}</span>
+            <span>{{
+              record.status_countdown || formatTimeLeft(record.expires_at)
+            }}</span>
           </template>
           <template v-else-if="column.key === 'expires_at'">
             <div>
