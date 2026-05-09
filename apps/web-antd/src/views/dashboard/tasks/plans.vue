@@ -370,67 +370,59 @@ onMounted(loadData);
           <Space wrap>
             <Button size="small" @click="goBack">返回代理列表</Button>
             <Button size="small" :loading="loading" @click="loadData()">
-刷新
-</Button>
+              刷新
+            </Button>
             <span>{{ summary?.task_label || '服务器删除计划' }}</span>
             <Tag color="processing">
-{{
-              summary?.status_label || '独立计划页'
-            }}
-</Tag>
+              {{ summary?.status_label || '独立计划页' }}
+            </Tag>
           </Space>
         </template>
         <Descriptions bordered :column="2" size="small">
           <Descriptions.Item label="下次执行">
-{{
-            fmtTime(summary?.next_run_at)
-          }}
-</Descriptions.Item>
+            {{ fmtTime(summary?.next_run_at) }}
+          </Descriptions.Item>
           <Descriptions.Item label="上次执行">
-{{
-            fmtTime(summary?.last_run_at)
-          }}
-</Descriptions.Item>
+            {{ fmtTime(summary?.last_run_at) }}
+          </Descriptions.Item>
           <Descriptions.Item label="待删除未附加IP">
-<Tag
+            <Tag
               :color="
                 (summary?.pending_ip_delete_count || 0) > 0
                   ? 'warning'
                   : 'success'
               "
-              >
-{{ summary?.pending_ip_delete_count ?? 0 }} 条
-</Tag>
-</Descriptions.Item>
+            >
+              {{ summary?.pending_ip_delete_count ?? 0 }} 条
+            </Tag>
+          </Descriptions.Item>
           <Descriptions.Item label="待执行删除服务器">
-<Tag :color="(summary?.due_count || 0) > 0 ? 'warning' : 'success'">
-{{ summary?.due_count ?? 0 }} 条
-</Tag>
-</Descriptions.Item>
+            <Tag :color="(summary?.due_count || 0) > 0 ? 'warning' : 'success'">
+              {{ summary?.due_count ?? 0 }} 条
+            </Tag>
+          </Descriptions.Item>
           <Descriptions.Item label="IP未来计划">
-{{ futureIpDeleteItems.length }} 条
-</Descriptions.Item>
+            {{ futureIpDeleteItems.length }} 条
+          </Descriptions.Item>
           <Descriptions.Item label="服务器未来计划">
-{{ summary?.shutdown_count ?? 0 }} 条
-</Descriptions.Item>
+            {{ summary?.shutdown_count ?? 0 }} 条
+          </Descriptions.Item>
           <Descriptions.Item label="最近24小时失败">
-<Tag
+            <Tag
               :color="
                 (summary?.recent_failure_count || 0) > 0 ? 'error' : 'success'
               "
-              >
-{{ summary?.recent_failure_count ?? 0 }}
-</Tag>
-</Descriptions.Item>
+            >
+              {{ summary?.recent_failure_count ?? 0 }}
+            </Tag>
+          </Descriptions.Item>
           <Descriptions.Item label="IP删除历史">
-{{ summary?.ip_delete_history_count ?? 0 }} 条
-</Descriptions.Item>
+            {{ summary?.ip_delete_history_count ?? 0 }} 条
+          </Descriptions.Item>
           <Descriptions.Item label="服务器删除历史">
-{{
-              summary?.server_delete_history_count ?? 0
-            }}
+            {{ summary?.server_delete_history_count ?? 0 }}
             条
-</Descriptions.Item>
+          </Descriptions.Item>
         </Descriptions>
       </Card>
 
@@ -452,10 +444,10 @@ onMounted(loadData);
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'error'">
               <TypographyParagraph class="mb-0 break-all text-sm leading-6">
-{{
-                (record as DashboardShutdownPlanRunResultItem).error || '-'
-              }}
-</TypographyParagraph>
+                {{
+                  (record as DashboardShutdownPlanRunResultItem).error || '-'
+                }}
+              </TypographyParagraph>
             </template>
           </template>
         </Table>
@@ -478,32 +470,32 @@ onMounted(loadData);
                     ? 'error'
                     : 'warning'
                 "
-                >
-{{
+              >
+                {{
                   (record as DashboardUnattachedIpDeletePlan).provider_status ||
                   '-'
                 }}
-</Tag>
+              </Tag>
             </template>
             <template v-else-if="column.key === 'delete_at'">
-<Tag
+              <Tag
                 :color="
                   dueColor(
                     (record as DashboardUnattachedIpDeletePlan).delete_at,
                     (record as DashboardUnattachedIpDeletePlan).is_overdue,
                   )
                 "
-                >
-{{
+              >
+                {{
                   fmtTime((record as DashboardUnattachedIpDeletePlan).delete_at)
                 }}
-</Tag>
-</template>
+              </Tag>
+            </template>
             <template v-else-if="column.key === 'logged_at'">
-{{
-              fmtTime((record as DashboardUnattachedIpDeletePlan).logged_at)
-            }}
-</template>
+              {{
+                fmtTime((record as DashboardUnattachedIpDeletePlan).logged_at)
+              }}
+            </template>
             <template v-else-if="column.key === 'execution_status'">
               <TypographyParagraph
                 class="mb-0 break-all text-xs leading-5"
@@ -513,11 +505,9 @@ onMounted(loadData);
                     record as DashboardUnattachedIpDeletePlan,
                   ),
                 }"
-                >
-{{
-                  executionText(record as DashboardUnattachedIpDeletePlan)
-                }}
-</TypographyParagraph>
+              >
+                {{ executionText(record as DashboardUnattachedIpDeletePlan) }}
+              </TypographyParagraph>
             </template>
             <template v-else-if="column.key === 'actions'">
               <Space :size="4">
@@ -534,9 +524,9 @@ onMounted(loadData);
                   @click="
                     runSingleIpDelete(record as DashboardUnattachedIpDeletePlan)
                   "
-                  >
-精准删除
-</Button>
+                >
+                  精准删除
+                </Button>
                 <Button
                   type="link"
                   size="small"
@@ -547,9 +537,9 @@ onMounted(loadData);
                           .asset_detail_path,
                     )
                   "
-                  >
-查看详情
-</Button>
+                >
+                  查看详情
+                </Button>
               </Space>
             </template>
           </template>
@@ -578,12 +568,12 @@ onMounted(loadData);
                       (record as DashboardShutdownPlanItem).queue_status,
                     )
                   "
-                  >
-{{
+                >
+                  {{
                     (record as DashboardShutdownPlanItem).queue_status_label ||
                     '-'
                   }}
-</Tag>
+                </Tag>
                 <TypographyParagraph
                   v-if="
                     (record as DashboardShutdownPlanItem).last_failure_reason
@@ -607,9 +597,9 @@ onMounted(loadData);
                   String(column.key),
                 )
               "
-              >
-{{ fmtRecordTime(record, column.key) }}
-</template>
+            >
+              {{ fmtRecordTime(record, column.key) }}
+            </template>
             <template v-else-if="column.key === 'execution_status'">
               <div>
                 <TypographyParagraph
@@ -620,12 +610,12 @@ onMounted(loadData);
                       (record as DashboardShutdownPlanItem).execution_status ||
                       '-',
                   }"
-                  >
-{{
+                >
+                  {{
                     (record as DashboardShutdownPlanItem).execution_status ||
                     '-'
                   }}
-</TypographyParagraph>
+                </TypographyParagraph>
                 <div style="color: var(--color-text-secondary)" class="text-xs">
                   执行计划：{{
                     (record as DashboardShutdownPlanItem).execution_plan || '-'
@@ -646,18 +636,18 @@ onMounted(loadData);
                   @click="
                     runSingleShutdown(record as DashboardShutdownPlanItem)
                   "
-                  >
-精准删除
-</Button>
+                >
+                  精准删除
+                </Button>
                 <Button
                   type="link"
                   size="small"
                   @click="
                     openPath((record as DashboardShutdownPlanItem).related_path)
                   "
-                  >
-详情
-</Button>
+                >
+                  详情
+                </Button>
               </Space>
             </template>
           </template>
@@ -679,32 +669,32 @@ onMounted(loadData);
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'provider_status'">
-<Tag color="processing">
-{{
-                (record as DashboardUnattachedIpDeletePlan).provider_status ||
-                '-'
-              }}
-</Tag>
-</template>
+              <Tag color="processing">
+                {{
+                  (record as DashboardUnattachedIpDeletePlan).provider_status ||
+                  '-'
+                }}
+              </Tag>
+            </template>
             <template v-else-if="column.key === 'delete_at'">
-<Tag
+              <Tag
                 :color="
                   dueColor(
                     (record as DashboardUnattachedIpDeletePlan).delete_at,
                     (record as DashboardUnattachedIpDeletePlan).is_overdue,
                   )
                 "
-                >
-{{
+              >
+                {{
                   fmtTime((record as DashboardUnattachedIpDeletePlan).delete_at)
                 }}
-</Tag>
-</template>
+              </Tag>
+            </template>
             <template v-else-if="column.key === 'logged_at'">
-{{
-              fmtTime((record as DashboardUnattachedIpDeletePlan).logged_at)
-            }}
-</template>
+              {{
+                fmtTime((record as DashboardUnattachedIpDeletePlan).logged_at)
+              }}
+            </template>
             <template v-else-if="column.key === 'execution_status'">
               <div>
                 <TypographyParagraph
@@ -715,11 +705,9 @@ onMounted(loadData);
                       record as DashboardUnattachedIpDeletePlan,
                     ),
                   }"
-                  >
-{{
-                    executionText(record as DashboardUnattachedIpDeletePlan)
-                  }}
-</TypographyParagraph>
+                >
+                  {{ executionText(record as DashboardUnattachedIpDeletePlan) }}
+                </TypographyParagraph>
                 <div style="color: var(--color-text-secondary)" class="text-xs">
                   执行计划：{{
                     executionPlan(record as DashboardUnattachedIpDeletePlan)
@@ -728,7 +716,7 @@ onMounted(loadData);
               </div>
             </template>
             <template v-else-if="column.key === 'actions'">
-<Button
+              <Button
                 type="link"
                 size="small"
                 @click="
@@ -738,10 +726,10 @@ onMounted(loadData);
                         .asset_detail_path,
                   )
                 "
-                >
-查看详情
-</Button>
-</template>
+              >
+                查看详情
+              </Button>
+            </template>
           </template>
         </Table>
         <Empty
@@ -761,26 +749,26 @@ onMounted(loadData);
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'queue_status_label'">
-<Tag
+              <Tag
                 :color="
                   queueColor((record as DashboardShutdownPlanItem).queue_status)
                 "
-                >
-{{
+              >
+                {{
                   (record as DashboardShutdownPlanItem).queue_status_label ||
                   '-'
                 }}
-</Tag>
-</template>
+              </Tag>
+            </template>
             <template
               v-else-if="
                 ['service_expires_at', 'suspend_at', 'delete_at'].includes(
                   String(column.key),
                 )
               "
-              >
-{{ fmtRecordTime(record, column.key) }}
-</template>
+            >
+              {{ fmtRecordTime(record, column.key) }}
+            </template>
             <template v-else-if="column.key === 'execution_status'">
               <div>
                 <TypographyParagraph
@@ -791,12 +779,12 @@ onMounted(loadData);
                       (record as DashboardShutdownPlanItem).execution_status ||
                       '-',
                   }"
-                  >
-{{
+                >
+                  {{
                     (record as DashboardShutdownPlanItem).execution_status ||
                     '-'
                   }}
-</TypographyParagraph>
+                </TypographyParagraph>
                 <div style="color: var(--color-text-secondary)" class="text-xs">
                   执行计划：{{
                     (record as DashboardShutdownPlanItem).execution_plan || '-'
@@ -805,16 +793,16 @@ onMounted(loadData);
               </div>
             </template>
             <template v-else-if="column.key === 'actions'">
-<Button
+              <Button
                 type="link"
                 size="small"
                 @click="
                   openPath((record as DashboardShutdownPlanItem).related_path)
                 "
-                >
-订单详情
-</Button>
-</template>
+              >
+                订单详情
+              </Button>
+            </template>
           </template>
         </Table>
       </Card>
@@ -830,23 +818,21 @@ onMounted(loadData);
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'result_label'">
-<Tag
+              <Tag
                 :color="resultColor(record as DashboardShutdownPlanHistoryItem)"
-                >
-{{
-                  (record as DashboardShutdownPlanHistoryItem).result_label
-                }}
-</Tag>
-</template>
+              >
+                {{ (record as DashboardShutdownPlanHistoryItem).result_label }}
+              </Tag>
+            </template>
             <template
               v-else-if="
                 ['executed_at', 'service_expires_at', 'suspend_at'].includes(
                   String(column.key),
                 )
               "
-              >
-{{ fmtRecordTime(record, column.key) }}
-</template>
+            >
+              {{ fmtRecordTime(record, column.key) }}
+            </template>
             <template v-else-if="column.key === 'failure_reason'">
               <TypographyParagraph
                 v-if="
@@ -859,15 +845,15 @@ onMounted(loadData);
                   tooltip: (record as DashboardShutdownPlanHistoryItem)
                     .failure_reason,
                 }"
-                >
-{{
+              >
+                {{
                   (record as DashboardShutdownPlanHistoryItem).failure_reason
                 }}
-</TypographyParagraph>
+              </TypographyParagraph>
               <span v-else>-</span>
             </template>
             <template v-else-if="column.key === 'actions'">
-<Button
+              <Button
                 v-if="(record as DashboardShutdownPlanHistoryItem).related_path"
                 type="link"
                 size="small"
@@ -876,10 +862,10 @@ onMounted(loadData);
                     (record as DashboardShutdownPlanHistoryItem).related_path,
                   )
                 "
-                >
-详情
+              >
+                详情
 </Button><span v-else>-</span>
-</template>
+            </template>
           </template>
         </Table>
       </Card>
@@ -895,38 +881,38 @@ onMounted(loadData);
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'provider_status'">
-<Tag
+              <Tag
                 :color="
                   (record as DashboardUnattachedIpDeletePlan).is_overdue
                     ? 'error'
                     : 'warning'
                 "
-                >
-{{
+              >
+                {{
                   (record as DashboardUnattachedIpDeletePlan).provider_status ||
                   '-'
                 }}
-</Tag>
-</template>
+              </Tag>
+            </template>
             <template v-else-if="column.key === 'delete_at'">
-<Tag
+              <Tag
                 :color="
                   dueColor(
                     (record as DashboardUnattachedIpDeletePlan).delete_at,
                     (record as DashboardUnattachedIpDeletePlan).is_overdue,
                   )
                 "
-                >
-{{
+              >
+                {{
                   fmtTime((record as DashboardUnattachedIpDeletePlan).delete_at)
                 }}
-</Tag>
-</template>
+              </Tag>
+            </template>
             <template v-else-if="column.key === 'logged_at'">
-{{
-              fmtTime((record as DashboardUnattachedIpDeletePlan).logged_at)
-            }}
-</template>
+              {{
+                fmtTime((record as DashboardUnattachedIpDeletePlan).logged_at)
+              }}
+            </template>
             <template v-else-if="column.key === 'execution_status'">
               <div>
                 <TypographyParagraph
@@ -943,11 +929,9 @@ onMounted(loadData);
                         }
                   "
                   class="mb-0 break-all text-xs leading-5"
-                  >
-{{
-                    executionText(record as DashboardUnattachedIpDeletePlan)
-                  }}
-</TypographyParagraph>
+                >
+                  {{ executionText(record as DashboardUnattachedIpDeletePlan) }}
+                </TypographyParagraph>
                 <div style="color: var(--color-text-secondary)" class="text-xs">
                   执行计划：{{
                     executionPlan(record as DashboardUnattachedIpDeletePlan)
@@ -967,19 +951,19 @@ onMounted(loadData);
                       `ip-delete-${(record as DashboardUnattachedIpDeletePlan).id}`,
                     )
                   "
-                  >
-{{
+                >
+                  {{
                     isExpanded(
                       `ip-delete-${(record as DashboardUnattachedIpDeletePlan).id}`,
                     )
                       ? '收起'
                       : '展开'
                   }}
-</Button>
+                </Button>
               </div>
             </template>
             <template v-else-if="column.key === 'actions'">
-<Button
+              <Button
                 type="link"
                 size="small"
                 @click="
@@ -989,10 +973,10 @@ onMounted(loadData);
                         .asset_detail_path,
                   )
                 "
-                >
-查看详情
-</Button>
-</template>
+              >
+                查看详情
+              </Button>
+            </template>
           </template>
         </Table>
         <Empty
@@ -1017,9 +1001,9 @@ onMounted(loadData);
       <TypographyParagraph
         :copyable="lastRunFailureText ? { text: lastRunFailureText } : false"
         class="mb-3 whitespace-pre-wrap break-all text-sm leading-6"
-        >
-{{ lastRunFailureText || '暂无失败原因' }}
-</TypographyParagraph>
+      >
+        {{ lastRunFailureText || '暂无失败原因' }}
+      </TypographyParagraph>
       <Table
         :columns="failureColumns"
         :data-source="lastRunFailures"
@@ -1030,12 +1014,10 @@ onMounted(loadData);
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'error'">
-<TypographyParagraph class="mb-0 break-all text-sm leading-6">
-{{
-              (record as DashboardShutdownPlanRunResultItem).error || '-'
-            }}
-</TypographyParagraph>
-</template>
+            <TypographyParagraph class="mb-0 break-all text-sm leading-6">
+              {{ (record as DashboardShutdownPlanRunResultItem).error || '-' }}
+            </TypographyParagraph>
+          </template>
         </template>
       </Table>
     </Modal>

@@ -529,7 +529,8 @@ onMounted(loadData);
               <template v-else-if="column.key === 'summary'">
                 <div class="flex flex-col gap-2">
                   <Typography.Paragraph
-                    class="!mb-0 whitespace-pre-wrap break-all" :class="[
+                    class="!mb-0 whitespace-pre-wrap break-all"
+                    :class="[
                       !lifecycleExpanded(record) &&
                       lifecycleSummaryTooLong(record.summary)
                         ? 'collapsed-note'

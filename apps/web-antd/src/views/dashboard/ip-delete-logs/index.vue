@@ -188,7 +188,8 @@ onMounted(loadData);
           <template v-else-if="column.key === 'note'">
             <div class="flex flex-col gap-2">
               <span
-                class="whitespace-pre-wrap break-all" :class="[
+                class="whitespace-pre-wrap break-all"
+                :class="[
                   !noteExpanded(record) && noteTooLong(record.note)
                     ? 'collapsed-note'
                     : '',
