@@ -841,8 +841,8 @@ async function toggleAutoRenew(
 async function deleteAsset(record: DashboardCloudAssetItem) {
   try {
     await deleteDashboardCloudAssetApi(record.id);
+    removeAssetFromList(record.id);
     message.success('代理列表记录已删除；后续同步会按云上真实状态重新拉回');
-    await loadData();
   } catch (error: any) {
     message.error(error?.message || '删除代理失败');
   }
@@ -907,6 +907,18 @@ function replaceAssetInList(asset: DashboardCloudAssetItem) {
     refreshGroupedItems(items.value);
   }
   currentRow.value = asset;
+}
+
+function removeAssetFromList(assetId: number) {
+  items.value = items.value.filter((item) => item.id !== assetId);
+  loadProgress.loaded = items.value.length;
+  loadProgress.total = Math.max(0, loadProgress.total - 1);
+  if (grouped.value) {
+    refreshGroupedItems(items.value);
+  }
+  if (currentRow.value?.id === assetId) {
+    currentRow.value = null;
+  }
 }
 
 function buildAssetEditPayload(record: DashboardCloudAssetItem) {
