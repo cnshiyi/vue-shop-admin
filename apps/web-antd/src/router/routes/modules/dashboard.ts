@@ -22,15 +22,6 @@ const routes: RouteRecordRaw[] = [
           title: $t('page.dashboard.analytics'),
         },
       },
-      {
-        name: 'Workspace',
-        path: '/workspace',
-        redirect: '/admin/workspace',
-        meta: {
-          icon: 'carbon:workspace',
-          title: $t('page.dashboard.workspace'),
-        },
-      },
     ],
   },
 ];

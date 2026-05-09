@@ -17,6 +17,7 @@ const router = useRouter();
 const loading = ref(false);
 const keyword = ref('');
 const items = ref<DashboardUnattachedIpDeletePlan[]>([]);
+const expandedNotes = ref<Record<string, boolean>>({});
 
 const filteredItems = computed(() => {
   const text = keyword.value.trim().toLowerCase();
@@ -68,7 +69,8 @@ const columns: TableColumnsType<DashboardUnattachedIpDeletePlan> = [
     width: 190,
   },
   { title: 'IP删除时间', dataIndex: 'delete_at', key: 'delete_at', width: 190 },
-  { title: '说明', dataIndex: 'note', key: 'note', width: 420 },
+  { title: '日志时间', dataIndex: 'logged_at', key: 'logged_at', width: 190 },
+  { title: '说明', dataIndex: 'note', key: 'note', width: 520 },
   { title: '操作', key: 'actions', fixed: 'right', width: 110 },
 ];
 
@@ -97,6 +99,25 @@ function openDetail(path?: string) {
   router.push(path).catch(() => {});
 }
 
+function noteKey(record: DashboardUnattachedIpDeletePlan) {
+  return String(record.id || record.asset_name || record.public_ip || 'note');
+}
+
+function noteTooLong(text?: null | string) {
+  const value = String(text || '').trim();
+  if (!value) return false;
+  return value.length > 120 || value.split('\n').filter(Boolean).length > 2;
+}
+
+function toggleNote(record: DashboardUnattachedIpDeletePlan) {
+  const key = noteKey(record);
+  expandedNotes.value[key] = !expandedNotes.value[key];
+}
+
+function noteExpanded(record: DashboardUnattachedIpDeletePlan) {
+  return Boolean(expandedNotes.value[noteKey(record)]);
+}
+
 async function loadData() {
   loading.value = true;
   try {
@@ -116,13 +137,13 @@ onMounted(loadData);
 
 <template>
   <Page
-    description="集中查看未附加固定 IP 的删除计划，便于在释放前核对资产、用户与备注。"
-    title="IP删除表"
+    description="只看固定 IP 恢复与回收链路，集中核对固定IP名、用户、计划时间与最终执行结果。"
+    title="固定IP恢复表"
   >
     <Card :loading="loading">
       <template #title>
         <Space wrap>
-          <span>未附加IP删除计划</span>
+          <span>固定IP恢复 / 回收日志</span>
           <Input.Search
             v-model:value="keyword"
             allow-clear
@@ -161,8 +182,29 @@ onMounted(loadData);
               {{ formatTime(record.delete_at) }}
             </Tag>
           </template>
+          <template v-else-if="column.key === 'logged_at'">
+            {{ formatTime(record.logged_at) }}
+          </template>
           <template v-else-if="column.key === 'note'">
-            <span class="break-all">{{ record.note || '-' }}</span>
+            <div class="flex flex-col gap-2">
+              <span
+                class="whitespace-pre-wrap break-all" :class="[
+                  !noteExpanded(record) && noteTooLong(record.note)
+                    ? 'collapsed-note'
+                    : '',
+                ]"
+              >
+                {{ record.note || '-' }}
+              </span>
+              <Button
+                v-if="noteTooLong(record.note)"
+                size="small"
+                type="link"
+                @click="toggleNote(record)"
+              >
+                {{ noteExpanded(record) ? '收起' : '展开' }}
+              </Button>
+            </div>
           </template>
           <template v-else-if="column.key === 'actions'">
             <Button
@@ -182,3 +224,12 @@ onMounted(loadData);
     </Card>
   </Page>
 </template>
+
+<style scoped>
+.collapsed-note {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+</style>

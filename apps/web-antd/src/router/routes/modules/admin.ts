@@ -11,18 +11,8 @@ const routes: RouteRecordRaw[] = [
     },
     name: 'Dashboard',
     path: '/admin',
-    redirect: '/admin/workspace',
+    redirect: '/admin/cloud-assets',
     children: [
-      {
-        name: 'DashboardWorkspace',
-        path: 'workspace',
-        component: () => import('#/views/dashboard/workspace/index.vue'),
-        meta: {
-          affixTab: true,
-          icon: 'carbon:workspace',
-          title: '工作台',
-        },
-      },
       {
         name: 'DashboardAnalytics',
         path: 'analytics',
@@ -113,6 +103,15 @@ const routes: RouteRecordRaw[] = [
         meta: {
           icon: 'lucide:server',
           title: '服务器表',
+        },
+      },
+      {
+        name: 'DashboardLifecyclePlans',
+        path: 'tasks/plans',
+        component: () => import('#/views/dashboard/tasks/plans.vue'),
+        meta: {
+          icon: 'lucide:calendar-clock',
+          title: '计划',
         },
       },
       {
@@ -320,15 +319,6 @@ const routes: RouteRecordRaw[] = [
             component: () => import('#/views/dashboard/server-logs/index.vue'),
             meta: {
               title: '服务器日志',
-            },
-          },
-          {
-            name: 'DashboardShutdownLogs',
-            path: 'shutdowns',
-            component: () =>
-              import('#/views/dashboard/shutdown-logs/index.vue'),
-            meta: {
-              title: '关机日志',
             },
           },
           {

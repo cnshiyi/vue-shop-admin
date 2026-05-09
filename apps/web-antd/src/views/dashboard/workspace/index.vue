@@ -92,12 +92,16 @@ onMounted(loadOverview);
     <div>
       <Row :gutter="[16, 20]">
         <Col :xl="16" :lg="15" :span="24">
-          <Card class="h-full" :loading="loading" title="最近到期 / 关机计划">
+          <Card
+            class="h-full"
+            :loading="loading"
+            title="最近到期 / 生命周期主链"
+          >
             <template #extra>
               <Button
                 size="small"
                 type="link"
-                @click="router.push('/admin/logs/shutdowns')"
+                @click="router.push('/admin/logs/servers')"
               >
                 查看全部
               </Button>
@@ -174,7 +178,7 @@ onMounted(loadOverview);
                 </div>
               </div>
             </div>
-            <Empty v-else description="暂无到期/关机计划" />
+            <Empty v-else description="暂无生命周期计划" />
           </Card>
         </Col>
         <Col :xl="8" :lg="9" :span="24">

@@ -17,6 +17,7 @@ const router = useRouter();
 const loading = ref(false);
 const keyword = ref('');
 const items = ref<DashboardCloudIpLogItem[]>([]);
+const expandedNotes = ref<Record<string, boolean>>({});
 
 const columns: TableColumnsType<DashboardCloudIpLogItem> = [
   { title: '时间', dataIndex: 'created_at', key: 'created_at', width: 180 },
@@ -64,18 +65,43 @@ function openDetail(path?: string) {
   router.push(path).catch(() => {});
 }
 
+function noteKey(record: DashboardCloudIpLogItem) {
+  return String(
+    record.id ||
+      record.order_no ||
+      record.asset_name ||
+      record.created_at ||
+      'note',
+  );
+}
+
+function noteTooLong(text?: null | string) {
+  const value = String(text || '').trim();
+  if (!value) return false;
+  return value.length > 120 || value.split('\n').filter(Boolean).length > 2;
+}
+
+function toggleNote(record: DashboardCloudIpLogItem) {
+  const key = noteKey(record);
+  expandedNotes.value[key] = !expandedNotes.value[key];
+}
+
+function noteExpanded(record: DashboardCloudIpLogItem) {
+  return Boolean(expandedNotes.value[noteKey(record)]);
+}
+
 onMounted(loadData);
 </script>
 
 <template>
   <Page
-    description="记录服务器创建、续费、删除等关键过程，支持关键字搜索"
+    description="服务器生命周期主链总览，集中查看创建、分配IP、关机、删机与回收等关键过程"
     title="服务器日志"
   >
     <Card>
       <template #title>
         <Space>
-          <span>服务器日志</span>
+          <span>服务器日志 / 主链总览</span>
           <Input.Search
             v-model:value="keyword"
             allow-clear
@@ -132,7 +158,25 @@ onMounted(loadData);
             <span v-else>{{ record.asset_name || '-' }}</span>
           </template>
           <template v-else-if="column.key === 'note'">
-            <span class="whitespace-pre-wrap">{{ record.note || '-' }}</span>
+            <div class="flex flex-col gap-2">
+              <span
+                class="whitespace-pre-wrap break-all" :class="[
+                  !noteExpanded(record) && noteTooLong(record.note)
+                    ? 'collapsed-note'
+                    : '',
+                ]"
+              >
+                {{ record.note || '-' }}
+              </span>
+              <Button
+                v-if="noteTooLong(record.note)"
+                size="small"
+                type="link"
+                @click="toggleNote(record)"
+              >
+                {{ noteExpanded(record) ? '收起' : '展开' }}
+              </Button>
+            </div>
           </template>
           <template v-else-if="column.key === 'detail_path'">
             <Button
@@ -150,3 +194,12 @@ onMounted(loadData);
     </Card>
   </Page>
 </template>
+
+<style scoped>
+.collapsed-note {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+</style>

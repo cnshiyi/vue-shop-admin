@@ -56,6 +56,8 @@ export interface DashboardShutdownLog {
   asset_id?: null | number;
   delete_at: null | string;
   id: number | string;
+  execution_plan?: string;
+  execution_status?: string;
   is_old_shutdown?: boolean;
   logged_at: null | string;
   note: string;
@@ -84,8 +86,12 @@ export interface DashboardUnattachedIpDeletePlan {
   asset_detail_path?: string;
   delete_at: null | string;
   detail_path?: string;
-  id: number;
+  execution_plan?: string;
+  execution_status?: string;
+  id: number | string;
+  is_history?: boolean;
   is_overdue?: boolean;
+  logged_at?: null | string;
   note: string;
   provider_status: string;
   public_ip: string;
@@ -241,6 +247,8 @@ export interface DashboardCloudAssetIpLogItem {
   event_type: string;
   id: number;
   note?: null | string;
+  order_detail_path?: string;
+  order_link_path?: string;
   previous_public_ip?: null | string;
   public_ip?: null | string;
 }
@@ -260,6 +268,7 @@ export interface DashboardCloudOrderSummaryItem {
   provider?: string;
   provider_label?: string;
   public_ip?: null | string;
+  previous_public_ip?: null | string;
   replacement_for_id?: null | number;
   service_expires_at?: null | string;
   service_started_at?: null | string;
@@ -282,6 +291,7 @@ export interface DashboardCloudAssetItem {
   id: number;
   auto_renew_enabled?: boolean;
   sort_order: number;
+  static_ip_name?: null | string;
   instance_id: null | string;
   is_active: boolean;
   ip_change_quota?: number;
@@ -306,6 +316,8 @@ export interface DashboardCloudAssetItem {
   provider: null | string;
   provider_label?: string;
   provider_resource_id: null | string;
+  previous_public_ip?: null | string;
+  provider_checked_at?: null | string;
   public_ip: null | string;
   region_code?: null | string;
   region_label?: null | string;
@@ -324,6 +336,7 @@ export interface DashboardCloudAssetDetail extends DashboardCloudAssetItem {
   delete_at?: null | string;
   history_orders?: DashboardCloudOrderSummaryItem[];
   ip_logs?: DashboardCloudAssetIpLogItem[];
+  lifecycle_order_links?: Record<string, string>;
   ip_recycle_at?: null | string;
   last_renewed_at?: null | string;
   order_status?: string;
@@ -627,6 +640,83 @@ export interface DashboardAutoRenewTaskDetail {
   task_label: string;
 }
 
+export interface DashboardShutdownPlanItem {
+  asset_id?: null | number;
+  asset_name?: string;
+  delete_at: null | string;
+  detail_path: string;
+  execution_plan?: null | string;
+  execution_status?: null | string;
+  id: number | string;
+  ip: string;
+  ip_recycle_at: null | string;
+  item_type?: 'order' | 'orphan_asset' | string;
+  last_failure_reason?: null | string;
+  next_run_at?: null | string;
+  order_id: null | number;
+  order_no: string;
+  provider: string;
+  provider_label?: string;
+  queue_status?: string;
+  queue_status_label?: string;
+  related_path: string;
+  service_expires_at: null | string;
+  status: string;
+  status_label?: string;
+  suspend_at: null | string;
+  tg_user_id: null | number;
+  user_display_name: string;
+  user_id: null | number;
+  username_label: string;
+}
+
+export interface DashboardShutdownPlanHistoryItem {
+  delete_at: null | string;
+  detail_path: string;
+  executed_at: null | string;
+  execution_status?: string;
+  failure_reason: null | string;
+  id: number | string;
+  ip: string;
+  is_success: boolean;
+  order_id: null | number;
+  order_no: string;
+  provider: null | string;
+  provider_label?: string;
+  related_path: string;
+  result_label: string;
+  service_expires_at: null | string;
+  suspend_at: null | string;
+  tg_user_id: null | number;
+  user_display_name: string;
+  user_id: null | number;
+  username_label: string;
+}
+
+export interface DashboardLifecyclePlansDetail {
+  due_count: number;
+  due_items: DashboardShutdownPlanItem[];
+  future_plan_items: DashboardShutdownPlanItem[];
+  history_items: DashboardShutdownPlanHistoryItem[];
+  interval_minutes: number;
+  ip_delete_count: number;
+  ip_delete_due_count: number;
+  ip_delete_history_count?: number;
+  ip_delete_items: DashboardUnattachedIpDeletePlan[];
+  last_run_at: null | string;
+  next_run_at: null | string;
+  pending_ip_delete_count?: number;
+  recent_failure_count: number;
+  recent_success_count: number;
+  server_delete_history_count?: number;
+  shutdown_count: number;
+  shutdown_due_count: number;
+  shutdown_items: DashboardShutdownLog[];
+  status_label: string;
+  task_key: string;
+  task_label: string;
+}
+
 export interface DashboardCloudAccountConfigItem {
   access_key: string;
   access_key_preview?: string;
@@ -915,15 +1005,6 @@ export async function getDashboardOverviewApi() {
   return requestClient.get<DashboardOverview>('/admin/dashboard/overview/');
 }
 
-export async function getDashboardShutdownLogsApi(
-  params: { limit?: number } = {},
-) {
-  return requestClient.get<DashboardShutdownLog[]>(
-    '/admin/dashboard/shutdown-logs/',
-    { params },
-  );
-}
-
 export async function getDashboardIpDeleteLogsApi(
   params: { limit?: number } = {},
 ) {
@@ -944,6 +1025,51 @@ export async function getDashboardTasksApi() {
 export async function getDashboardAutoRenewTaskDetailApi() {
   return requestClient.get<DashboardAutoRenewTaskDetail>(
     '/admin/tasks/auto-renew/',
+  );
+}
+
+export async function getDashboardLifecyclePlansApi(
+  params: { limit?: number } = {},
+) {
+  return requestClient.get<DashboardLifecyclePlansDetail>(
+    '/admin/tasks/plans/',
+    { params },
+  );
+}
+
+export interface DashboardShutdownPlanRunResultItem {
+  error?: null | string;
+  ip: string;
+  ok: boolean;
+  order_id: number;
+  order_no: string;
+  queue_status: string;
+}
+
+export interface DashboardShutdownPlanRunResult {
+  batch_id: string;
+  failure_count: number;
+  items: DashboardShutdownPlanRunResultItem[];
+  message?: string;
+  success_count: number;
+  total: number;
+}
+
+export async function runDashboardShutdownPlanOrderApi(orderId: number) {
+  return requestClient.post<DashboardShutdownPlanRunResult>(
+    `/admin/tasks/plans/orders/${orderId}/run/`,
+  );
+}
+
+export async function runDashboardOrphanAssetDeletePlanApi(assetId: number) {
+  return requestClient.post<DashboardShutdownPlanRunResult>(
+    `/admin/tasks/plans/orphan-assets/${assetId}/run/`,
+  );
+}
+
+export async function runDashboardUnattachedIpDeletePlanApi(assetId: number) {
+  return requestClient.post<DashboardShutdownPlanRunResult>(
+    `/admin/tasks/plans/unattached-ips/${assetId}/run/`,
   );
 }
 

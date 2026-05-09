@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import type {
   DashboardCloudAssetDetail,
-  DashboardCloudAssetIpLogItem,
   DashboardCloudOrderSummaryItem,
 } from '#/api/admin';
 
@@ -29,15 +28,34 @@ const route = useRoute();
 const router = useRouter();
 const loading = ref(false);
 const detail = ref<DashboardCloudAssetDetail | null>(null);
+const expandedLifecycleRows = ref<Record<string, boolean>>({});
 
 const assetId = computed(() => Number(route.params.id || 0));
 const historyOrders = computed<DashboardCloudOrderSummaryItem[]>(
   () => detail.value?.history_orders || [],
 );
 
-const logColumns = [
-  { title: '时间', dataIndex: 'created_at', key: 'created_at', width: 170 },
-  { title: '事件', dataIndex: 'event_label', key: 'event_label', width: 120 },
+const lifecycleColumns = [
+  {
+    title: '执行时间',
+    dataIndex: 'executed_at',
+    key: 'executed_at',
+    width: 170,
+  },
+  {
+    title: '触发事件',
+    dataIndex: 'trigger_label',
+    key: 'trigger_label',
+    width: 110,
+  },
+  { title: '事件', dataIndex: 'event_label', key: 'event_label', width: 110 },
+  {
+    title: '服务器名',
+    dataIndex: 'server_name',
+    key: 'server_name',
+    width: 180,
+  },
+  { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 220 },
   { title: '当前 IP', dataIndex: 'public_ip', key: 'public_ip', width: 140 },
   {
     title: '上一个 IP',
@@ -45,7 +63,7 @@ const logColumns = [
     key: 'previous_public_ip',
     width: 140,
   },
-  { title: '说明', dataIndex: 'note', key: 'note' },
+  { title: '说明', dataIndex: 'summary', key: 'summary' },
 ];
 
 function empty(value: unknown) {
@@ -128,6 +146,14 @@ function historySourceTagColor(source?: string) {
   return 'default';
 }
 
+function historyOrderIpChange(item?: DashboardCloudOrderSummaryItem | null) {
+  const previousIp = String(item?.previous_public_ip || '').trim();
+  const currentIp = String(item?.public_ip || '').trim();
+  if (previousIp && currentIp && previousIp !== currentIp)
+    return `${previousIp} → ${currentIp}`;
+  return previousIp || currentIp || '';
+}
+
 function orderSourceItems(item?: DashboardCloudOrderSummaryItem | null) {
   if (!item) return [] as Array<{ key: string; label: string }>;
   const tagKeys = item.order_source_tags || [];
@@ -148,11 +174,103 @@ function orderSourceItems(item?: DashboardCloudOrderSummaryItem | null) {
     : [];
 }
 
+function lifecycleOrderPath(orderNo?: string) {
+  const value = String(orderNo || '').trim();
+  if (!value || value === '-') return '';
+  return detail.value?.lifecycle_order_links?.[value] || '';
+}
+
+function parseLifecycleLine(line: string, fallbackEvent?: string) {
+  const text = String(line || '').trim();
+  if (!text) return null;
+  const executedAt =
+    text.match(/执行时间：(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/)?.[1] || '';
+  const publicIp = text.match(/IP：([^；]+)/)?.[1] || '';
+  const triggerLabel = text.match(/触发事件：([^；]+)/)?.[1] || '';
+  const orderNo = text.match(/订单号：([^；]+)/)?.[1] || '';
+  const serverName = text.match(/服务器名：([^；]+)/)?.[1] || '';
+  const previousPublicIp =
+    text.match(/上一个IP：([^；]+)/)?.[1] ||
+    text.match(/旧IP[=：]([^；]+)/)?.[1] ||
+    text.match(/原固定\/旧IP\s*([^；]+)/)?.[1] ||
+    text.match(/旧固定IP\s*([^；\s]+)/)?.[1] ||
+    text.match(/自动同步发现 IP 变化：([^\s；]+)\s*->/)?.[1] ||
+    text.match(/固定 IP ([^\s；]+) 从/)?.[1] ||
+    (publicIp && text.includes('固定 IP 保留期结束') ? publicIp : '');
+  const summary = text.match(/执行内容：(.+)$/)?.[1] || text;
+
+  let eventLabel = fallbackEvent || '变更';
+  if (summary.includes('开始创建服务器')) eventLabel = '创建开始';
+  else if (
+    summary.includes('云端实例已创建') ||
+    summary.includes('触发创建云端实例')
+  )
+    eventLabel = '实例创建';
+  else if (summary.includes('创建并分配IP')) eventLabel = '分配IP';
+  else if (summary.includes('执行关机')) eventLabel = '关机';
+  else if (summary.includes('执行删除') || summary.includes('实例已删除'))
+    eventLabel = '删除';
+  else if (summary.includes('固定 IP 已真实释放') || summary.includes('已回收'))
+    eventLabel = '回收';
+  else if (
+    summary.includes('旧服务器生命周期') ||
+    summary.includes('旧机日期已调整')
+  )
+    eventLabel = '旧机安排';
+  else if (summary.includes('续费')) eventLabel = '续费';
+
+  return {
+    id: `${executedAt}-${triggerLabel}-${eventLabel}-${publicIp}-${summary}`,
+    executed_at: executedAt,
+    trigger_label: triggerLabel || '-',
+    event_label: eventLabel,
+    order_no: orderNo || '-',
+    order_link_path: lifecycleOrderPath(orderNo),
+    server_name: serverName || '-',
+    public_ip: publicIp || '-',
+    previous_public_ip: previousPublicIp || '-',
+    summary,
+  };
+}
+
+const lifecycleRows = computed(() => {
+  const rows: Array<Record<string, string>> = [];
+  for (const item of detail.value?.ip_logs || []) {
+    const lines = String(item.note || '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    for (const line of lines) {
+      const parsed = parseLifecycleLine(
+        line,
+        item.event_label || item.event_type,
+      );
+      if (parsed) rows.push(parsed);
+    }
+  }
+  return rows;
+});
+
+function lifecycleSummaryTooLong(text?: null | string) {
+  const value = String(text || '').trim();
+  if (!value) return false;
+  return value.length > 100 || value.split('\n').filter(Boolean).length > 2;
+}
+
+function lifecycleExpanded(record: Record<string, string>) {
+  return Boolean(expandedLifecycleRows.value[String(record.id || '')]);
+}
+
+function toggleLifecycleSummary(record: Record<string, string>) {
+  const key = String(record.id || '');
+  expandedLifecycleRows.value[key] = !expandedLifecycleRows.value[key];
+}
+
 onMounted(loadData);
 </script>
 
 <template>
-  <Page description="查看代理、云账号、IP、生命周期和构建过程" title="代理详情">
+  <Page description="查看代理、云账号、IP 与生命周期日志" title="代理详情">
     <Card :loading="loading">
       <template #title>
         <Space>
@@ -224,98 +342,28 @@ onMounted(loadData);
               {{ empty(detail.provider_resource_id) }}
             </Typography.Paragraph>
           </Descriptions.Item>
-          <Descriptions.Item label="资产到期时间">
+          <Descriptions.Item label="固定 IP 名称">
+            {{ empty(detail.static_ip_name) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="上一个 IP">
+            {{ empty(detail.previous_public_ip) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="到期时间">
             {{ formatExpiryTime(detail.actual_expires_at) }}
           </Descriptions.Item>
-          <Descriptions.Item label="剩余天数">
-            {{ empty(detail.status_countdown) }}
+          <Descriptions.Item label="同步状态">
+            {{ empty(detail.provider_status) }}
           </Descriptions.Item>
-          <Descriptions.Item label="服务开始时间">
-            {{ formatTime(detail.service_started_at) }}
+          <Descriptions.Item label="最近同步时间">
+            {{ formatTime(detail.provider_checked_at) }}
           </Descriptions.Item>
-          <Descriptions.Item label="服务到期时间">
-            {{ formatExpiryTime(detail.service_expires_at) }}
-          </Descriptions.Item>
-          <Descriptions.Item label="续费宽限到期">
-            {{ formatTime(detail.renew_grace_expires_at) }}
-          </Descriptions.Item>
-          <Descriptions.Item label="最后续费时间">
-            {{ formatTime(detail.last_renewed_at) }}
-          </Descriptions.Item>
-          <Descriptions.Item label="计划关机时间">
-            {{ formatTime(detail.suspend_at) }}
-          </Descriptions.Item>
-          <Descriptions.Item label="计划删机时间">
-            {{ formatTime(detail.delete_at) }}
-          </Descriptions.Item>
-          <Descriptions.Item label="IP 保留到期">
-            {{ formatTime(detail.ip_recycle_at) }}
-          </Descriptions.Item>
-          <Descriptions.Item label="剩余更换IP次数">
-            {{ empty(detail.ip_change_quota) }}
+          <Descriptions.Item label="创建时间">
+            {{ formatTime(detail.created_at) }}
           </Descriptions.Item>
           <Descriptions.Item label="更新时间">
             {{ formatTime(detail.updated_at) }}
           </Descriptions.Item>
         </Descriptions>
-
-        <Descriptions
-          bordered
-          :column="2"
-          class="mt-4"
-          size="small"
-          title="代理链接"
-        >
-          <Descriptions.Item label="MTProxy 主机">
-            {{ empty(detail.mtproxy_host) }}
-          </Descriptions.Item>
-          <Descriptions.Item label="MTProxy 端口">
-            {{ empty(detail.mtproxy_port) }}
-          </Descriptions.Item>
-          <Descriptions.Item label="MTProxy 密钥" :span="2">
-            <Typography.Paragraph
-              :copyable="
-                detail.mtproxy_secret ? { text: detail.mtproxy_secret } : false
-              "
-              class="!mb-0 break-all font-mono"
-            >
-              {{ empty(detail.mtproxy_secret) }}
-            </Typography.Paragraph>
-          </Descriptions.Item>
-          <Descriptions.Item label="MTProxy 链接" :span="2">
-            <Typography.Paragraph
-              :copyable="
-                detail.mtproxy_link ? { text: detail.mtproxy_link } : false
-              "
-              class="!mb-0 break-all font-mono"
-            >
-              {{ empty(detail.mtproxy_link) }}
-            </Typography.Paragraph>
-          </Descriptions.Item>
-        </Descriptions>
-
-        <Card
-          v-if="detail.proxy_links?.length"
-          class="mt-4"
-          size="small"
-          title="全部代理链路"
-        >
-          <div
-            v-for="(item, index) in detail.proxy_links"
-            :key="`${item.url}-${index}`"
-            class="mb-3 last:mb-0"
-          >
-            <div class="mb-1 text-sm opacity-75">
-              {{ item.name || `链路 ${index + 1}` }}
-            </div>
-            <Typography.Paragraph
-              :copyable="{ text: item.url }"
-              class="!mb-0 break-all font-mono"
-            >
-              {{ item.url }}
-            </Typography.Paragraph>
-          </div>
-        </Card>
 
         <Descriptions
           bordered
@@ -438,57 +486,67 @@ onMounted(loadData);
                   type="link"
                   @click="openOrder(item.order_link_path)"
                 >
-                  跳转订单详情
+                  查看
                 </Button>
               </Space>
-              <div class="text-sm opacity-80">
-                来源：{{
-                  orderSourceItems(item)
-                    .map((tag) => tag.label)
-                    .join(' / ') ||
-                  item.order_source ||
-                  '-'
-                }}
-              </div>
-              <div class="mt-1 text-sm opacity-80">
-                到期：{{ formatExpiryTime(item.service_expires_at) }}
-              </div>
-              <div class="mt-1 text-sm opacity-80">
-                创建：{{ formatTime(item.created_at) }}
+              <div
+                class="grid grid-cols-1 gap-2 text-sm text-gray-500 md:grid-cols-3"
+              >
+                <div>公网 IP：{{ empty(item.public_ip) }}</div>
+                <div>IP 变更：{{ empty(historyOrderIpChange(item)) }}</div>
+                <div>到期：{{ formatExpiryTime(item.service_expires_at) }}</div>
+                <div>创建：{{ formatTime(item.created_at) }}</div>
               </div>
             </div>
           </template>
           <Empty v-else description="暂无历史订单" />
         </Card>
 
-        <Card class="mt-4" size="small" title="构建过程 / 创建说明">
-          <Typography.Paragraph class="!mb-0 whitespace-pre-wrap break-all">
-            {{ empty(detail.provision_note || detail.note) }}
-          </Typography.Paragraph>
-        </Card>
-
         <Card class="mt-4" size="small" title="IP / 生命周期日志">
           <Table
-            :columns="logColumns"
-            :data-source="detail.ip_logs || []"
+            :columns="lifecycleColumns"
+            :data-source="lifecycleRows"
             :pagination="false"
             row-key="id"
             size="small"
+            :scroll="{ x: 1100 }"
           >
             <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'created_at'">
-                {{
-                  formatTime(
-                    (record as DashboardCloudAssetIpLogItem).created_at,
-                  )
-                }}
+              <template v-if="column.key === 'executed_at'">
+                {{ empty(record.executed_at) }}
               </template>
-              <template v-else-if="column.key === 'note'">
-                <Typography.Paragraph
-                  class="!mb-0 whitespace-pre-wrap break-all"
+              <template v-else-if="column.key === 'order_no'">
+                <Button
+                  v-if="record.order_link_path"
+                  class="!px-0"
+                  type="link"
+                  @click="openOrder(record.order_link_path)"
                 >
-                  {{ empty((record as DashboardCloudAssetIpLogItem).note) }}
-                </Typography.Paragraph>
+                  {{ empty(record.order_no) }}
+                </Button>
+                <span v-else>{{ empty(record.order_no) }}</span>
+              </template>
+              <template v-else-if="column.key === 'summary'">
+                <div class="flex flex-col gap-2">
+                  <Typography.Paragraph
+                    class="!mb-0 whitespace-pre-wrap break-all" :class="[
+                      !lifecycleExpanded(record) &&
+                      lifecycleSummaryTooLong(record.summary)
+                        ? 'collapsed-note'
+                        : '',
+                    ]"
+                  >
+                    {{ empty(record.summary) }}
+                  </Typography.Paragraph>
+                  <Button
+                    v-if="lifecycleSummaryTooLong(record.summary)"
+                    size="small"
+                    type="link"
+                    @click="toggleLifecycleSummary(record)"
+                  >
+                    {{ lifecycleExpanded(record) ? '收起' : '展开' }}
+                  </Button>
+                </div>
               </template>
             </template>
           </Table>
@@ -499,3 +557,12 @@ onMounted(loadData);
     </Card>
   </Page>
 </template>
+
+<style scoped>
+.collapsed-note {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+</style>

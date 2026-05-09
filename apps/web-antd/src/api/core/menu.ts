@@ -10,6 +10,7 @@ const routeComponentMap: Record<string, string> = {
   DashboardCloudOrdersList: '/views/dashboard/cloud-orders/index.vue',
   DashboardCloudPlansList: '/views/dashboard/cloud-plans/index.vue',
   DashboardCloudPricing: '/views/dashboard/cloud-pricing/index.vue',
+  DashboardLifecyclePlans: '/views/dashboard/tasks/plans.vue',
   DashboardMonitors: '/views/dashboard/monitors/index.vue',
   DashboardIpDeleteLogs: '/views/dashboard/ip-delete-logs/index.vue',
   DashboardOperationLogs: '/views/dashboard/operation-logs/index.vue',
@@ -17,7 +18,6 @@ const routeComponentMap: Record<string, string> = {
   DashboardRecharges: '/views/dashboard/recharges/index.vue',
   DashboardServerLogs: '/views/dashboard/server-logs/index.vue',
   DashboardServerStatistics: '/views/dashboard/server-statistics/index.vue',
-  DashboardShutdownLogs: '/views/dashboard/shutdown-logs/index.vue',
   DashboardSettingsButtons: '/views/dashboard/settings/buttons.vue',
   DashboardSettingsCloudAccounts:
     '/views/dashboard/settings/cloud-accounts.vue',
@@ -34,7 +34,6 @@ const routeComponentMap: Record<string, string> = {
   DashboardTelegramChatRecords: '/views/dashboard/telegram-accounts/chats.vue',
   DashboardUserBalanceDetails: '/views/dashboard/users/balance-details.vue',
   DashboardUsers: '/views/dashboard/users/index.vue',
-  DashboardWorkspace: '/views/dashboard/workspace/index.vue',
 };
 
 function toMenuRoutes(routes: any[]): RouteRecordStringComponent[] {
