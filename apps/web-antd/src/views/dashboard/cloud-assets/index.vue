@@ -150,7 +150,18 @@ function compareByDaysLeft(
   return normalizeUpdatedAt(b.updated_at) - normalizeUpdatedAt(a.updated_at);
 }
 
+function isUnattachedIpAsset(record: DashboardCloudAssetItem) {
+  return (
+    !record.public_ip ||
+    (record.provider_status || '').includes('未附加固定IP') ||
+    (record.provider_status || '').includes('未附加IP')
+  );
+}
+
 function isDeletedAsset(record: DashboardCloudAssetItem) {
+  if (isUnattachedIpAsset(record)) {
+    return false;
+  }
   return (
     !record.is_active ||
     [
@@ -164,14 +175,6 @@ function isDeletedAsset(record: DashboardCloudAssetItem) {
     ['删除中', '已删除', '已终止', '已过期', '未知状态', '终止中'].includes(
       record.status_label || '',
     )
-  );
-}
-
-function isUnattachedIpAsset(record: DashboardCloudAssetItem) {
-  return (
-    !record.public_ip ||
-    (record.provider_status || '').includes('未附加固定IP') ||
-    (record.provider_status || '').includes('未附加IP')
   );
 }
 
