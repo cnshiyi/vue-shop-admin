@@ -53,6 +53,7 @@ const assetSyncingIds = ref<number[]>([]);
 const autoRenewSavingIds = ref<number[]>([]);
 const keyword = ref('');
 const grouped = ref(true);
+const showDeletedAssets = ref(false);
 const groupMode = ref<'telegram_group' | 'user'>('telegram_group');
 const totalSortMode = ref<
   | 'default'
@@ -173,6 +174,15 @@ function isUnattachedIpAsset(record: DashboardCloudAssetItem) {
     (record.provider_status || '').includes('未附加IP')
   );
 }
+
+const displayedItems = computed(() =>
+  showDeletedAssets.value
+    ? items.value
+    : items.value.filter((item) => !isDeletedAsset(item)),
+);
+const deletedAssetCount = computed(
+  () => items.value.filter((item) => isDeletedAsset(item)).length,
+);
 
 function assetDisplayRank(record: DashboardCloudAssetItem) {
   if (isDeletedAsset(record)) return 2;
@@ -338,16 +348,22 @@ function setAllGroupsExpanded(expanded: boolean) {
 }
 
 function handleGroupModeChange() {
-  refreshGroupedItems(items.value, true);
+  refreshGroupedItems(displayedItems.value, true);
 }
 
 function handleGroupedChange(enabled: boolean | number | string) {
   if (enabled) {
-    refreshGroupedItems(items.value, true);
+    refreshGroupedItems(displayedItems.value, true);
     return;
   }
   groups.value = [];
   expandedGroupKeys.value = [];
+}
+
+function handleDeletedAssetsVisibleChange() {
+  if (grouped.value) {
+    refreshGroupedItems(displayedItems.value, true);
+  }
 }
 
 function handleExpandedGroupKeysChange(
@@ -582,7 +598,7 @@ async function loadData() {
     loadProgress.total = firstPage.total || items.value.length;
     loadProgress.loaded = items.value.length;
     if (grouped.value) {
-      refreshGroupedItems(items.value);
+      refreshGroupedItems(displayedItems.value);
     } else {
       groups.value = [];
       expandedGroupKeys.value = [];
@@ -603,7 +619,7 @@ async function loadData() {
       loadProgress.total = response.total || loadProgress.total;
       loadProgress.loaded = items.value.length;
       if (grouped.value) {
-        refreshGroupedItems(items.value);
+        refreshGroupedItems(displayedItems.value);
       }
     }
     loadProgress.done = true;
@@ -904,7 +920,7 @@ function replaceAssetInList(asset: DashboardCloudAssetItem) {
     ...items.value.slice(index + 1),
   ]);
   if (grouped.value) {
-    refreshGroupedItems(items.value);
+    refreshGroupedItems(displayedItems.value);
   }
   currentRow.value = asset;
 }
@@ -914,7 +930,7 @@ function removeAssetFromList(assetId: number) {
   loadProgress.loaded = items.value.length;
   loadProgress.total = Math.max(0, loadProgress.total - 1);
   if (grouped.value) {
-    refreshGroupedItems(items.value);
+    refreshGroupedItems(displayedItems.value);
   }
   if (currentRow.value?.id === assetId) {
     currentRow.value = null;
@@ -1049,6 +1065,16 @@ onBeforeUnmount(() => {
             {{ aliyunExistingCount }}
           </Tag>
           <Tag color="purple">下次刷新：{{ nextRefreshInSeconds }}s</Tag>
+          <Space :size="4">
+            <span>{{ showDeletedAssets ? '展开已删除' : '折叠已删除' }}</span>
+            <Switch
+              v-model:checked="showDeletedAssets"
+              checked-children="展开"
+              un-checked-children="折叠"
+              @change="handleDeletedAssetsVisibleChange"
+            />
+            <Tag color="default">已删除 {{ deletedAssetCount }} 条</Tag>
+          </Space>
           <Select
             v-if="grouped"
             v-model:value="groupMode"
@@ -1361,7 +1387,7 @@ onBeforeUnmount(() => {
         v-else
         class="cloud-assets-table"
         :columns="assetTableColumns"
-        :data-source="items"
+        :data-source="displayedItems"
         :loading="loading"
         :pagination="{ pageSize: 10 }"
         row-key="id"
