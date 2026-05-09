@@ -271,7 +271,7 @@ function goBack() {
 async function loadData(options?: { silent?: boolean }) {
   if (!options?.silent) loading.value = true;
   try {
-    detail.value = await getDashboardLifecyclePlansApi({ limit: 200 });
+    detail.value = await getDashboardLifecyclePlansApi({ limit: 1000 });
   } catch (error: any) {
     message.error(error?.message || '计划加载失败');
     detail.value = null;
@@ -663,7 +663,7 @@ onMounted(loadData);
           :columns="ipDeleteColumns"
           :data-source="futureIpDeleteItems"
           :loading="loading"
-          :pagination="{ pageSize: 10 }"
+          :pagination="{ pageSize: 20, showSizeChanger: true }"
           :row-key="rowKey"
           :scroll="{ x: 1600 }"
         >
@@ -743,7 +743,7 @@ onMounted(loadData);
           :columns="dueColumns"
           :data-source="futurePlanItems"
           :loading="loading"
-          :pagination="{ pageSize: 10 }"
+          :pagination="{ pageSize: 20, showSizeChanger: true }"
           :row-key="rowKey"
           :scroll="{ x: 1420 }"
         >
@@ -812,7 +812,7 @@ onMounted(loadData);
           :columns="historyColumns"
           :data-source="historyItems"
           :loading="loading"
-          :pagination="{ pageSize: 10 }"
+          :pagination="{ pageSize: 20, showSizeChanger: true }"
           :row-key="rowKey"
           :scroll="{ x: 1580 }"
         >
@@ -875,7 +875,7 @@ onMounted(loadData);
           :columns="ipDeleteColumns"
           :data-source="ipDeleteHistoryItems"
           :loading="loading"
-          :pagination="{ pageSize: 10 }"
+          :pagination="{ pageSize: 20, showSizeChanger: true }"
           :row-key="rowKey"
           :scroll="{ x: 1600 }"
         >
