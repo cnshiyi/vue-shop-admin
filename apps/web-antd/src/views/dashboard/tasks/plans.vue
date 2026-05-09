@@ -162,14 +162,21 @@ const dueItems = computed(() => summary.value?.due_items || []);
 const futurePlanItems = computed(() => summary.value?.future_plan_items || []);
 const historyItems = computed(() => summary.value?.history_items || []);
 const ipDeleteItems = computed(() => summary.value?.ip_delete_items || []);
+function isIpDeletePending(item: DashboardUnattachedIpDeletePlan) {
+  if (item.is_history) return false;
+  if (item.is_overdue) return true;
+  if (!item.delete_at) return false;
+  const target = dayjs(item.delete_at);
+  if (!target.isValid()) return false;
+  return target.diff(dayjs(), 'day', true) <= 7;
+}
+
 const pendingIpDeleteItems = computed(() =>
-  ipDeleteItems.value.filter(
-    (item: any) => !item.is_history && item.is_overdue,
-  ),
+  ipDeleteItems.value.filter((item: any) => isIpDeletePending(item)),
 );
 const futureIpDeleteItems = computed(() =>
   ipDeleteItems.value.filter(
-    (item: any) => !item.is_history && !item.is_overdue,
+    (item: any) => !item.is_history && !isIpDeletePending(item),
   ),
 );
 const ipDeleteHistoryItems = computed(() =>
@@ -385,7 +392,7 @@ onMounted(loadData);
           <Descriptions.Item label="上次执行">
             {{ fmtTime(summary?.last_run_at) }}
           </Descriptions.Item>
-          <Descriptions.Item label="待删除未附加IP">
+          <Descriptions.Item label="7天内待删未附加IP">
             <Tag
               :color="
                 (summary?.pending_ip_delete_count || 0) > 0
@@ -453,7 +460,7 @@ onMounted(loadData);
         </Table>
       </Card>
 
-      <Card title="待执行删除IP">
+      <Card title="待执行删除IP（7天内）">
         <Table
           :columns="ipDeleteColumns"
           :data-source="pendingIpDeleteItems"
@@ -546,7 +553,7 @@ onMounted(loadData);
         </Table>
         <Empty
           v-if="pendingIpDeleteItems.length === 0 && !loading"
-          description="当前没有待执行删除的 IP"
+          description="当前 7 天内没有待执行删除的 IP"
         />
       </Card>
 
