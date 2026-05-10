@@ -111,7 +111,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('#/views/dashboard/tasks/plans.vue'),
         meta: {
           icon: 'lucide:calendar-clock',
-          title: '计划',
+          title: '删除计划',
         },
       },
       {
