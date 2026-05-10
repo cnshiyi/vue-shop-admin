@@ -43,7 +43,7 @@ const detail = ref<DashboardLifecyclePlansDetail | null>(null);
 const lastRunResult = ref<DashboardShutdownPlanRunResult | null>(null);
 const failurePanelOpen = ref(false);
 const expandedKeys = reactive<Record<string, boolean>>({});
-const tablePagination = { pageSize: 20, showSizeChanger: false };
+const tablePagination = { defaultPageSize: 20, showSizeChanger: true };
 
 const dueColumns = [
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
