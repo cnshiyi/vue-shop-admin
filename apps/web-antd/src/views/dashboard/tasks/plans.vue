@@ -227,6 +227,11 @@ function fmtRecordTime(record: any, key: unknown) {
   return fmtTime(String(key || '') ? record[String(key)] : null);
 }
 
+function recordTimeColor(record: any, key: unknown) {
+  const value = String(key || '') ? record[String(key)] : null;
+  return dueColor(value, Boolean(value && dayjs(value).isBefore(dayjs())));
+}
+
 function rowKey(
   record: { id: number | string; order_id?: null | number },
   index?: number,
@@ -509,6 +514,18 @@ onMounted(loadData);
                 }}
               </Tag>
             </template>
+            <template v-else-if="column.key === 'user_display_name'">
+              <div>
+                <div>{{ (record as any).user_display_name || '-' }}</div>
+                <div
+                  v-if="(record as any).username_label"
+                  style="color: var(--color-text-secondary)"
+                  class="text-xs"
+                >
+                  {{ (record as any).username_label }}
+                </div>
+              </div>
+            </template>
             <template v-else-if="column.key === 'deletion_source_label'">
               <Tag color="blue">
                 {{
@@ -631,6 +648,18 @@ onMounted(loadData);
                 </TypographyParagraph>
               </div>
             </template>
+            <template v-else-if="column.key === 'user_display_name'">
+              <div>
+                <div>{{ (record as any).user_display_name || '-' }}</div>
+                <div
+                  v-if="(record as any).username_label"
+                  style="color: var(--color-text-secondary)"
+                  class="text-xs"
+                >
+                  {{ (record as any).username_label }}
+                </div>
+              </div>
+            </template>
             <template
               v-else-if="
                 ['service_expires_at', 'suspend_at', 'delete_at'].includes(
@@ -638,7 +667,9 @@ onMounted(loadData);
                 )
               "
             >
-              {{ fmtRecordTime(record, column.key) }}
+              <Tag :color="recordTimeColor(record, column.key)">
+                {{ fmtRecordTime(record, column.key) }}
+              </Tag>
             </template>
             <template v-else-if="column.key === 'execution_status'">
               <div>
@@ -715,6 +746,18 @@ onMounted(loadData);
                   '-'
                 }}
               </Tag>
+            </template>
+            <template v-else-if="column.key === 'user_display_name'">
+              <div>
+                <div>{{ (record as any).user_display_name || '-' }}</div>
+                <div
+                  v-if="(record as any).username_label"
+                  style="color: var(--color-text-secondary)"
+                  class="text-xs"
+                >
+                  {{ (record as any).username_label }}
+                </div>
+              </div>
             </template>
             <template v-else-if="column.key === 'deletion_source_label'">
               <Tag color="blue">
@@ -808,6 +851,18 @@ onMounted(loadData);
                 }}
               </Tag>
             </template>
+            <template v-else-if="column.key === 'user_display_name'">
+              <div>
+                <div>{{ (record as any).user_display_name || '-' }}</div>
+                <div
+                  v-if="(record as any).username_label"
+                  style="color: var(--color-text-secondary)"
+                  class="text-xs"
+                >
+                  {{ (record as any).username_label }}
+                </div>
+              </div>
+            </template>
             <template
               v-else-if="
                 ['service_expires_at', 'suspend_at', 'delete_at'].includes(
@@ -815,7 +870,9 @@ onMounted(loadData);
                 )
               "
             >
-              {{ fmtRecordTime(record, column.key) }}
+              <Tag :color="recordTimeColor(record, column.key)">
+                {{ fmtRecordTime(record, column.key) }}
+              </Tag>
             </template>
             <template v-else-if="column.key === 'execution_status'">
               <div>
@@ -872,6 +929,18 @@ onMounted(loadData);
                 {{ (record as DashboardShutdownPlanHistoryItem).result_label }}
               </Tag>
             </template>
+            <template v-else-if="column.key === 'user_display_name'">
+              <div>
+                <div>{{ (record as any).user_display_name || '-' }}</div>
+                <div
+                  v-if="(record as any).username_label"
+                  style="color: var(--color-text-secondary)"
+                  class="text-xs"
+                >
+                  {{ (record as any).username_label }}
+                </div>
+              </div>
+            </template>
             <template v-else-if="column.key === 'deletion_source_label'">
               <Tag color="blue">
                 {{
@@ -887,7 +956,9 @@ onMounted(loadData);
                 )
               "
             >
-              {{ fmtRecordTime(record, column.key) }}
+              <Tag :color="recordTimeColor(record, column.key)">
+                {{ fmtRecordTime(record, column.key) }}
+              </Tag>
             </template>
             <template v-else-if="column.key === 'failure_reason'">
               <TypographyParagraph
@@ -949,6 +1020,18 @@ onMounted(loadData);
                   '-'
                 }}
               </Tag>
+            </template>
+            <template v-else-if="column.key === 'user_display_name'">
+              <div>
+                <div>{{ (record as any).user_display_name || '-' }}</div>
+                <div
+                  v-if="(record as any).username_label"
+                  style="color: var(--color-text-secondary)"
+                  class="text-xs"
+                >
+                  {{ (record as any).username_label }}
+                </div>
+              </div>
             </template>
             <template v-else-if="column.key === 'deletion_source_label'">
               <Tag color="blue">
