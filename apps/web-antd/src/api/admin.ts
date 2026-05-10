@@ -571,6 +571,70 @@ export interface DashboardTaskItem {
   updated_at: null | string;
 }
 
+export interface DashboardNoticePlanItem {
+  auto_renew_at: null | string;
+  delete_at: null | string;
+  detail_path: string;
+  id: number | string;
+  ip: string;
+  ip_recycle_at: null | string;
+  next_run_at?: null | string;
+  notice_at: null | string;
+  notice_type: string;
+  notice_type_label: string;
+  order_id?: null | number;
+  order_no: string;
+  provider: string;
+  provider_label?: string;
+  queue_status?: string;
+  queue_status_label?: string;
+  related_path: string;
+  service_expires_at: null | string;
+  status: string;
+  status_label?: string;
+  suspend_at: null | string;
+  tg_user_id: null | number;
+  user_display_name: string;
+  user_id: null | number;
+  username_label: string;
+}
+
+export interface DashboardNoticePlanHistoryItem {
+  batch_id: string;
+  created_at: null | string;
+  delivered: boolean;
+  detail_path: string;
+  id: number;
+  ip: string;
+  notice_type: string;
+  notice_type_label: string;
+  order_id: null | number;
+  order_no: string;
+  related_path: string;
+  result_label: string;
+  target_chat_id: null | number;
+  text_preview: string;
+  tg_user_id: null | number;
+  user_display_name: string;
+  user_id: null | number;
+  username_label: string;
+}
+
+export interface DashboardNoticePlanDetail {
+  due_count: number;
+  due_items: DashboardNoticePlanItem[];
+  future_plan_items: DashboardNoticePlanItem[];
+  history_items: DashboardNoticePlanHistoryItem[];
+  interval_minutes: number;
+  last_run_at: null | string;
+  next_run_at: null | string;
+  recent_failure_count: number;
+  recent_success_count: number;
+  status_label: string;
+  task_key: string;
+  task_label: string;
+}
+
 export interface DashboardAutoRenewTaskDueItem {
   auto_renew_at: null | string;
   balance: null | string;
@@ -1025,6 +1089,10 @@ export async function getDashboardUsersApi(params: DashboardListQuery = {}) {
 
 export async function getDashboardTasksApi() {
   return requestClient.get<DashboardTaskItem[]>('/admin/tasks/');
+}
+
+export async function getDashboardNoticePlanApi() {
+  return requestClient.get<DashboardNoticePlanDetail>('/admin/tasks/notices/');
 }
 
 export async function getDashboardAutoRenewTaskDetailApi() {

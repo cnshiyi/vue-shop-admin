@@ -115,6 +115,15 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        name: 'DashboardNoticePlans',
+        path: 'tasks/notices',
+        component: () => import('#/views/dashboard/tasks/notices.vue'),
+        meta: {
+          icon: 'lucide:bell-ring',
+          title: '通知计划',
+        },
+      },
+      {
         name: 'DashboardAutoRenewTaskDetail',
         path: 'tasks/auto-renew',
         component: () =>
