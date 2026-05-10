@@ -580,6 +580,11 @@ export interface DashboardNoticePlanItem {
   ip_recycle_at: null | string;
   next_run_at?: null | string;
   notice_at: null | string;
+  notice_channel: string;
+  notice_channel_label: string;
+  notice_status: string;
+  notice_status_label: string;
+  notice_text_preview: string;
   notice_type: string;
   notice_type_label: string;
   order_id?: null | number;
@@ -589,6 +594,7 @@ export interface DashboardNoticePlanItem {
   queue_status?: string;
   queue_status_label?: string;
   related_path: string;
+  retry_label: string;
   service_expires_at: null | string;
   status: string;
   status_label?: string;
@@ -606,12 +612,17 @@ export interface DashboardNoticePlanHistoryItem {
   detail_path: string;
   id: number;
   ip: string;
+  notice_channel: string;
+  notice_channel_label: string;
+  notice_status: string;
+  notice_status_label: string;
   notice_type: string;
   notice_type_label: string;
   order_id: null | number;
   order_no: string;
   related_path: string;
   result_label: string;
+  retry_label: string;
   target_chat_id: null | number;
   text_preview: string;
   tg_user_id: null | number;
@@ -630,6 +641,7 @@ export interface DashboardNoticePlanDetail {
   next_run_at: null | string;
   recent_failure_count: number;
   recent_success_count: number;
+  retry_policy_label: string;
   status_label: string;
   task_key: string;
   task_label: string;

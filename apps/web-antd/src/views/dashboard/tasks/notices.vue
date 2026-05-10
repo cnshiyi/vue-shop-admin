@@ -13,6 +13,7 @@ import { useRouter } from 'vue-router';
 import { Page } from '@vben/common-ui';
 
 import {
+  Alert,
   Button,
   Card,
   Descriptions,
@@ -34,24 +35,26 @@ const detail = ref<DashboardNoticePlanDetail | null>(null);
 const planColumns: TableColumnsType<DashboardNoticePlanItem> = [
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
   { title: '通知类型', dataIndex: 'notice_type_label', key: 'notice_type_label', width: 150 },
-  { title: '队列状态', dataIndex: 'queue_status_label', key: 'queue_status_label', width: 150 },
-  { title: '用户', dataIndex: 'user_display_name', key: 'user_display_name', width: 170 },
-  { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 190 },
+  { title: '通知状态', dataIndex: 'notice_status_label', key: 'notice_status_label', width: 170 },
+  { title: '通知渠道', dataIndex: 'notice_channel_label', key: 'notice_channel_label', width: 190 },
+  { title: '用户', dataIndex: 'user_display_name', key: 'user_display_name', width: 160 },
   { title: '通知时间', dataIndex: 'notice_at', key: 'notice_at', width: 180 },
-  { title: '到期时间', dataIndex: 'service_expires_at', key: 'service_expires_at', width: 180 },
-  { title: '计划', dataIndex: 'plan', key: 'plan', width: 240 },
+  { title: '通知文案', dataIndex: 'notice_text_preview', key: 'notice_text_preview', width: 420 },
+  { title: '队列状态', dataIndex: 'queue_status_label', key: 'queue_status_label', width: 150 },
+  { title: '重试说明', dataIndex: 'retry_label', key: 'retry_label', width: 260 },
+  { title: '计划', dataIndex: 'plan', key: 'plan', width: 260 },
   { title: '操作', key: 'actions', width: 100, fixed: 'right' },
 ];
 
 const historyColumns: TableColumnsType<DashboardNoticePlanHistoryItem> = [
   { title: '发送时间', dataIndex: 'created_at', key: 'created_at', width: 180 },
   { title: '通知类型', dataIndex: 'notice_type_label', key: 'notice_type_label', width: 150 },
+  { title: '通知状态', dataIndex: 'notice_status_label', key: 'notice_status_label', width: 170 },
+  { title: '通知渠道', dataIndex: 'notice_channel_label', key: 'notice_channel_label', width: 190 },
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
-  { title: '用户', dataIndex: 'user_display_name', key: 'user_display_name', width: 170 },
-  { title: '结果', dataIndex: 'result_label', key: 'result_label', width: 100 },
-  { title: '目标 Chat', dataIndex: 'target_chat_id', key: 'target_chat_id', width: 140 },
-  { title: '通知预览', dataIndex: 'text_preview', key: 'text_preview', width: 420 },
-  { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 180 },
+  { title: '用户', dataIndex: 'user_display_name', key: 'user_display_name', width: 160 },
+  { title: '通知文案', dataIndex: 'text_preview', key: 'text_preview', width: 460 },
+  { title: '重试说明', dataIndex: 'retry_label', key: 'retry_label', width: 300 },
   { title: '操作', key: 'actions', width: 100, fixed: 'right' },
 ];
 
@@ -65,10 +68,6 @@ function fmtTime(value?: null | string) {
   return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm:ss') : value;
 }
 
-function fmtValue(value?: null | string) {
-  return value || '-';
-}
-
 function queueColor(status?: string) {
   if (status === 'due_now' || status === 'fallback_notice') return 'error';
   if (status === 'within_window') return 'warning';
@@ -76,11 +75,25 @@ function queueColor(status?: string) {
 }
 
 function noticeColor(type?: string) {
-  if (type === 'renew_notice') return 'blue';
+  if (type === 'renew_notice' || type === 'renew_notice_batch') return 'blue';
   if (type === 'auto_renew_notice') return 'purple';
   if (type === 'delete_notice') return 'orange';
   if (type === 'recycle_notice') return 'cyan';
   return 'default';
+}
+
+function statusColor(status?: string) {
+  if (status === 'sent') return 'success';
+  if (status === 'failed_retry') return 'error';
+  if (status === 'pending') return 'warning';
+  if (status === 'scheduled_soon') return 'processing';
+  return 'default';
+}
+
+function channelColor(channel?: string) {
+  if (channel === 'unbound') return 'error';
+  if (channel === 'telegram_chat') return 'cyan';
+  return 'blue';
 }
 
 function rowKey(record: DashboardNoticePlanItem) {
@@ -115,7 +128,7 @@ onMounted(loadData);
 </script>
 
 <template>
-  <Page description="按生命周期通知队列展示到期提醒、自动续费预提醒、删机提醒和 IP 回收提醒" title="通知计划">
+  <Page description="展示两天内待通知、未来通知计划、历史通知，并标明状态、渠道和失败重试规则" title="通知计划">
     <Space direction="vertical" style="width: 100%" :size="16">
       <Card :loading="loading">
         <template #title>
@@ -137,28 +150,45 @@ onMounted(loadData);
           <Descriptions.Item label="最近24小时送达">
             <Tag color="success">{{ detail?.recent_success_count ?? 0 }}</Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="最近24小时未送达">
+          <Descriptions.Item label="最近24小时失败">
             <Tag color="error">{{ detail?.recent_failure_count ?? 0 }}</Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="当前待通知" :span="2">
+          <Descriptions.Item label="两天内待通知" :span="2">
             <Tag color="warning">{{ detail?.due_count ?? 0 }}</Tag>
           </Descriptions.Item>
         </Descriptions>
+        <Alert
+          v-if="detail?.retry_policy_label"
+          type="info"
+          show-icon
+          :message="detail.retry_policy_label"
+          style="margin-top: 12px"
+        />
       </Card>
 
-      <Card title="待通知列表">
+      <Card title="待通知列表（两天内）">
         <Table
           :columns="planColumns"
           :data-source="dueItems"
           :loading="loading"
-          :pagination="false"
+          :pagination="{ pageSize: 10 }"
           :row-key="rowKey"
-          :scroll="{ x: 1480 }"
+          :scroll="{ x: 2390 }"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'notice_type_label'">
               <Tag :color="noticeColor((record as DashboardNoticePlanItem).notice_type)">
                 {{ (record as DashboardNoticePlanItem).notice_type_label }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'notice_status_label'">
+              <Tag :color="statusColor((record as DashboardNoticePlanItem).notice_status)">
+                {{ (record as DashboardNoticePlanItem).notice_status_label || '-' }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'notice_channel_label'">
+              <Tag :color="channelColor((record as DashboardNoticePlanItem).notice_channel)">
+                {{ (record as DashboardNoticePlanItem).notice_channel_label || '-' }}
               </Tag>
             </template>
             <template v-else-if="column.key === 'queue_status_label'">
@@ -169,14 +199,17 @@ onMounted(loadData);
             <template v-else-if="column.key === 'notice_at'">
               {{ fmtTime((record as DashboardNoticePlanItem).notice_at) }}
             </template>
-            <template v-else-if="column.key === 'service_expires_at'">
-              {{ fmtTime((record as DashboardNoticePlanItem).service_expires_at) }}
+            <template v-else-if="column.key === 'notice_text_preview' || column.key === 'retry_label'">
+              <TypographyParagraph :ellipsis="{ rows: 2, tooltip: String((record as any)[column.key] || '-') }" class="mb-0 break-all text-sm leading-6">
+                {{ (record as any)[column.key] || '-' }}
+              </TypographyParagraph>
             </template>
             <template v-else-if="column.key === 'plan'">
               <div>
                 <div>{{ (record as DashboardNoticePlanItem).provider_label || '-' }}</div>
                 <div style="color: var(--color-text-secondary)">
-                  自动续费 {{ fmtTime((record as DashboardNoticePlanItem).auto_renew_at) }}
+                  到期 {{ fmtTime((record as DashboardNoticePlanItem).service_expires_at) }} / 自动续费
+                  {{ fmtTime((record as DashboardNoticePlanItem).auto_renew_at) }}
                 </div>
                 <div style="color: var(--color-text-secondary)">
                   关机 {{ fmtTime((record as DashboardNoticePlanItem).suspend_at) }} / 删机
@@ -191,22 +224,32 @@ onMounted(loadData);
             </template>
           </template>
         </Table>
-        <Empty v-if="dueItems.length === 0 && !loading" description="当前没有待通知任务" />
+        <Empty v-if="dueItems.length === 0 && !loading" description="当前两天内没有待通知任务" />
       </Card>
 
-      <Card title="未来通知计划">
+      <Card title="未来通知计划（10个）">
         <Table
           :columns="planColumns"
           :data-source="futurePlanItems"
           :loading="loading"
-          :pagination="{ pageSize: 10 }"
+          :pagination="false"
           :row-key="rowKey"
-          :scroll="{ x: 1480 }"
+          :scroll="{ x: 2390 }"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'notice_type_label'">
               <Tag :color="noticeColor((record as DashboardNoticePlanItem).notice_type)">
                 {{ (record as DashboardNoticePlanItem).notice_type_label }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'notice_status_label'">
+              <Tag :color="statusColor((record as DashboardNoticePlanItem).notice_status)">
+                {{ (record as DashboardNoticePlanItem).notice_status_label || '-' }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'notice_channel_label'">
+              <Tag :color="channelColor((record as DashboardNoticePlanItem).notice_channel)">
+                {{ (record as DashboardNoticePlanItem).notice_channel_label || '-' }}
               </Tag>
             </template>
             <template v-else-if="column.key === 'queue_status_label'">
@@ -217,14 +260,17 @@ onMounted(loadData);
             <template v-else-if="column.key === 'notice_at'">
               {{ fmtTime((record as DashboardNoticePlanItem).notice_at) }}
             </template>
-            <template v-else-if="column.key === 'service_expires_at'">
-              {{ fmtTime((record as DashboardNoticePlanItem).service_expires_at) }}
+            <template v-else-if="column.key === 'notice_text_preview' || column.key === 'retry_label'">
+              <TypographyParagraph :ellipsis="{ rows: 2, tooltip: String((record as any)[column.key] || '-') }" class="mb-0 break-all text-sm leading-6">
+                {{ (record as any)[column.key] || '-' }}
+              </TypographyParagraph>
             </template>
             <template v-else-if="column.key === 'plan'">
               <div>
                 <div>{{ (record as DashboardNoticePlanItem).provider_label || '-' }}</div>
                 <div style="color: var(--color-text-secondary)">
-                  自动续费 {{ fmtTime((record as DashboardNoticePlanItem).auto_renew_at) }}
+                  到期 {{ fmtTime((record as DashboardNoticePlanItem).service_expires_at) }} / 自动续费
+                  {{ fmtTime((record as DashboardNoticePlanItem).auto_renew_at) }}
                 </div>
                 <div style="color: var(--color-text-secondary)">
                   关机 {{ fmtTime((record as DashboardNoticePlanItem).suspend_at) }} / 删机
@@ -241,14 +287,14 @@ onMounted(loadData);
         </Table>
       </Card>
 
-      <Card title="通知历史">
+      <Card title="历史通知">
         <Table
           :columns="historyColumns"
           :data-source="historyItems"
           :loading="loading"
           :pagination="{ pageSize: 10 }"
           :row-key="historyRowKey"
-          :scroll="{ x: 1480 }"
+          :scroll="{ x: 2110 }"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'created_at'">
@@ -259,17 +305,19 @@ onMounted(loadData);
                 {{ (record as DashboardNoticePlanHistoryItem).notice_type_label }}
               </Tag>
             </template>
-            <template v-else-if="column.key === 'result_label'">
-              <Tag :color="(record as DashboardNoticePlanHistoryItem).delivered ? 'success' : 'error'">
-                {{ (record as DashboardNoticePlanHistoryItem).result_label }}
+            <template v-else-if="column.key === 'notice_status_label'">
+              <Tag :color="statusColor((record as DashboardNoticePlanHistoryItem).notice_status)">
+                {{ (record as DashboardNoticePlanHistoryItem).notice_status_label }}
               </Tag>
             </template>
-            <template v-else-if="column.key === 'target_chat_id'">
-              {{ fmtValue(String((record as DashboardNoticePlanHistoryItem).target_chat_id || '')) }}
+            <template v-else-if="column.key === 'notice_channel_label'">
+              <Tag :color="channelColor((record as DashboardNoticePlanHistoryItem).notice_channel)">
+                {{ (record as DashboardNoticePlanHistoryItem).notice_channel_label || '-' }}
+              </Tag>
             </template>
-            <template v-else-if="column.key === 'text_preview'">
-              <TypographyParagraph :ellipsis="{ rows: 2, tooltip: (record as DashboardNoticePlanHistoryItem).text_preview }" class="mb-0 break-all text-sm leading-6">
-                {{ (record as DashboardNoticePlanHistoryItem).text_preview || '-' }}
+            <template v-else-if="column.key === 'text_preview' || column.key === 'retry_label'">
+              <TypographyParagraph :ellipsis="{ rows: 2, tooltip: String((record as any)[column.key] || '-') }" class="mb-0 break-all text-sm leading-6">
+                {{ (record as any)[column.key] || '-' }}
               </TypographyParagraph>
             </template>
             <template v-else-if="column.key === 'actions'">
