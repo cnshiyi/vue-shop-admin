@@ -208,7 +208,14 @@ async function loadData() {
 
 function noticeTextRows(record: { ip_count?: number; ips?: string[] }) {
   const count = Number(record.ip_count || record.ips?.length || 1);
-  return Math.min(Math.max(count * 4 + 3, 4), 18);
+  return Math.min(Math.max(count * 3, 3), 12);
+}
+
+function noticeTextStyle(record: { ip_count?: number; ips?: string[] }) {
+  return {
+    maxHeight: `${noticeTextRows(record) * 24}px`,
+    overflow: 'hidden',
+  };
 }
 
 function openTextEditor(record: DashboardNoticeUserSummaryItem) {
@@ -392,19 +399,16 @@ onMounted(loadData);
                 >
                   人工干预
                 </Tag>
-                <TypographyParagraph
-                  :ellipsis="{
-                    rows: noticeTextRows(record as DashboardNoticeUserSummaryItem),
-                    tooltip: (record as DashboardNoticeUserSummaryItem)
-                      .notice_text_preview,
-                  }"
-                  class="mb-0 whitespace-pre-wrap break-all text-sm leading-6"
+                <div
+                  class="whitespace-pre-wrap break-all text-sm leading-6"
+                  :style="noticeTextStyle(record as DashboardNoticeUserSummaryItem)"
+                  :title="(record as DashboardNoticeUserSummaryItem).notice_text_preview || '-'"
                 >
                   {{
                     (record as DashboardNoticeUserSummaryItem)
                       .notice_text_preview || '-'
                   }}
-                </TypographyParagraph>
+                </div>
                 <Button
                   type="link"
                   size="small"
@@ -532,19 +536,16 @@ onMounted(loadData);
                 >
                   人工干预
                 </Tag>
-                <TypographyParagraph
-                  :ellipsis="{
-                    rows: noticeTextRows(record as DashboardNoticeUserSummaryItem),
-                    tooltip: (record as DashboardNoticeUserSummaryItem)
-                      .notice_text_preview,
-                  }"
-                  class="mb-0 whitespace-pre-wrap break-all text-sm leading-6"
+                <div
+                  class="whitespace-pre-wrap break-all text-sm leading-6"
+                  :style="noticeTextStyle(record as DashboardNoticeUserSummaryItem)"
+                  :title="(record as DashboardNoticeUserSummaryItem).notice_text_preview || '-'"
                 >
                   {{
                     (record as DashboardNoticeUserSummaryItem)
                       .notice_text_preview || '-'
                   }}
-                </TypographyParagraph>
+                </div>
                 <Button
                   type="link"
                   size="small"
@@ -680,18 +681,19 @@ onMounted(loadData);
                 }}
               </TypographyParagraph>
             </template>
-            <template
-              v-else-if="
-                column.key === 'notice_text_preview' ||
-                column.key === 'retry_label'
-              "
-            >
+            <template v-else-if="column.key === 'notice_text_preview'">
+              <div
+                class="whitespace-pre-wrap break-all text-sm leading-6"
+                :style="noticeTextStyle(record as DashboardNoticePlanHistoryItem)"
+                :title="(record as DashboardNoticePlanHistoryItem).notice_text_preview || '-'"
+              >
+                {{ (record as DashboardNoticePlanHistoryItem).notice_text_preview || '-' }}
+              </div>
+            </template>
+            <template v-else-if="column.key === 'retry_label'">
               <TypographyParagraph
                 :ellipsis="{
-                  rows:
-                    column.key === 'notice_text_preview'
-                      ? noticeTextRows(record as DashboardNoticePlanHistoryItem)
-                      : 2,
+                  rows: 2,
                   tooltip: String((record as any)[column.key] || '-'),
                 }"
                 class="mb-0 whitespace-pre-line break-all text-sm leading-6"
