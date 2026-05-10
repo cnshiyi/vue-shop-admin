@@ -1193,7 +1193,7 @@ export async function getDashboardAutoRenewTaskDetailApi() {
 }
 
 export async function getDashboardLifecyclePlansApi(
-  params: { limit?: number } = {},
+  params: { compact?: 0 | 1; limit?: number } = {},
 ) {
   return requestClient.get<DashboardLifecyclePlansDetail>(
     '/admin/tasks/plans/',
@@ -1612,17 +1612,21 @@ export async function deleteDashboardCloudPlanApi(planId: number) {
   return requestClient.post(`/admin/cloud-plans/${planId}/delete/`);
 }
 
-export async function getDashboardSiteConfigsApi() {
+export async function getDashboardSiteConfigsApi(
+  params: { group?: string } = {},
+) {
   return requestClient.get<DashboardSiteConfigItem[]>(
     '/admin/settings/site-configs/',
-    { timeout: 600_000 },
+    { params, timeout: 600_000 },
   );
 }
 
-export async function getDashboardSiteConfigGroupsApi() {
+export async function getDashboardSiteConfigGroupsApi(
+  params: { group?: string } = {},
+) {
   return requestClient.get<DashboardSiteConfigGroup[]>(
     '/admin/settings/site-configs/groups/',
-    { timeout: 600_000 },
+    { params, timeout: 600_000 },
   );
 }
 

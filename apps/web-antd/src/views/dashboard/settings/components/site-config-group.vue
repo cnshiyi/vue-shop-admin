@@ -99,8 +99,8 @@ async function loadData() {
   loading.value = true;
   try {
     const [configs, groups] = await Promise.all([
-      getDashboardSiteConfigsApi(),
-      getDashboardSiteConfigGroupsApi(),
+      getDashboardSiteConfigsApi({ group: props.groupKey }),
+      getDashboardSiteConfigGroupsApi({ group: props.groupKey }),
     ]);
     siteConfigs.value = configs;
     configGroups.value = groups;

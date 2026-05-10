@@ -39,6 +39,7 @@ import {
 
 const router = useRouter();
 const loading = ref(false);
+const planLimit = ref(50);
 const runningOrderIds = reactive<Record<number, boolean>>({});
 const runningIpAssetIds = reactive<Record<number, boolean>>({});
 const detail = ref<DashboardLifecyclePlansDetail | null>(null);
@@ -388,13 +389,21 @@ function goBack() {
 async function loadData(options?: { silent?: boolean }) {
   if (!options?.silent) loading.value = true;
   try {
-    detail.value = await getDashboardLifecyclePlansApi({ limit: 1000 });
+    detail.value = await getDashboardLifecyclePlansApi({
+      compact: 1,
+      limit: planLimit.value,
+    });
   } catch (error: any) {
     message.error(error?.message || '计划加载失败');
     detail.value = null;
   } finally {
     loading.value = false;
   }
+}
+
+async function loadMorePlans() {
+  planLimit.value += 50;
+  await loadData();
 }
 
 function assetId(record: DashboardUnattachedIpDeletePlan) {
@@ -489,12 +498,21 @@ onMounted(loadData);
             <Button size="small" :loading="loading" @click="loadData()">
               刷新
             </Button>
+            <Button size="small" :loading="loading" @click="loadMorePlans">
+              加载更多
+            </Button>
             <span>{{ summary?.task_label || '服务器删除计划' }}</span>
             <Tag color="processing">
               {{ summary?.status_label || '独立计划页' }}
             </Tag>
           </Space>
         </template>
+        <Alert
+          type="info"
+          show-icon
+          :message="`当前按 ${planLimit} 条分批加载，并压缩长备注预览；数据很多时可继续加载更多。`"
+          style="margin-bottom: 12px"
+        />
         <Descriptions bordered :column="2" size="small">
           <Descriptions.Item label="下次执行">
             {{ fmtTime(summary?.next_run_at) }}
