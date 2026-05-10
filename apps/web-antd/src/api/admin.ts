@@ -571,6 +571,13 @@ export interface DashboardTaskItem {
   updated_at: null | string;
 }
 
+export interface DashboardNoticeSwitchItem {
+  enabled: boolean;
+  key: string;
+  label: string;
+  notice_type: string;
+}
+
 export interface DashboardNoticeChannelAttempt {
   account_id?: null | number;
   channel: string;
@@ -685,6 +692,7 @@ export interface DashboardNoticePlanDetail {
   interval_minutes: number;
   last_run_at: null | string;
   next_run_at: null | string;
+  notice_switches: DashboardNoticeSwitchItem[];
   recent_failure_count: number;
   recent_failure_user_count: number;
   recent_success_count: number;
@@ -758,6 +766,7 @@ export interface DashboardAutoRenewTaskDetail {
   latest_batch_success_count: number;
   latest_failed_ips: string[];
   next_run_at: null | string;
+  notice_switches: DashboardNoticeSwitchItem[];
   recent_failure_count: number;
   recent_success_count: number;
   status_label: string;
@@ -1153,6 +1162,15 @@ export async function getDashboardTasksApi() {
 
 export async function getDashboardNoticePlanApi() {
   return requestClient.get<DashboardNoticePlanDetail>('/admin/tasks/notices/');
+}
+
+export async function updateDashboardNoticeSwitchesApi(payload: {
+  switches: Array<{ enabled: boolean; key: string }>;
+}) {
+  return requestClient.post<{ notice_switches: DashboardNoticeSwitchItem[] }>(
+    '/admin/tasks/notices/switches/',
+    payload,
+  );
 }
 
 export async function updateDashboardNoticePlanTextApi(payload: {

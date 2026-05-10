@@ -21,6 +21,7 @@ import {
   message,
   Modal,
   Space,
+  Switch,
   Table,
   Tag,
   TypographyParagraph,
@@ -30,6 +31,7 @@ import dayjs from 'dayjs';
 import {
   getDashboardNoticePlanApi,
   updateDashboardNoticePlanTextApi,
+  updateDashboardNoticeSwitchesApi,
 } from '#/api/admin';
 
 const router = useRouter();
@@ -40,6 +42,7 @@ const textSaving = ref(false);
 const textValue = ref('');
 const textTarget = ref<DashboardNoticeUserSummaryItem | null>(null);
 const expandedTextKeys = ref<Record<string, boolean>>({});
+const switchSaving = ref<Record<string, boolean>>({});
 
 const noticeBatchColumns: TableColumnsType<DashboardNoticeUserSummaryItem> = [
   {
@@ -212,15 +215,27 @@ function noticeTextRows(record: { ip_count?: number; ips?: string[] }) {
   return Math.min(Math.max(count * 3, 3), 12);
 }
 
-function noticeTextKey(record: { id?: number | string; notice_event?: string; notice_type?: string }) {
+function noticeTextKey(record: {
+  id?: number | string;
+  notice_event?: string;
+  notice_type?: string;
+}) {
   return `${record.notice_event || record.notice_type || 'notice'}-${record.id || ''}`;
 }
 
-function isNoticeTextExpanded(record: { id?: number | string; notice_event?: string; notice_type?: string }) {
+function isNoticeTextExpanded(record: {
+  id?: number | string;
+  notice_event?: string;
+  notice_type?: string;
+}) {
   return !!expandedTextKeys.value[noticeTextKey(record)];
 }
 
-function toggleNoticeText(record: { id?: number | string; notice_event?: string; notice_type?: string }) {
+function toggleNoticeText(record: {
+  id?: number | string;
+  notice_event?: string;
+  notice_type?: string;
+}) {
   const key = noticeTextKey(record);
   expandedTextKeys.value = {
     ...expandedTextKeys.value,
@@ -228,7 +243,13 @@ function toggleNoticeText(record: { id?: number | string; notice_event?: string;
   };
 }
 
-function noticeTextStyle(record: { id?: number | string; ip_count?: number; ips?: string[]; notice_event?: string; notice_type?: string }) {
+function noticeTextStyle(record: {
+  id?: number | string;
+  ip_count?: number;
+  ips?: string[];
+  notice_event?: string;
+  notice_type?: string;
+}) {
   if (isNoticeTextExpanded(record)) return {};
   return {
     maxHeight: `${noticeTextRows(record) * 24}px`,
@@ -259,6 +280,28 @@ async function saveNoticeText() {
     message.error(error?.message || '通知文案保存失败');
   } finally {
     textSaving.value = false;
+  }
+}
+
+async function updateNoticeSwitch(key: string, enabled: boolean) {
+  const switches = detail.value?.notice_switches || [];
+  switchSaving.value = { ...switchSaving.value, [key]: true };
+  try {
+    const response = await updateDashboardNoticeSwitchesApi({
+      switches: [{ enabled, key }],
+    });
+    if (detail.value) {
+      detail.value.notice_switches = response.notice_switches;
+    }
+    message.success(enabled ? '通知已开启' : '通知已关闭');
+    await loadData();
+  } catch (error: any) {
+    message.error(error?.message || '通知开关保存失败');
+    if (detail.value) {
+      detail.value.notice_switches = switches;
+    }
+  } finally {
+    switchSaving.value = { ...switchSaving.value, [key]: false };
   }
 }
 
@@ -331,6 +374,25 @@ onMounted(loadData);
             / {{ detail?.future_count ?? 0 }} 个 IP 通知项
           </Descriptions.Item>
         </Descriptions>
+        <div v-if="detail?.notice_switches?.length" class="mt-3 flex flex-wrap items-center gap-3">
+          <span class="text-sm text-gray-500">通知开关：</span>
+          <Space wrap>
+            <Tag
+              v-for="item in detail.notice_switches"
+              :key="item.key"
+              :color="item.enabled ? 'success' : 'default'"
+              class="flex items-center gap-2 px-2 py-1"
+            >
+              <span>{{ item.label }}</span>
+              <Switch
+                size="small"
+                :checked="item.enabled"
+                :loading="switchSaving[item.key]"
+                @change="(checked) => updateNoticeSwitch(item.key, checked as boolean)"
+              />
+            </Tag>
+          </Space>
+        </div>
         <Alert
           v-if="detail?.retry_policy_label"
           type="info"
