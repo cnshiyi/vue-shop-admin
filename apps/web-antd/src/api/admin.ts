@@ -1160,8 +1160,13 @@ export async function getDashboardTasksApi() {
   return requestClient.get<DashboardTaskItem[]>('/admin/tasks/');
 }
 
-export async function getDashboardNoticePlanApi() {
-  return requestClient.get<DashboardNoticePlanDetail>('/admin/tasks/notices/');
+export async function getDashboardNoticePlanApi(
+  params: { compact?: 0 | 1; future_limit?: number; history_limit?: number; limit?: number } = {},
+) {
+  return requestClient.get<DashboardNoticePlanDetail>('/admin/tasks/notices/', {
+    params,
+    timeout: 600_000,
+  });
 }
 
 export async function updateDashboardNoticeSwitchesApi(payload: {

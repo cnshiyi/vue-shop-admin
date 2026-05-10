@@ -43,6 +43,9 @@ const textValue = ref('');
 const textTarget = ref<DashboardNoticeUserSummaryItem | null>(null);
 const expandedTextKeys = ref<Record<string, boolean>>({});
 const switchSaving = ref<Record<string, boolean>>({});
+const noticeLimit = ref(50);
+const futureLimit = ref(10);
+const historyLimit = ref(50);
 
 const noticeBatchColumns: TableColumnsType<DashboardNoticeUserSummaryItem> = [
   {
@@ -202,12 +205,23 @@ function openOrder(path?: string) {
 async function loadData() {
   loading.value = true;
   try {
-    detail.value = await getDashboardNoticePlanApi();
+    detail.value = await getDashboardNoticePlanApi({
+      compact: 1,
+      future_limit: futureLimit.value,
+      history_limit: historyLimit.value,
+      limit: noticeLimit.value,
+    });
   } catch (error: any) {
     message.error(error?.message || '通知计划加载失败');
   } finally {
     loading.value = false;
   }
+}
+
+async function loadMoreNotices() {
+  noticeLimit.value += 50;
+  historyLimit.value += 50;
+  await loadData();
 }
 
 function noticeTextRows(record: { ip_count?: number; ips?: string[] }) {
@@ -329,6 +343,9 @@ onMounted(loadData);
             <Button size="small" :loading="loading" @click="loadData">
               刷新
             </Button>
+            <Button size="small" :loading="loading" @click="loadMoreNotices">
+              加载更多
+            </Button>
             <span>{{ detail?.task_label || '通知计划' }}</span>
             <Tag color="processing">
               {{ detail?.status_label || '置顶任务' }}
@@ -336,6 +353,12 @@ onMounted(loadData);
           </Space>
         </template>
 
+        <Alert
+          type="info"
+          show-icon
+          :message="`当前按 ${noticeLimit} 组通知 / ${historyLimit} 条历史分批加载，并压缩长文案预览；数据很多时可继续加载更多。`"
+          style="margin-bottom: 12px"
+        />
         <Descriptions bordered :column="2" size="small">
           <Descriptions.Item label="任务名称">
             {{ detail?.task_label || '-' }}
@@ -567,7 +590,7 @@ onMounted(loadData);
         </Table>
       </Card>
 
-      <Card title="未来通知计划（10个，按用户 + 通知类型整合）">
+      <Card :title="`未来通知计划（${futureLimit}个，按用户 + 通知类型整合）`">
         <Table
           :columns="noticeBatchColumns"
           :data-source="futureBatchItems"
