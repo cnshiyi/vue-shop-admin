@@ -206,6 +206,11 @@ async function loadData() {
   }
 }
 
+function noticeTextRows(record: { ip_count?: number; ips?: string[] }) {
+  const count = Number(record.ip_count || record.ips?.length || 1);
+  return Math.min(Math.max(count * 4 + 3, 4), 18);
+}
+
 function openTextEditor(record: DashboardNoticeUserSummaryItem) {
   textTarget.value = record;
   textValue.value = record.notice_text_preview || '';
@@ -389,7 +394,7 @@ onMounted(loadData);
                 </Tag>
                 <TypographyParagraph
                   :ellipsis="{
-                    rows: 3,
+                    rows: noticeTextRows(record as DashboardNoticeUserSummaryItem),
                     tooltip: (record as DashboardNoticeUserSummaryItem)
                       .notice_text_preview,
                   }"
@@ -529,7 +534,7 @@ onMounted(loadData);
                 </Tag>
                 <TypographyParagraph
                   :ellipsis="{
-                    rows: 3,
+                    rows: noticeTextRows(record as DashboardNoticeUserSummaryItem),
                     tooltip: (record as DashboardNoticeUserSummaryItem)
                       .notice_text_preview,
                   }"
@@ -683,7 +688,10 @@ onMounted(loadData);
             >
               <TypographyParagraph
                 :ellipsis="{
-                  rows: 2,
+                  rows:
+                    column.key === 'notice_text_preview'
+                      ? noticeTextRows(record as DashboardNoticePlanHistoryItem)
+                      : 2,
                   tooltip: String((record as any)[column.key] || '-'),
                 }"
                 class="mb-0 whitespace-pre-line break-all text-sm leading-6"
