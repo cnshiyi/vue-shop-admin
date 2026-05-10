@@ -605,6 +605,24 @@ export interface DashboardNoticePlanItem {
   username_label: string;
 }
 
+export interface DashboardNoticeUserSummaryItem {
+  failed_retry_count: number;
+  id: number | string;
+  ip_count: number;
+  ips: string[];
+  next_notice_at: null | string;
+  notice_channel: string;
+  notice_channel_label: string;
+  notice_count: number;
+  notice_type_labels: string[];
+  notice_types: string[];
+  pending_count: number;
+  tg_user_id: null | number;
+  user_display_name: string;
+  user_id: null | number;
+  username_label: string;
+}
+
 export interface DashboardNoticePlanHistoryItem {
   batch_id: string;
   created_at: null | string;
@@ -634,13 +652,20 @@ export interface DashboardNoticePlanHistoryItem {
 export interface DashboardNoticePlanDetail {
   due_count: number;
   due_items: DashboardNoticePlanItem[];
+  due_user_count: number;
+  due_user_summary_items: DashboardNoticeUserSummaryItem[];
+  future_count: number;
   future_plan_items: DashboardNoticePlanItem[];
+  future_user_count: number;
+  future_user_summary_items: DashboardNoticeUserSummaryItem[];
   history_items: DashboardNoticePlanHistoryItem[];
   interval_minutes: number;
   last_run_at: null | string;
   next_run_at: null | string;
   recent_failure_count: number;
+  recent_failure_user_count: number;
   recent_success_count: number;
+  recent_success_user_count: number;
   retry_policy_label: string;
   status_label: string;
   task_key: string;
