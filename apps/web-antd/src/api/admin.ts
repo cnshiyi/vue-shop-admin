@@ -571,6 +571,15 @@ export interface DashboardTaskItem {
   updated_at: null | string;
 }
 
+export interface DashboardNoticeChannelAttempt {
+  account_id?: null | number;
+  channel: string;
+  error: string;
+  label: string;
+  status: 'failed' | 'pending' | 'success' | string;
+  status_label: string;
+}
+
 export interface DashboardNoticePlanItem {
   auto_renew_at: null | string;
   delete_at: null | string;
@@ -582,6 +591,7 @@ export interface DashboardNoticePlanItem {
   notice_at: null | string;
   notice_channel: string;
   notice_channel_label: string;
+  notice_channel_attempts: DashboardNoticeChannelAttempt[];
   notice_status: string;
   notice_status_label: string;
   notice_text_preview: string;
@@ -614,6 +624,7 @@ export interface DashboardNoticeUserSummaryItem {
   order_ids: number[];
   notice_channel: string;
   notice_channel_label: string;
+  notice_channel_attempts: DashboardNoticeChannelAttempt[];
   notice_count: number;
   notice_event: string;
   notice_has_manual_text: boolean;
@@ -642,6 +653,7 @@ export interface DashboardNoticePlanHistoryItem {
   ips: string[];
   notice_channel: string;
   notice_channel_label: string;
+  notice_channel_attempts: DashboardNoticeChannelAttempt[];
   notice_status: string;
   notice_status_label: string;
   notice_text_preview: string;

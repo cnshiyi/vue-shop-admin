@@ -215,8 +215,17 @@ function statusColor(status?: string) {
 
 function channelColor(channel?: string) {
   if (channel === 'unbound') return 'error';
+  if (channel === 'telegram_fallback') return 'orange';
+  if (channel === 'telegram_account') return 'purple';
   if (channel === 'telegram_chat') return 'cyan';
   return 'blue';
+}
+
+function attemptColor(status?: string) {
+  if (status === 'success') return 'success';
+  if (status === 'failed') return 'error';
+  if (status === 'pending') return 'processing';
+  return 'default';
 }
 
 function rowKey(record: DashboardNoticePlanItem) {
@@ -295,48 +304,40 @@ onMounted(loadData);
           <Space wrap>
             <Button size="small" @click="goTasks">返回任务列表</Button>
             <Button size="small" :loading="loading" @click="loadData">
-刷新
-</Button>
+              刷新
+            </Button>
             <span>{{ detail?.task_label || '通知计划' }}</span>
             <Tag color="processing">
-{{
-              detail?.status_label || '置顶任务'
-            }}
-</Tag>
+              {{ detail?.status_label || '置顶任务' }}
+            </Tag>
           </Space>
         </template>
 
         <Descriptions bordered :column="2" size="small">
           <Descriptions.Item label="任务名称">
-{{
-            detail?.task_label || '-'
-          }}
-</Descriptions.Item>
+            {{ detail?.task_label || '-' }}
+          </Descriptions.Item>
           <Descriptions.Item label="巡检频率">
             {{
               detail?.interval_minutes ? `${detail.interval_minutes} 分钟` : '-'
             }}
           </Descriptions.Item>
           <Descriptions.Item label="下次巡检">
-{{
-            fmtTime(detail?.next_run_at)
-          }}
-</Descriptions.Item>
+            {{ fmtTime(detail?.next_run_at) }}
+          </Descriptions.Item>
           <Descriptions.Item label="上次通知">
-{{
-            fmtTime(detail?.last_run_at)
-          }}
-</Descriptions.Item>
+            {{ fmtTime(detail?.last_run_at) }}
+          </Descriptions.Item>
           <Descriptions.Item label="最近24小时送达">
             <Tag color="success">
-{{ detail?.recent_success_user_count ?? 0 }} 用户
-</Tag>
+              {{ detail?.recent_success_user_count ?? 0 }} 用户
+            </Tag>
             / {{ detail?.recent_success_count ?? 0 }} 条
           </Descriptions.Item>
           <Descriptions.Item label="最近24小时失败">
             <Tag color="error">
-{{ detail?.recent_failure_user_count ?? 0 }} 用户
-</Tag>
+              {{ detail?.recent_failure_user_count ?? 0 }} 用户
+            </Tag>
             / {{ detail?.recent_failure_count ?? 0 }} 条
           </Descriptions.Item>
           <Descriptions.Item label="两天内待通知">
@@ -345,8 +346,8 @@ onMounted(loadData);
           </Descriptions.Item>
           <Descriptions.Item label="未来计划">
             <Tag color="processing">
-{{ detail?.future_user_count ?? 0 }} 种通知
-</Tag>
+              {{ detail?.future_user_count ?? 0 }} 种通知
+            </Tag>
             / {{ detail?.future_count ?? 0 }} 个 IP 通知项
           </Descriptions.Item>
         </Descriptions>
@@ -383,18 +384,27 @@ onMounted(loadData);
               </Tag>
             </template>
             <template v-else-if="column.key === 'notice_channel_label'">
-              <Tag
-                :color="
-                  channelColor(
-                    (record as DashboardNoticeUserSummaryItem).notice_channel,
-                  )
-                "
-              >
-                {{
-                  (record as DashboardNoticeUserSummaryItem)
-                    .notice_channel_label || '-'
-                }}
-              </Tag>
+              <div class="flex flex-wrap gap-1">
+                <Tag
+                  :color="
+                    channelColor(
+                      (record as DashboardNoticeUserSummaryItem).notice_channel,
+                    )
+                  "
+                >
+                  {{
+                    (record as DashboardNoticeUserSummaryItem)
+                      .notice_channel_label || '-'
+                  }}
+                </Tag>
+                <Tag
+                  v-for="attempt in (record as DashboardNoticeUserSummaryItem).notice_channel_attempts || []"
+                  :key="`${attempt.channel}-${attempt.account_id || attempt.label}`"
+                  :color="attemptColor(attempt.status)"
+                >
+                  {{ attempt.label }}：{{ attempt.status_label }}
+                </Tag>
+              </div>
             </template>
             <template v-else-if="column.key === 'ips'">
               <TypographyParagraph
@@ -415,7 +425,10 @@ onMounted(loadData);
             <template v-else-if="column.key === 'notice_text_preview'">
               <div>
                 <Tag
-                  v-if="(record as DashboardNoticeUserSummaryItem).notice_has_manual_text"
+                  v-if="
+                    (record as DashboardNoticeUserSummaryItem)
+                      .notice_has_manual_text
+                  "
                   color="warning"
                 >
                   人工干预
@@ -437,7 +450,9 @@ onMounted(loadData);
                   type="link"
                   size="small"
                   class="h-auto px-0 py-0"
-                  @click="openTextEditor(record as DashboardNoticeUserSummaryItem)"
+                  @click="
+                    openTextEditor(record as DashboardNoticeUserSummaryItem)
+                  "
                 >
                   编辑文案
                 </Button>
@@ -512,18 +527,27 @@ onMounted(loadData);
               </Tag>
             </template>
             <template v-else-if="column.key === 'notice_channel_label'">
-              <Tag
-                :color="
-                  channelColor(
-                    (record as DashboardNoticePlanItem).notice_channel,
-                  )
-                "
-              >
-                {{
-                  (record as DashboardNoticePlanItem).notice_channel_label ||
-                  '-'
-                }}
-              </Tag>
+              <div class="flex flex-wrap gap-1">
+                <Tag
+                  :color="
+                    channelColor(
+                      (record as DashboardNoticePlanItem).notice_channel,
+                    )
+                  "
+                >
+                  {{
+                    (record as DashboardNoticePlanItem).notice_channel_label ||
+                    '-'
+                  }}
+                </Tag>
+                <Tag
+                  v-for="attempt in (record as DashboardNoticePlanItem).notice_channel_attempts || []"
+                  :key="`${attempt.channel}-${attempt.account_id || attempt.label}`"
+                  :color="attemptColor(attempt.status)"
+                >
+                  {{ attempt.label }}：{{ attempt.status_label }}
+                </Tag>
+              </div>
             </template>
             <template v-else-if="column.key === 'queue_status_label'">
               <Tag
@@ -576,9 +600,7 @@ onMounted(loadData);
                 </div>
                 <div style="color: var(--color-text-secondary)">
                   关机
-                  {{
-                    fmtTime((record as DashboardNoticePlanItem).suspend_at)
-                  }}
+                  {{ fmtTime((record as DashboardNoticePlanItem).suspend_at) }}
                   / 删机
                   {{ fmtTime((record as DashboardNoticePlanItem).delete_at) }}
                 </div>
@@ -627,18 +649,27 @@ onMounted(loadData);
               </Tag>
             </template>
             <template v-else-if="column.key === 'notice_channel_label'">
-              <Tag
-                :color="
-                  channelColor(
-                    (record as DashboardNoticeUserSummaryItem).notice_channel,
-                  )
-                "
-              >
-                {{
-                  (record as DashboardNoticeUserSummaryItem)
-                    .notice_channel_label || '-'
-                }}
-              </Tag>
+              <div class="flex flex-wrap gap-1">
+                <Tag
+                  :color="
+                    channelColor(
+                      (record as DashboardNoticeUserSummaryItem).notice_channel,
+                    )
+                  "
+                >
+                  {{
+                    (record as DashboardNoticeUserSummaryItem)
+                      .notice_channel_label || '-'
+                  }}
+                </Tag>
+                <Tag
+                  v-for="attempt in (record as DashboardNoticeUserSummaryItem).notice_channel_attempts || []"
+                  :key="`${attempt.channel}-${attempt.account_id || attempt.label}`"
+                  :color="attemptColor(attempt.status)"
+                >
+                  {{ attempt.label }}：{{ attempt.status_label }}
+                </Tag>
+              </div>
             </template>
             <template v-else-if="column.key === 'ips'">
               <TypographyParagraph
@@ -659,7 +690,10 @@ onMounted(loadData);
             <template v-else-if="column.key === 'notice_text_preview'">
               <div>
                 <Tag
-                  v-if="(record as DashboardNoticeUserSummaryItem).notice_has_manual_text"
+                  v-if="
+                    (record as DashboardNoticeUserSummaryItem)
+                      .notice_has_manual_text
+                  "
                   color="warning"
                 >
                   人工干预
@@ -681,7 +715,9 @@ onMounted(loadData);
                   type="link"
                   size="small"
                   class="h-auto px-0 py-0"
-                  @click="openTextEditor(record as DashboardNoticeUserSummaryItem)"
+                  @click="
+                    openTextEditor(record as DashboardNoticeUserSummaryItem)
+                  "
                 >
                   编辑文案
                 </Button>
@@ -767,18 +803,27 @@ onMounted(loadData);
               </Tag>
             </template>
             <template v-else-if="column.key === 'notice_channel_label'">
-              <Tag
-                :color="
-                  channelColor(
-                    (record as DashboardNoticePlanHistoryItem).notice_channel,
-                  )
-                "
-              >
-                {{
-                  (record as DashboardNoticePlanHistoryItem)
-                    .notice_channel_label || '-'
-                }}
-              </Tag>
+              <div class="flex flex-wrap gap-1">
+                <Tag
+                  :color="
+                    channelColor(
+                      (record as DashboardNoticePlanHistoryItem).notice_channel,
+                    )
+                  "
+                >
+                  {{
+                    (record as DashboardNoticePlanHistoryItem)
+                      .notice_channel_label || '-'
+                  }}
+                </Tag>
+                <Tag
+                  v-for="attempt in (record as DashboardNoticePlanHistoryItem).notice_channel_attempts || []"
+                  :key="`${attempt.channel}-${attempt.account_id || attempt.label}`"
+                  :color="attemptColor(attempt.status)"
+                >
+                  {{ attempt.label }}：{{ attempt.status_label }}
+                </Tag>
+              </div>
             </template>
             <template v-else-if="column.key === 'ips'">
               <TypographyParagraph
@@ -830,28 +875,28 @@ onMounted(loadData);
         </Table>
       </Card>
     </Space>
-      <Modal
-        v-model:open="textModalOpen"
-        title="人工干预通知文案"
-        :confirm-loading="textSaving"
-        width="760px"
-        ok-text="保存"
-        @ok="saveNoticeText"
-      >
-        <Alert
-          type="warning"
-          show-icon
-          message="保存后，后续实际发送给用户的通知会使用这里的文案；清空并保存可恢复系统自动文案。"
-          style="margin-bottom: 12px"
-        />
-        <Input.TextArea
-          v-model:value="textValue"
-          :auto-size="{ minRows: 10, maxRows: 18 }"
-          placeholder="请输入实际发给用户的通知文案"
-        />
-        <Button type="link" class="mt-2 px-0" @click="resetNoticeText">
-          清空并恢复系统文案
-        </Button>
-      </Modal>
+    <Modal
+      v-model:open="textModalOpen"
+      title="人工干预通知文案"
+      :confirm-loading="textSaving"
+      width="760px"
+      ok-text="保存"
+      @ok="saveNoticeText"
+    >
+      <Alert
+        type="warning"
+        show-icon
+        message="保存后，后续实际发送给用户的通知会使用这里的文案；清空并保存可恢复系统自动文案。"
+        style="margin-bottom: 12px"
+      />
+      <Input.TextArea
+        v-model:value="textValue"
+        :auto-size="{ minRows: 10, maxRows: 18 }"
+        placeholder="请输入实际发给用户的通知文案"
+      />
+      <Button type="link" class="mt-2 px-0" @click="resetNoticeText">
+        清空并恢复系统文案
+      </Button>
+    </Modal>
   </Page>
 </template>
