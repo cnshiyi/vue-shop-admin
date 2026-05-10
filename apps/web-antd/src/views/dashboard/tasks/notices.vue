@@ -240,6 +240,15 @@ function historyRowKey(record: DashboardNoticePlanHistoryItem) {
   return record.id;
 }
 
+function displayUser(record: {
+  user_display_name?: string;
+  username_label?: string;
+}) {
+  const name = record.user_display_name || '未绑定用户';
+  const username = record.username_label && record.username_label !== '-' ? record.username_label : '';
+  return username ? `${name} ${username}` : name;
+}
+
 function openOrder(path?: string) {
   if (!path) return;
   router.push(path).catch(() => {});
@@ -370,7 +379,10 @@ onMounted(loadData);
           :scroll="{ x: 1710 }"
         >
           <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'notice_type_label'">
+            <template v-if="column.key === 'user_display_name'">
+              {{ displayUser(record as DashboardNoticeUserSummaryItem) }}
+            </template>
+            <template v-else-if="column.key === 'notice_type_label'">
               <Tag
                 :color="
                   noticeColor(
@@ -398,7 +410,8 @@ onMounted(loadData);
                   }}
                 </Tag>
                 <Tag
-                  v-for="attempt in (record as DashboardNoticeUserSummaryItem).notice_channel_attempts || []"
+                  v-for="attempt in (record as DashboardNoticeUserSummaryItem)
+                    .notice_channel_attempts || []"
                   :key="`${attempt.channel}-${attempt.account_id || attempt.label}`"
                   :color="attemptColor(attempt.status)"
                 >
@@ -506,7 +519,10 @@ onMounted(loadData);
           :scroll="{ x: 2390 }"
         >
           <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'notice_type_label'">
+            <template v-if="column.key === 'user_display_name'">
+              {{ displayUser(record as DashboardNoticePlanItem) }}
+            </template>
+            <template v-else-if="column.key === 'notice_type_label'">
               <Tag
                 :color="
                   noticeColor((record as DashboardNoticePlanItem).notice_type)
@@ -541,7 +557,8 @@ onMounted(loadData);
                   }}
                 </Tag>
                 <Tag
-                  v-for="attempt in (record as DashboardNoticePlanItem).notice_channel_attempts || []"
+                  v-for="attempt in (record as DashboardNoticePlanItem)
+                    .notice_channel_attempts || []"
                   :key="`${attempt.channel}-${attempt.account_id || attempt.label}`"
                   :color="attemptColor(attempt.status)"
                 >
@@ -635,7 +652,10 @@ onMounted(loadData);
           :scroll="{ x: 1710 }"
         >
           <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'notice_type_label'">
+            <template v-if="column.key === 'user_display_name'">
+              {{ displayUser(record as DashboardNoticeUserSummaryItem) }}
+            </template>
+            <template v-else-if="column.key === 'notice_type_label'">
               <Tag
                 :color="
                   noticeColor(
@@ -663,7 +683,8 @@ onMounted(loadData);
                   }}
                 </Tag>
                 <Tag
-                  v-for="attempt in (record as DashboardNoticeUserSummaryItem).notice_channel_attempts || []"
+                  v-for="attempt in (record as DashboardNoticeUserSummaryItem)
+                    .notice_channel_attempts || []"
                   :key="`${attempt.channel}-${attempt.account_id || attempt.label}`"
                   :color="attemptColor(attempt.status)"
                 >
@@ -771,7 +792,10 @@ onMounted(loadData);
           :scroll="{ x: 2290 }"
         >
           <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'created_at'">
+            <template v-if="column.key === 'user_display_name'">
+              {{ displayUser(record as DashboardNoticePlanHistoryItem) }}
+            </template>
+            <template v-else-if="column.key === 'created_at'">
               {{
                 fmtTime((record as DashboardNoticePlanHistoryItem).created_at)
               }}
@@ -817,7 +841,8 @@ onMounted(loadData);
                   }}
                 </Tag>
                 <Tag
-                  v-for="attempt in (record as DashboardNoticePlanHistoryItem).notice_channel_attempts || []"
+                  v-for="attempt in (record as DashboardNoticePlanHistoryItem)
+                    .notice_channel_attempts || []"
                   :key="`${attempt.channel}-${attempt.account_id || attempt.label}`"
                   :color="attemptColor(attempt.status)"
                 >
