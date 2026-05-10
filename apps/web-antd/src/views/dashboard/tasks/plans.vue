@@ -43,6 +43,7 @@ const detail = ref<DashboardLifecyclePlansDetail | null>(null);
 const lastRunResult = ref<DashboardShutdownPlanRunResult | null>(null);
 const failurePanelOpen = ref(false);
 const expandedKeys = reactive<Record<string, boolean>>({});
+const tablePagination = { pageSize: 20, showSizeChanger: false };
 
 const dueColumns = [
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
@@ -468,7 +469,7 @@ onMounted(loadData);
         <Table
           :columns="failureColumns"
           :data-source="lastRunFailures"
-          :pagination="false"
+          :pagination="tablePagination"
           :row-key="rowKey"
           :scroll="{ x: 900 }"
         >
@@ -489,7 +490,7 @@ onMounted(loadData);
           :columns="ipDeleteColumns"
           :data-source="pendingIpDeleteItems"
           :loading="loading"
-          :pagination="false"
+          :pagination="tablePagination"
           :row-key="rowKey"
           :scroll="{ x: 1740 }"
         >
@@ -594,7 +595,7 @@ onMounted(loadData);
           :columns="dueColumns"
           :data-source="dueItems"
           :loading="loading"
-          :pagination="false"
+          :pagination="tablePagination"
           :row-key="rowKey"
           :scroll="{ x: 1420 }"
         >
@@ -702,7 +703,7 @@ onMounted(loadData);
           :columns="ipDeleteColumns"
           :data-source="futureIpDeleteItems"
           :loading="loading"
-          :pagination="{ pageSize: 20, showSizeChanger: true }"
+          :pagination="tablePagination"
           :row-key="rowKey"
           :scroll="{ x: 1740 }"
         >
@@ -790,7 +791,7 @@ onMounted(loadData);
           :columns="dueColumns"
           :data-source="futurePlanItems"
           :loading="loading"
-          :pagination="{ pageSize: 20, showSizeChanger: true }"
+          :pagination="tablePagination"
           :row-key="rowKey"
           :scroll="{ x: 1420 }"
         >
@@ -859,7 +860,7 @@ onMounted(loadData);
           :columns="historyColumns"
           :data-source="historyItems"
           :loading="loading"
-          :pagination="{ pageSize: 20, showSizeChanger: true }"
+          :pagination="tablePagination"
           :row-key="rowKey"
           :scroll="{ x: 1720 }"
         >
@@ -930,7 +931,7 @@ onMounted(loadData);
           :columns="ipDeleteColumns"
           :data-source="ipDeleteHistoryItems"
           :loading="loading"
-          :pagination="{ pageSize: 20, showSizeChanger: true }"
+          :pagination="tablePagination"
           :row-key="rowKey"
           :scroll="{ x: 1740 }"
         >
@@ -1070,7 +1071,7 @@ onMounted(loadData);
       <Table
         :columns="failureColumns"
         :data-source="lastRunFailures"
-        :pagination="false"
+        :pagination="tablePagination"
         :row-key="rowKey"
         :scroll="{ x: 900 }"
         size="small"
