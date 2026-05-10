@@ -39,6 +39,7 @@ const textModalOpen = ref(false);
 const textSaving = ref(false);
 const textValue = ref('');
 const textTarget = ref<DashboardNoticeUserSummaryItem | null>(null);
+const expandedTextKeys = ref<Record<string, boolean>>({});
 
 const noticeBatchColumns: TableColumnsType<DashboardNoticeUserSummaryItem> = [
   {
@@ -211,7 +212,24 @@ function noticeTextRows(record: { ip_count?: number; ips?: string[] }) {
   return Math.min(Math.max(count * 3, 3), 12);
 }
 
-function noticeTextStyle(record: { ip_count?: number; ips?: string[] }) {
+function noticeTextKey(record: { id?: number | string; notice_event?: string; notice_type?: string }) {
+  return `${record.notice_event || record.notice_type || 'notice'}-${record.id || ''}`;
+}
+
+function isNoticeTextExpanded(record: { id?: number | string; notice_event?: string; notice_type?: string }) {
+  return !!expandedTextKeys.value[noticeTextKey(record)];
+}
+
+function toggleNoticeText(record: { id?: number | string; notice_event?: string; notice_type?: string }) {
+  const key = noticeTextKey(record);
+  expandedTextKeys.value = {
+    ...expandedTextKeys.value,
+    [key]: !expandedTextKeys.value[key],
+  };
+}
+
+function noticeTextStyle(record: { id?: number | string; ip_count?: number; ips?: string[]; notice_event?: string; notice_type?: string }) {
+  if (isNoticeTextExpanded(record)) return {};
   return {
     maxHeight: `${noticeTextRows(record) * 24}px`,
     overflow: 'hidden',
@@ -401,24 +419,47 @@ onMounted(loadData);
                 </Tag>
                 <div
                   class="whitespace-pre-wrap break-all text-sm leading-6"
-                  :style="noticeTextStyle(record as DashboardNoticeUserSummaryItem)"
-                  :title="(record as DashboardNoticeUserSummaryItem).notice_text_preview || '-'"
+                  :style="
+                    noticeTextStyle(record as DashboardNoticeUserSummaryItem)
+                  "
+                  :title="
+                    (record as DashboardNoticeUserSummaryItem)
+                      .notice_text_preview || '-'
+                  "
                 >
                   {{
                     (record as DashboardNoticeUserSummaryItem)
                       .notice_text_preview || '-'
                   }}
                 </div>
-                <Button
-                  type="link"
-                  size="small"
-                  class="h-auto px-0 py-0"
-                  @click="
-                    openTextEditor(record as DashboardNoticeUserSummaryItem)
-                  "
-                >
-                  编辑文案
-                </Button>
+                <Space size="small">
+                  <Button
+                    type="link"
+                    size="small"
+                    class="h-auto px-0 py-0"
+                    @click="
+                      toggleNoticeText(record as DashboardNoticeUserSummaryItem)
+                    "
+                  >
+                    {{
+                      isNoticeTextExpanded(
+                        record as DashboardNoticeUserSummaryItem,
+                      )
+                        ? '收起'
+                        : '展开'
+                    }}
+                  </Button>
+                  <Button
+                    type="link"
+                    size="small"
+                    class="h-auto px-0 py-0"
+                    @click="
+                      openTextEditor(record as DashboardNoticeUserSummaryItem)
+                    "
+                  >
+                    编辑文案
+                  </Button>
+                </Space>
               </div>
             </template>
             <template v-else-if="column.key === 'next_notice_at'">
@@ -538,24 +579,47 @@ onMounted(loadData);
                 </Tag>
                 <div
                   class="whitespace-pre-wrap break-all text-sm leading-6"
-                  :style="noticeTextStyle(record as DashboardNoticeUserSummaryItem)"
-                  :title="(record as DashboardNoticeUserSummaryItem).notice_text_preview || '-'"
+                  :style="
+                    noticeTextStyle(record as DashboardNoticeUserSummaryItem)
+                  "
+                  :title="
+                    (record as DashboardNoticeUserSummaryItem)
+                      .notice_text_preview || '-'
+                  "
                 >
                   {{
                     (record as DashboardNoticeUserSummaryItem)
                       .notice_text_preview || '-'
                   }}
                 </div>
-                <Button
-                  type="link"
-                  size="small"
-                  class="h-auto px-0 py-0"
-                  @click="
-                    openTextEditor(record as DashboardNoticeUserSummaryItem)
-                  "
-                >
-                  编辑文案
-                </Button>
+                <Space size="small">
+                  <Button
+                    type="link"
+                    size="small"
+                    class="h-auto px-0 py-0"
+                    @click="
+                      toggleNoticeText(record as DashboardNoticeUserSummaryItem)
+                    "
+                  >
+                    {{
+                      isNoticeTextExpanded(
+                        record as DashboardNoticeUserSummaryItem,
+                      )
+                        ? '收起'
+                        : '展开'
+                    }}
+                  </Button>
+                  <Button
+                    type="link"
+                    size="small"
+                    class="h-auto px-0 py-0"
+                    @click="
+                      openTextEditor(record as DashboardNoticeUserSummaryItem)
+                    "
+                  >
+                    编辑文案
+                  </Button>
+                </Space>
               </div>
             </template>
             <template v-else-if="column.key === 'next_notice_at'">
@@ -682,12 +746,38 @@ onMounted(loadData);
               </TypographyParagraph>
             </template>
             <template v-else-if="column.key === 'notice_text_preview'">
-              <div
-                class="whitespace-pre-wrap break-all text-sm leading-6"
-                :style="noticeTextStyle(record as DashboardNoticePlanHistoryItem)"
-                :title="(record as DashboardNoticePlanHistoryItem).notice_text_preview || '-'"
-              >
-                {{ (record as DashboardNoticePlanHistoryItem).notice_text_preview || '-' }}
+              <div>
+                <div
+                  class="whitespace-pre-wrap break-all text-sm leading-6"
+                  :style="
+                    noticeTextStyle(record as DashboardNoticePlanHistoryItem)
+                  "
+                  :title="
+                    (record as DashboardNoticePlanHistoryItem)
+                      .notice_text_preview || '-'
+                  "
+                >
+                  {{
+                    (record as DashboardNoticePlanHistoryItem)
+                      .notice_text_preview || '-'
+                  }}
+                </div>
+                <Button
+                  type="link"
+                  size="small"
+                  class="h-auto px-0 py-0"
+                  @click="
+                    toggleNoticeText(record as DashboardNoticePlanHistoryItem)
+                  "
+                >
+                  {{
+                    isNoticeTextExpanded(
+                      record as DashboardNoticePlanHistoryItem,
+                    )
+                      ? '收起'
+                      : '展开'
+                  }}
+                </Button>
               </div>
             </template>
             <template v-else-if="column.key === 'retry_label'">
