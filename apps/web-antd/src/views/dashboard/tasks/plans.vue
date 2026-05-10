@@ -263,11 +263,14 @@ function dueColor(value?: null | string, overdue?: boolean) {
   if (!value) return 'default';
   const target = dayjs(value);
   if (!target.isValid()) return 'default';
-  const hours = target.diff(dayjs(), 'hour');
+  const hours = target.diff(dayjs(), 'hour', true);
   if (hours <= 0) return 'error';
-  if (hours <= 24) return 'warning';
-  if (hours <= 72) return 'processing';
-  return 'default';
+  if (hours <= 24) return 'error';
+  if (hours <= 72) return 'volcano';
+  if (hours <= 168) return 'orange';
+  if (hours <= 360) return 'gold';
+  if (hours <= 720) return 'green';
+  return 'blue';
 }
 
 function resultColor(item: DashboardShutdownPlanHistoryItem) {
