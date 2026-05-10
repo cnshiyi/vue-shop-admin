@@ -4,7 +4,6 @@ import type { TableColumnsType } from 'ant-design-vue';
 import type {
   DashboardNoticePlanDetail,
   DashboardNoticePlanHistoryItem,
-  DashboardNoticePlanItem,
   DashboardNoticeUserSummaryItem,
 } from '#/api/admin';
 
@@ -18,7 +17,6 @@ import {
   Button,
   Card,
   Descriptions,
-  Empty,
   Input,
   message,
   Modal,
@@ -84,55 +82,6 @@ const noticeBatchColumns: TableColumnsType<DashboardNoticeUserSummaryItem> = [
   { title: '操作', key: 'actions', width: 100, fixed: 'right' },
 ];
 
-const planColumns: TableColumnsType<DashboardNoticePlanItem> = [
-  { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
-  {
-    title: '通知类型',
-    dataIndex: 'notice_type_label',
-    key: 'notice_type_label',
-    width: 150,
-  },
-  {
-    title: '通知状态',
-    dataIndex: 'notice_status_label',
-    key: 'notice_status_label',
-    width: 170,
-  },
-  {
-    title: '通知渠道',
-    dataIndex: 'notice_channel_label',
-    key: 'notice_channel_label',
-    width: 190,
-  },
-  {
-    title: '用户',
-    dataIndex: 'user_display_name',
-    key: 'user_display_name',
-    width: 160,
-  },
-  { title: '通知时间', dataIndex: 'notice_at', key: 'notice_at', width: 180 },
-  {
-    title: '通知文案',
-    dataIndex: 'notice_text_preview',
-    key: 'notice_text_preview',
-    width: 420,
-  },
-  {
-    title: '队列状态',
-    dataIndex: 'queue_status_label',
-    key: 'queue_status_label',
-    width: 150,
-  },
-  {
-    title: '重试说明',
-    dataIndex: 'retry_label',
-    key: 'retry_label',
-    width: 260,
-  },
-  { title: '计划', dataIndex: 'plan', key: 'plan', width: 260 },
-  { title: '操作', key: 'actions', width: 100, fixed: 'right' },
-];
-
 const historyColumns: TableColumnsType<DashboardNoticePlanHistoryItem> = [
   { title: '发送时间', dataIndex: 'created_at', key: 'created_at', width: 180 },
   {
@@ -176,7 +125,6 @@ const historyColumns: TableColumnsType<DashboardNoticePlanHistoryItem> = [
   { title: '操作', key: 'actions', width: 100, fixed: 'right' },
 ];
 
-const dueItems = computed(() => detail.value?.due_items || []);
 const dueBatchItems = computed(
   () => detail.value?.due_user_summary_items || [],
 );
@@ -189,12 +137,6 @@ function fmtTime(value?: null | string) {
   if (!value) return '-';
   const parsed = dayjs(value);
   return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm:ss') : value;
-}
-
-function queueColor(status?: string) {
-  if (status === 'due_now' || status === 'fallback_notice') return 'error';
-  if (status === 'within_window') return 'warning';
-  return 'processing';
 }
 
 function noticeColor(type?: string) {
@@ -228,10 +170,6 @@ function attemptColor(status?: string) {
   return 'default';
 }
 
-function rowKey(record: DashboardNoticePlanItem) {
-  return `${record.notice_type}-${record.order_id || record.id}`;
-}
-
 function batchRowKey(record: DashboardNoticeUserSummaryItem) {
   return record.id;
 }
@@ -245,7 +183,10 @@ function displayUser(record: {
   username_label?: string;
 }) {
   const name = record.user_display_name || '未绑定用户';
-  const username = record.username_label && record.username_label !== '-' ? record.username_label : '';
+  const username =
+    record.username_label && record.username_label !== '-'
+      ? record.username_label
+      : '';
   return username ? `${name} ${username}` : name;
 }
 
@@ -349,7 +290,7 @@ onMounted(loadData);
             </Tag>
             / {{ detail?.recent_failure_count ?? 0 }} 条
           </Descriptions.Item>
-          <Descriptions.Item label="两天内待通知">
+          <Descriptions.Item label="3天内通知计划">
             <Tag color="warning">{{ detail?.due_user_count ?? 0 }} 种通知</Tag>
             / {{ detail?.due_count ?? 0 }} 个 IP 通知项
           </Descriptions.Item>
@@ -369,7 +310,7 @@ onMounted(loadData);
         />
       </Card>
 
-      <Card title="待通知计划（按用户 + 通知类型整合）">
+      <Card title="3天内通知计划（按用户 + 通知类型整合）">
         <Table
           :columns="noticeBatchColumns"
           :data-source="dueBatchItems"
@@ -507,139 +448,6 @@ onMounted(loadData);
             </template>
           </template>
         </Table>
-      </Card>
-
-      <Card title="待通知明细（两天内，每页10个IP）">
-        <Table
-          :columns="planColumns"
-          :data-source="dueItems"
-          :loading="loading"
-          :pagination="{ pageSize: 10 }"
-          :row-key="rowKey"
-          :scroll="{ x: 2390 }"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'user_display_name'">
-              {{ displayUser(record as DashboardNoticePlanItem) }}
-            </template>
-            <template v-else-if="column.key === 'notice_type_label'">
-              <Tag
-                :color="
-                  noticeColor((record as DashboardNoticePlanItem).notice_type)
-                "
-              >
-                {{ (record as DashboardNoticePlanItem).notice_type_label }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'notice_status_label'">
-              <Tag
-                :color="
-                  statusColor((record as DashboardNoticePlanItem).notice_status)
-                "
-              >
-                {{
-                  (record as DashboardNoticePlanItem).notice_status_label || '-'
-                }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'notice_channel_label'">
-              <div class="flex flex-wrap gap-1">
-                <Tag
-                  :color="
-                    channelColor(
-                      (record as DashboardNoticePlanItem).notice_channel,
-                    )
-                  "
-                >
-                  {{
-                    (record as DashboardNoticePlanItem).notice_channel_label ||
-                    '-'
-                  }}
-                </Tag>
-                <Tag
-                  v-for="attempt in (record as DashboardNoticePlanItem)
-                    .notice_channel_attempts || []"
-                  :key="`${attempt.channel}-${attempt.account_id || attempt.label}`"
-                  :color="attemptColor(attempt.status)"
-                >
-                  {{ attempt.label }}：{{ attempt.status_label }}
-                </Tag>
-              </div>
-            </template>
-            <template v-else-if="column.key === 'queue_status_label'">
-              <Tag
-                :color="
-                  queueColor((record as DashboardNoticePlanItem).queue_status)
-                "
-              >
-                {{
-                  (record as DashboardNoticePlanItem).queue_status_label || '-'
-                }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'notice_at'">
-              {{ fmtTime((record as DashboardNoticePlanItem).notice_at) }}
-            </template>
-            <template
-              v-else-if="
-                column.key === 'notice_text_preview' ||
-                column.key === 'retry_label'
-              "
-            >
-              <TypographyParagraph
-                :ellipsis="{
-                  rows: 2,
-                  tooltip: String((record as any)[column.key] || '-'),
-                }"
-                class="mb-0 break-all text-sm leading-6"
-              >
-                {{ (record as any)[column.key] || '-' }}
-              </TypographyParagraph>
-            </template>
-            <template v-else-if="column.key === 'plan'">
-              <div>
-                <div>
-                  {{
-                    (record as DashboardNoticePlanItem).provider_label || '-'
-                  }}
-                </div>
-                <div style="color: var(--color-text-secondary)">
-                  到期
-                  {{
-                    fmtTime(
-                      (record as DashboardNoticePlanItem).service_expires_at,
-                    )
-                  }}
-                  / 自动续费
-                  {{
-                    fmtTime((record as DashboardNoticePlanItem).auto_renew_at)
-                  }}
-                </div>
-                <div style="color: var(--color-text-secondary)">
-                  关机
-                  {{ fmtTime((record as DashboardNoticePlanItem).suspend_at) }}
-                  / 删机
-                  {{ fmtTime((record as DashboardNoticePlanItem).delete_at) }}
-                </div>
-              </div>
-            </template>
-            <template v-else-if="column.key === 'actions'">
-              <Button
-                type="link"
-                size="small"
-                @click="
-                  openOrder((record as DashboardNoticePlanItem).related_path)
-                "
-              >
-                订单详情
-              </Button>
-            </template>
-          </template>
-        </Table>
-        <Empty
-          v-if="dueItems.length === 0 && !loading"
-          description="当前两天内没有待通知任务"
-        />
       </Card>
 
       <Card title="未来通知计划（10个，按用户 + 通知类型整合）">
