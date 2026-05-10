@@ -650,6 +650,7 @@ export interface DashboardShutdownPlanItem {
   execution_status?: null | string;
   id: number | string;
   ip: string;
+  note?: null | string;
   ip_recycle_at: null | string;
   item_type?: 'order' | 'orphan_asset' | string;
   last_failure_reason?: null | string;
@@ -1057,6 +1058,19 @@ export interface DashboardShutdownPlanRunResult {
   message?: string;
   success_count: number;
   total: number;
+}
+
+export async function updateDashboardLifecyclePlanNoteApi(payload: {
+  asset_id?: number;
+  id?: number | string;
+  item_type?: string;
+  note: string;
+  order_id?: number;
+}) {
+  return requestClient.post<{ note: string }>(
+    '/admin/tasks/plans/notes/',
+    payload,
+  );
 }
 
 export async function runDashboardShutdownPlanOrderApi(orderId: number) {

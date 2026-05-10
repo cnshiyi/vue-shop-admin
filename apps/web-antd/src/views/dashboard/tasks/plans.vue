@@ -19,6 +19,7 @@ import {
   Card,
   Descriptions,
   Empty,
+  Input,
   message,
   Modal,
   Space,
@@ -33,6 +34,7 @@ import {
   runDashboardOrphanAssetDeletePlanApi,
   runDashboardShutdownPlanOrderApi,
   runDashboardUnattachedIpDeletePlanApi,
+  updateDashboardLifecyclePlanNoteApi,
 } from '#/api/admin';
 
 const router = useRouter();
@@ -44,6 +46,12 @@ const lastRunResult = ref<DashboardShutdownPlanRunResult | null>(null);
 const failurePanelOpen = ref(false);
 const expandedKeys = reactive<Record<string, boolean>>({});
 const tablePagination = { defaultPageSize: 20, showSizeChanger: true };
+const noteModalOpen = ref(false);
+const noteSaving = ref(false);
+const noteValue = ref('');
+const noteTarget = ref<
+  DashboardShutdownPlanItem | DashboardUnattachedIpDeletePlan | null
+>(null);
 
 const dueColumns = [
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
@@ -68,6 +76,7 @@ const dueColumns = [
   },
   { title: '关机时间', dataIndex: 'suspend_at', key: 'suspend_at', width: 180 },
   { title: '删机时间', dataIndex: 'delete_at', key: 'delete_at', width: 180 },
+  { title: '备注', dataIndex: 'note', key: 'note', width: 260 },
   {
     title: '执行状态',
     dataIndex: 'execution_status',
@@ -160,14 +169,15 @@ const ipDeleteColumns = [
     width: 140,
   },
   { title: '计划释放', dataIndex: 'delete_at', key: 'delete_at', width: 180 },
+  { title: '备注', dataIndex: 'note', key: 'note', width: 280 },
   { title: '记录时间', dataIndex: 'logged_at', key: 'logged_at', width: 180 },
   {
     title: '执行状态',
     dataIndex: 'execution_status',
     key: 'execution_status',
-    width: 420,
+    width: 360,
   },
-  { title: '操作', key: 'actions', width: 120, fixed: 'right' as const },
+  { title: '操作', key: 'actions', width: 150, fixed: 'right' as const },
 ];
 
 const summary = computed(() => detail.value);
@@ -298,6 +308,56 @@ function executionText(record: { execution_status?: string; note?: string }) {
 
 function executionPlan(record: { execution_plan?: string }) {
   return record.execution_plan || '-';
+}
+
+function planNote(record: { note?: null | string }) {
+  return record.note || '-';
+}
+
+function openNoteEditor(
+  record: DashboardShutdownPlanItem | DashboardUnattachedIpDeletePlan,
+) {
+  noteTarget.value = record;
+  noteValue.value = record.note || '';
+  noteModalOpen.value = true;
+}
+
+async function savePlanNote() {
+  const target = noteTarget.value;
+  if (!target || noteSaving.value) return;
+  const payload: {
+    asset_id?: number;
+    id?: number | string;
+    item_type?: string;
+    note: string;
+    order_id?: number;
+  } = {
+    item_type: (target as DashboardShutdownPlanItem).item_type || 'asset',
+    note: noteValue.value,
+  };
+  const orderTarget = target as DashboardShutdownPlanItem;
+  if (orderTarget.item_type === 'order' || orderTarget.order_id) {
+    payload.order_id = Number(orderTarget.order_id || 0);
+  } else {
+    payload.asset_id = Number(
+      orderTarget.asset_id ||
+        (target as DashboardUnattachedIpDeletePlan).id ||
+        0,
+    );
+    payload.id = (target as DashboardUnattachedIpDeletePlan).id;
+  }
+  noteSaving.value = true;
+  try {
+    const result = await updateDashboardLifecyclePlanNoteApi(payload);
+    target.note = result.note || '';
+    message.success('备注已保存');
+    noteModalOpen.value = false;
+    await loadData({ silent: true });
+  } catch (error: any) {
+    message.error(error?.message || '备注保存失败');
+  } finally {
+    noteSaving.value = false;
+  }
 }
 
 function openPath(path?: string) {
@@ -569,8 +629,25 @@ onMounted(loadData);
                 {{ executionText(record as DashboardUnattachedIpDeletePlan) }}
               </TypographyParagraph>
             </template>
+            <template v-else-if="column.key === 'note'">
+              <TypographyParagraph
+                class="mb-0 break-all text-xs leading-5"
+                :ellipsis="{ rows: 2, tooltip: planNote(record as any) }"
+              >
+                {{ planNote(record as any) }}
+              </TypographyParagraph>
+            </template>
             <template v-else-if="column.key === 'actions'">
               <Space :size="4">
+                <Button
+                  type="link"
+                  size="small"
+                  @click="
+                    openNoteEditor(record as DashboardUnattachedIpDeletePlan)
+                  "
+                >
+                  备注
+                </Button>
                 <Button
                   type="link"
                   size="small"
@@ -617,7 +694,7 @@ onMounted(loadData);
           :loading="loading"
           :pagination="tablePagination"
           :row-key="rowKey"
-          :scroll="{ x: 1420 }"
+          :scroll="{ x: 1680 }"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'queue_status_label'">
@@ -697,8 +774,23 @@ onMounted(loadData);
                 </div>
               </div>
             </template>
+            <template v-else-if="column.key === 'note'">
+              <TypographyParagraph
+                class="mb-0 break-all text-xs leading-5"
+                :ellipsis="{ rows: 2, tooltip: planNote(record as any) }"
+              >
+                {{ planNote(record as any) }}
+              </TypographyParagraph>
+            </template>
             <template v-else-if="column.key === 'actions'">
               <Space :size="4">
+                <Button
+                  type="link"
+                  size="small"
+                  @click="openNoteEditor(record as DashboardShutdownPlanItem)"
+                >
+                  备注
+                </Button>
                 <Button
                   type="link"
                   size="small"
@@ -809,20 +901,39 @@ onMounted(loadData);
                 </div>
               </div>
             </template>
-            <template v-else-if="column.key === 'actions'">
-              <Button
-                type="link"
-                size="small"
-                @click="
-                  openPath(
-                    (record as DashboardUnattachedIpDeletePlan).detail_path ||
-                      (record as DashboardUnattachedIpDeletePlan)
-                        .asset_detail_path,
-                  )
-                "
+            <template v-else-if="column.key === 'note'">
+              <TypographyParagraph
+                class="mb-0 break-all text-xs leading-5"
+                :ellipsis="{ rows: 2, tooltip: planNote(record as any) }"
               >
-                查看详情
-              </Button>
+                {{ planNote(record as any) }}
+              </TypographyParagraph>
+            </template>
+            <template v-else-if="column.key === 'actions'">
+              <Space :size="4">
+                <Button
+                  type="link"
+                  size="small"
+                  @click="
+                    openNoteEditor(record as DashboardUnattachedIpDeletePlan)
+                  "
+                >
+                  备注
+                </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  @click="
+                    openPath(
+                      (record as DashboardUnattachedIpDeletePlan).detail_path ||
+                        (record as DashboardUnattachedIpDeletePlan)
+                          .asset_detail_path,
+                    )
+                  "
+                >
+                  查看详情
+                </Button>
+              </Space>
             </template>
           </template>
         </Table>
@@ -839,7 +950,7 @@ onMounted(loadData);
           :loading="loading"
           :pagination="tablePagination"
           :row-key="rowKey"
-          :scroll="{ x: 1420 }"
+          :scroll="{ x: 1680 }"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'queue_status_label'">
@@ -900,16 +1011,33 @@ onMounted(loadData);
                 </div>
               </div>
             </template>
-            <template v-else-if="column.key === 'actions'">
-              <Button
-                type="link"
-                size="small"
-                @click="
-                  openPath((record as DashboardShutdownPlanItem).related_path)
-                "
+            <template v-else-if="column.key === 'note'">
+              <TypographyParagraph
+                class="mb-0 break-all text-xs leading-5"
+                :ellipsis="{ rows: 2, tooltip: planNote(record as any) }"
               >
-                订单详情
-              </Button>
+                {{ planNote(record as any) }}
+              </TypographyParagraph>
+            </template>
+            <template v-else-if="column.key === 'actions'">
+              <Space :size="4">
+                <Button
+                  type="link"
+                  size="small"
+                  @click="openNoteEditor(record as DashboardShutdownPlanItem)"
+                >
+                  备注
+                </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  @click="
+                    openPath((record as DashboardShutdownPlanItem).related_path)
+                  "
+                >
+                  订单详情
+                </Button>
+              </Space>
             </template>
           </template>
         </Table>
@@ -1170,6 +1298,18 @@ onMounted(loadData);
           </template>
         </template>
       </Table>
+    </Modal>
+    <Modal
+      v-model:open="noteModalOpen"
+      title="编辑备注"
+      :confirm-loading="noteSaving"
+      @ok="savePlanNote"
+    >
+      <Input.TextArea
+        v-model:value="noteValue"
+        :auto-size="{ minRows: 4, maxRows: 10 }"
+        placeholder="填写删除计划备注"
+      />
     </Modal>
   </Page>
 </template>
