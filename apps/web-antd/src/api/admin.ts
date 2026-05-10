@@ -611,9 +611,14 @@ export interface DashboardNoticeUserSummaryItem {
   ip_count: number;
   ips: string[];
   next_notice_at: null | string;
+  order_ids: number[];
   notice_channel: string;
   notice_channel_label: string;
   notice_count: number;
+  notice_event: string;
+  notice_has_manual_text: boolean;
+  notice_manual_text: string;
+  notice_override_key: string;
   notice_text_preview: string;
   notice_type: string;
   notice_type_label: string;
@@ -1136,6 +1141,19 @@ export async function getDashboardTasksApi() {
 
 export async function getDashboardNoticePlanApi() {
   return requestClient.get<DashboardNoticePlanDetail>('/admin/tasks/notices/');
+}
+
+export async function updateDashboardNoticePlanTextApi(payload: {
+  event: string;
+  notice_text: string;
+  order_ids: number[];
+  user_id?: null | number;
+}) {
+  return requestClient.post<{
+    notice_has_manual_text: boolean;
+    notice_manual_text: string;
+    notice_override_key: string;
+  }>('/admin/tasks/notices/text/', payload);
 }
 
 export async function getDashboardAutoRenewTaskDetailApi() {
