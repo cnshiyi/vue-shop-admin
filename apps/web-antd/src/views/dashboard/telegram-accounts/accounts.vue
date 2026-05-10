@@ -256,7 +256,7 @@ onMounted(loadData);
         <template #renderItem="{ item }">
           <List.Item>
             <List.Item.Meta
-              :description="`${item.phone || '-'} · ${item.username ? `@${item.username}` : '-'} · ${item.note || ''}`"
+              :description="`${item.phone || '-'} · ${item.tg_user_id ? `ID ${item.tg_user_id}` : '未填ID'} · ${item.username ? `@${item.username}` : '-'} · ${item.note || ''}`"
               :title="item.label"
             />
             <Space>

@@ -833,6 +833,7 @@ export interface DashboardTelegramLoginAccountItem {
   notify_enabled: boolean;
   phone: string;
   status: string;
+  tg_user_id?: null | number;
   updated_at: null | string;
   username: string;
 }
@@ -932,6 +933,7 @@ export interface DashboardTelegramLoginAccountCreatePayload {
   label: string;
   note?: string;
   phone?: string;
+  tg_user_id?: null | number | string;
   username?: string;
 }
 

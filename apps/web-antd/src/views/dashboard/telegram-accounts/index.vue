@@ -48,6 +48,7 @@ const form = reactive<DashboardTelegramLoginAccountCreatePayload>({
   label: '',
   note: '',
   phone: '',
+  tg_user_id: '',
   username: '',
 });
 
@@ -72,6 +73,7 @@ async function selectUser(user: DashboardTelegramChatUserItem) {
 function openCreate() {
   form.label = '';
   form.phone = '';
+  form.tg_user_id = '';
   form.username = '';
   form.note = '';
   open.value = true;
@@ -136,7 +138,7 @@ onMounted(loadData);
             <template #renderItem="{ item }">
               <List.Item>
                 <List.Item.Meta
-                  :description="`${item.phone || '-'} · ${item.username ? `@${item.username}` : '-'}`"
+                  :description="`${item.phone || '-'} · ${item.tg_user_id ? `ID ${item.tg_user_id}` : '未填ID'} · ${item.username ? `@${item.username}` : '-'}`"
                   :title="item.label"
                 />
                 <Tag color="blue">{{ item.status }}</Tag>
@@ -226,8 +228,17 @@ onMounted(loadData);
         <Form.Item label="手机号">
           <Input v-model:value="form.phone" placeholder="可选，仅做登记" />
         </Form.Item>
+        <Form.Item label="Telegram 用户ID">
+          <Input
+            v-model:value="form.tg_user_id"
+            placeholder="可选；填写后该用户名可在代理列表绑定用户"
+          />
+        </Form.Item>
         <Form.Item label="用户名">
-          <Input v-model:value="form.username" placeholder="例如：@shiyi4" />
+          <Input
+            v-model:value="form.username"
+            placeholder="例如：@shiyi4，多个用户名可用逗号分隔"
+          />
         </Form.Item>
         <Form.Item label="备注">
           <Input.TextArea
