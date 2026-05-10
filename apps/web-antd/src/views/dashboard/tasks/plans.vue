@@ -98,6 +98,12 @@ const historyColumns = [
   },
   { title: '结果', dataIndex: 'result_label', key: 'result_label', width: 110 },
   {
+    title: '删除来源',
+    dataIndex: 'deletion_source_label',
+    key: 'deletion_source_label',
+    width: 140,
+  },
+  {
     title: '执行状态',
     dataIndex: 'execution_status',
     key: 'execution_status',
@@ -146,6 +152,12 @@ const ipDeleteColumns = [
     key: 'provider_status',
     width: 150,
   },
+  {
+    title: '删除来源',
+    dataIndex: 'deletion_source_label',
+    key: 'deletion_source_label',
+    width: 140,
+  },
   { title: '计划释放', dataIndex: 'delete_at', key: 'delete_at', width: 180 },
   { title: '记录时间', dataIndex: 'logged_at', key: 'logged_at', width: 180 },
   {
@@ -160,7 +172,13 @@ const ipDeleteColumns = [
 const summary = computed(() => detail.value);
 const dueItems = computed(() => summary.value?.due_items || []);
 const futurePlanItems = computed(() => summary.value?.future_plan_items || []);
-const historyItems = computed(() => summary.value?.history_items || []);
+const historyItems = computed(() =>
+  (summary.value?.history_items || []).toSorted(
+    (left, right) =>
+      dayjs(right.executed_at || 0).valueOf() -
+      dayjs(left.executed_at || 0).valueOf(),
+  ),
+);
 const ipDeleteItems = computed(() => summary.value?.ip_delete_items || []);
 function isIpDeletePending(item: DashboardUnattachedIpDeletePlan) {
   if (item.is_history) return false;
@@ -180,7 +198,13 @@ const futureIpDeleteItems = computed(() =>
   ),
 );
 const ipDeleteHistoryItems = computed(() =>
-  ipDeleteItems.value.filter((item: any) => item.is_history),
+  ipDeleteItems.value
+    .filter((item: any) => item.is_history)
+    .toSorted(
+      (left: any, right: any) =>
+        dayjs(right.logged_at || right.delete_at || 0).valueOf() -
+        dayjs(left.logged_at || left.delete_at || 0).valueOf(),
+    ),
 );
 const lastRunFailures = computed(() =>
   (lastRunResult.value?.items || []).filter((item) => !item.ok),
@@ -368,8 +392,8 @@ onMounted(loadData);
 
 <template>
   <Page
-    description="按删除 IP、删除服务器、未来计划和历史记录分区查看"
-    title="计划"
+    description="按删除 IP、删除服务器、删除计划和历史记录分区查看"
+    title="删除计划"
   >
     <Space direction="vertical" style="width: 100%" :size="16">
       <Card :loading="loading">
@@ -467,7 +491,7 @@ onMounted(loadData);
           :loading="loading"
           :pagination="false"
           :row-key="rowKey"
-          :scroll="{ x: 1600 }"
+          :scroll="{ x: 1740 }"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'provider_status'">
@@ -481,6 +505,14 @@ onMounted(loadData);
                 {{
                   (record as DashboardUnattachedIpDeletePlan).provider_status ||
                   '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'deletion_source_label'">
+              <Tag color="blue">
+                {{
+                  (record as DashboardUnattachedIpDeletePlan)
+                    .deletion_source_label || '-'
                 }}
               </Tag>
             </template>
@@ -672,7 +704,7 @@ onMounted(loadData);
           :loading="loading"
           :pagination="{ pageSize: 20, showSizeChanger: true }"
           :row-key="rowKey"
-          :scroll="{ x: 1600 }"
+          :scroll="{ x: 1740 }"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'provider_status'">
@@ -680,6 +712,14 @@ onMounted(loadData);
                 {{
                   (record as DashboardUnattachedIpDeletePlan).provider_status ||
                   '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'deletion_source_label'">
+              <Tag color="blue">
+                {{
+                  (record as DashboardUnattachedIpDeletePlan)
+                    .deletion_source_label || '-'
                 }}
               </Tag>
             </template>
@@ -821,7 +861,7 @@ onMounted(loadData);
           :loading="loading"
           :pagination="{ pageSize: 20, showSizeChanger: true }"
           :row-key="rowKey"
-          :scroll="{ x: 1580 }"
+          :scroll="{ x: 1720 }"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'result_label'">
@@ -829,6 +869,14 @@ onMounted(loadData);
                 :color="resultColor(record as DashboardShutdownPlanHistoryItem)"
               >
                 {{ (record as DashboardShutdownPlanHistoryItem).result_label }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'deletion_source_label'">
+              <Tag color="blue">
+                {{
+                  (record as DashboardShutdownPlanHistoryItem)
+                    .deletion_source_label || '-'
+                }}
               </Tag>
             </template>
             <template
@@ -884,7 +932,7 @@ onMounted(loadData);
           :loading="loading"
           :pagination="{ pageSize: 20, showSizeChanger: true }"
           :row-key="rowKey"
-          :scroll="{ x: 1600 }"
+          :scroll="{ x: 1740 }"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'provider_status'">
@@ -898,6 +946,14 @@ onMounted(loadData);
                 {{
                   (record as DashboardUnattachedIpDeletePlan).provider_status ||
                   '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'deletion_source_label'">
+              <Tag color="blue">
+                {{
+                  (record as DashboardUnattachedIpDeletePlan)
+                    .deletion_source_label || '-'
                 }}
               </Tag>
             </template>
