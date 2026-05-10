@@ -314,6 +314,23 @@ function planNote(record: { note?: null | string }) {
   return record.note || '-';
 }
 
+function noteExpandedKey(record: {
+  id: number | string;
+  order_id?: null | number;
+}) {
+  return `note-${rowKey(record)}`;
+}
+
+function noteEllipsis(record: {
+  id: number | string;
+  note?: null | string;
+  order_id?: null | number;
+}) {
+  return isExpanded(noteExpandedKey(record))
+    ? false
+    : { rows: 1, tooltip: planNote(record) };
+}
+
 function openNoteEditor(
   record: DashboardShutdownPlanItem | DashboardUnattachedIpDeletePlan,
 ) {
@@ -630,12 +647,25 @@ onMounted(loadData);
               </TypographyParagraph>
             </template>
             <template v-else-if="column.key === 'note'">
-              <TypographyParagraph
-                class="mb-0 break-all text-xs leading-5"
-                :ellipsis="{ rows: 2, tooltip: planNote(record as any) }"
-              >
-                {{ planNote(record as any) }}
-              </TypographyParagraph>
+              <div>
+                <TypographyParagraph
+                  class="mb-0 whitespace-pre-wrap break-all text-xs leading-5"
+                  :ellipsis="noteEllipsis(record as any)"
+                >
+                  {{ planNote(record as any) }}
+                </TypographyParagraph>
+                <Button
+                  v-if="shouldShowExpand(planNote(record as any), 24)"
+                  type="link"
+                  size="small"
+                  class="mt-1 h-auto px-0 py-0"
+                  @click="toggleExpanded(noteExpandedKey(record as any))"
+                >
+                  {{
+                    isExpanded(noteExpandedKey(record as any)) ? '收起' : '展开'
+                  }}
+                </Button>
+              </div>
             </template>
             <template v-else-if="column.key === 'actions'">
               <Space :size="4">
@@ -775,12 +805,25 @@ onMounted(loadData);
               </div>
             </template>
             <template v-else-if="column.key === 'note'">
-              <TypographyParagraph
-                class="mb-0 break-all text-xs leading-5"
-                :ellipsis="{ rows: 2, tooltip: planNote(record as any) }"
-              >
-                {{ planNote(record as any) }}
-              </TypographyParagraph>
+              <div>
+                <TypographyParagraph
+                  class="mb-0 whitespace-pre-wrap break-all text-xs leading-5"
+                  :ellipsis="noteEllipsis(record as any)"
+                >
+                  {{ planNote(record as any) }}
+                </TypographyParagraph>
+                <Button
+                  v-if="shouldShowExpand(planNote(record as any), 24)"
+                  type="link"
+                  size="small"
+                  class="mt-1 h-auto px-0 py-0"
+                  @click="toggleExpanded(noteExpandedKey(record as any))"
+                >
+                  {{
+                    isExpanded(noteExpandedKey(record as any)) ? '收起' : '展开'
+                  }}
+                </Button>
+              </div>
             </template>
             <template v-else-if="column.key === 'actions'">
               <Space :size="4">
@@ -902,12 +945,25 @@ onMounted(loadData);
               </div>
             </template>
             <template v-else-if="column.key === 'note'">
-              <TypographyParagraph
-                class="mb-0 break-all text-xs leading-5"
-                :ellipsis="{ rows: 2, tooltip: planNote(record as any) }"
-              >
-                {{ planNote(record as any) }}
-              </TypographyParagraph>
+              <div>
+                <TypographyParagraph
+                  class="mb-0 whitespace-pre-wrap break-all text-xs leading-5"
+                  :ellipsis="noteEllipsis(record as any)"
+                >
+                  {{ planNote(record as any) }}
+                </TypographyParagraph>
+                <Button
+                  v-if="shouldShowExpand(planNote(record as any), 24)"
+                  type="link"
+                  size="small"
+                  class="mt-1 h-auto px-0 py-0"
+                  @click="toggleExpanded(noteExpandedKey(record as any))"
+                >
+                  {{
+                    isExpanded(noteExpandedKey(record as any)) ? '收起' : '展开'
+                  }}
+                </Button>
+              </div>
             </template>
             <template v-else-if="column.key === 'actions'">
               <Space :size="4">
@@ -1012,12 +1068,25 @@ onMounted(loadData);
               </div>
             </template>
             <template v-else-if="column.key === 'note'">
-              <TypographyParagraph
-                class="mb-0 break-all text-xs leading-5"
-                :ellipsis="{ rows: 2, tooltip: planNote(record as any) }"
-              >
-                {{ planNote(record as any) }}
-              </TypographyParagraph>
+              <div>
+                <TypographyParagraph
+                  class="mb-0 whitespace-pre-wrap break-all text-xs leading-5"
+                  :ellipsis="noteEllipsis(record as any)"
+                >
+                  {{ planNote(record as any) }}
+                </TypographyParagraph>
+                <Button
+                  v-if="shouldShowExpand(planNote(record as any), 24)"
+                  type="link"
+                  size="small"
+                  class="mt-1 h-auto px-0 py-0"
+                  @click="toggleExpanded(noteExpandedKey(record as any))"
+                >
+                  {{
+                    isExpanded(noteExpandedKey(record as any)) ? '收起' : '展开'
+                  }}
+                </Button>
+              </div>
             </template>
             <template v-else-if="column.key === 'actions'">
               <Space :size="4">
