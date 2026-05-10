@@ -1197,7 +1197,7 @@ export async function getDashboardLifecyclePlansApi(
 ) {
   return requestClient.get<DashboardLifecyclePlansDetail>(
     '/admin/tasks/plans/',
-    { params, timeout: 60_000 },
+    { params, timeout: 600_000 },
   );
 }
 
@@ -1615,14 +1615,14 @@ export async function deleteDashboardCloudPlanApi(planId: number) {
 export async function getDashboardSiteConfigsApi() {
   return requestClient.get<DashboardSiteConfigItem[]>(
     '/admin/settings/site-configs/',
-    { timeout: 60_000 },
+    { timeout: 600_000 },
   );
 }
 
 export async function getDashboardSiteConfigGroupsApi() {
   return requestClient.get<DashboardSiteConfigGroup[]>(
     '/admin/settings/site-configs/groups/',
-    { timeout: 60_000 },
+    { timeout: 600_000 },
   );
 }
 
