@@ -374,7 +374,10 @@ onMounted(loadData);
             / {{ detail?.future_count ?? 0 }} 个 IP 通知项
           </Descriptions.Item>
         </Descriptions>
-        <div v-if="detail?.notice_switches?.length" class="mt-3 flex flex-wrap items-center gap-3">
+        <div
+          v-if="detail?.notice_switches?.length"
+          class="mt-3 flex flex-wrap items-center gap-3"
+        >
           <span class="text-sm text-gray-500">通知开关：</span>
           <Space wrap>
             <Tag
@@ -388,7 +391,9 @@ onMounted(loadData);
                 size="small"
                 :checked="item.enabled"
                 :loading="switchSaving[item.key]"
-                @change="(checked) => updateNoticeSwitch(item.key, checked as boolean)"
+                @change="
+                  (checked) => updateNoticeSwitch(item.key, checked as boolean)
+                "
               />
             </Tag>
           </Space>
