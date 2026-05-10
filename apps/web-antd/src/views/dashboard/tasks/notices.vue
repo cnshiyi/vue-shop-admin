@@ -365,13 +365,13 @@ onMounted(loadData);
                 :ellipsis="{
                   rows: 2,
                   tooltip: (record as DashboardNoticeUserSummaryItem).ips.join(
-                    ' / ',
+                    '\n',
                   ),
                 }"
-                class="mb-0 break-all text-sm leading-6"
+                class="mb-0 whitespace-pre-line break-all text-sm leading-6"
               >
                 {{
-                  (record as DashboardNoticeUserSummaryItem).ips.join(' / ') ||
+                  (record as DashboardNoticeUserSummaryItem).ips.join('\n') ||
                   '-'
                 }}
               </TypographyParagraph>
@@ -505,13 +505,13 @@ onMounted(loadData);
                 :ellipsis="{
                   rows: 2,
                   tooltip: (record as DashboardNoticeUserSummaryItem).ips.join(
-                    ' / ',
+                    '\n',
                   ),
                 }"
-                class="mb-0 break-all text-sm leading-6"
+                class="mb-0 whitespace-pre-line break-all text-sm leading-6"
               >
                 {{
-                  (record as DashboardNoticeUserSummaryItem).ips.join(' / ') ||
+                  (record as DashboardNoticeUserSummaryItem).ips.join('\n') ||
                   '-'
                 }}
               </TypographyParagraph>
@@ -663,13 +663,13 @@ onMounted(loadData);
                 :ellipsis="{
                   rows: 2,
                   tooltip: (record as DashboardNoticePlanHistoryItem).ips.join(
-                    ' / ',
+                    '\n',
                   ),
                 }"
-                class="mb-0 break-all text-sm leading-6"
+                class="mb-0 whitespace-pre-line break-all text-sm leading-6"
               >
                 {{
-                  (record as DashboardNoticePlanHistoryItem).ips.join(' / ') ||
+                  (record as DashboardNoticePlanHistoryItem).ips.join('\n') ||
                   (record as DashboardNoticePlanHistoryItem).ip ||
                   '-'
                 }}
@@ -686,7 +686,7 @@ onMounted(loadData);
                   rows: 2,
                   tooltip: String((record as any)[column.key] || '-'),
                 }"
-                class="mb-0 break-all text-sm leading-6"
+                class="mb-0 whitespace-pre-line break-all text-sm leading-6"
               >
                 {{ (record as any)[column.key] || '-' }}
               </TypographyParagraph>
