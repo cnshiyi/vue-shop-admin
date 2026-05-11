@@ -955,7 +955,9 @@ onMounted(loadData);
                       String((record as DashboardNoticePlanHistoryItem).id)
                     ]
                   "
-                  @click="deleteHistory(record as DashboardNoticePlanHistoryItem)"
+                  @click="
+                    deleteHistory(record as DashboardNoticePlanHistoryItem)
+                  "
                 >
                   删除
                 </Button>
