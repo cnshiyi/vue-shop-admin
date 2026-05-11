@@ -1175,6 +1175,12 @@ export async function getDashboardNoticePlanApi(
   });
 }
 
+export async function deleteDashboardNoticeHistoryApi(logId: number | string) {
+  return requestClient.post<{ deleted: boolean; reset_count: number }>(
+    `/admin/tasks/notices/history/${logId}/delete/`,
+  );
+}
+
 export async function updateDashboardNoticeSwitchesApi(payload: {
   switches: Array<{ enabled: boolean; key: string }>;
 }) {

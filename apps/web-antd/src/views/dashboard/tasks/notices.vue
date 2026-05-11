@@ -29,6 +29,7 @@ import {
 import dayjs from 'dayjs';
 
 import {
+  deleteDashboardNoticeHistoryApi,
   getDashboardNoticePlanApi,
   updateDashboardNoticePlanTextApi,
   updateDashboardNoticeSwitchesApi,
@@ -39,6 +40,7 @@ const loading = ref(false);
 const detail = ref<DashboardNoticePlanDetail | null>(null);
 const textModalOpen = ref(false);
 const textSaving = ref(false);
+const deletingHistoryIds = ref<Record<string, boolean>>({});
 const textValue = ref('');
 const textTarget = ref<DashboardNoticeUserSummaryItem | null>(null);
 const expandedTextKeys = ref<Record<string, boolean>>({});
@@ -334,6 +336,23 @@ async function updateNoticeSwitch(key: string, enabled: boolean) {
     }
   } finally {
     switchSaving.value = { ...switchSaving.value, [key]: false };
+  }
+}
+
+async function deleteHistory(record: DashboardNoticePlanHistoryItem) {
+  const id = String(record.id || '');
+  if (!id || deletingHistoryIds.value[id]) return;
+  deletingHistoryIds.value = { ...deletingHistoryIds.value, [id]: true };
+  try {
+    const result = await deleteDashboardNoticeHistoryApi(id);
+    message.success(
+      `历史通知已删除，已重置 ${result.reset_count || 0} 个订单通知状态`,
+    );
+    await loadData();
+  } catch (error: any) {
+    message.error(error?.message || '删除历史通知失败');
+  } finally {
+    deletingHistoryIds.value = { ...deletingHistoryIds.value, [id]: false };
   }
 }
 
@@ -915,17 +934,32 @@ onMounted(loadData);
               </TypographyParagraph>
             </template>
             <template v-else-if="column.key === 'actions'">
-              <Button
-                type="link"
-                size="small"
-                @click="
-                  openOrder(
-                    (record as DashboardNoticePlanHistoryItem).related_path,
-                  )
-                "
-              >
-                订单详情
-              </Button>
+              <Space size="small">
+                <Button
+                  type="link"
+                  size="small"
+                  @click="
+                    openOrder(
+                      (record as DashboardNoticePlanHistoryItem).related_path,
+                    )
+                  "
+                >
+                  订单详情
+                </Button>
+                <Button
+                  danger
+                  type="link"
+                  size="small"
+                  :loading="
+                    deletingHistoryIds[
+                      String((record as DashboardNoticePlanHistoryItem).id)
+                    ]
+                  "
+                  @click="deleteHistory(record as DashboardNoticePlanHistoryItem)"
+                >
+                  删除
+                </Button>
+              </Space>
             </template>
           </template>
         </Table>
