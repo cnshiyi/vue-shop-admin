@@ -688,6 +688,7 @@ export interface DashboardNoticePlanDetail {
   future_plan_items: DashboardNoticePlanItem[];
   future_user_count: number;
   future_user_summary_items: DashboardNoticeUserSummaryItem[];
+  history_count: number;
   history_items: DashboardNoticePlanHistoryItem[];
   interval_minutes: number;
   last_run_at: null | string;

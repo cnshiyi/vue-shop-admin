@@ -786,9 +786,7 @@ onMounted(loadData);
             current: historyPage,
             pageSize: historyLimit,
             showSizeChanger: true,
-            total:
-              (detail?.recent_success_count || 0) +
-              (detail?.recent_failure_count || 0),
+            total: detail?.history_count || 0,
             onChange: changeHistoryPage,
           }"
           :row-key="historyRowKey"
