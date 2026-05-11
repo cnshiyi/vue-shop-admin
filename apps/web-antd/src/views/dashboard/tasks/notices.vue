@@ -43,9 +43,12 @@ const textValue = ref('');
 const textTarget = ref<DashboardNoticeUserSummaryItem | null>(null);
 const expandedTextKeys = ref<Record<string, boolean>>({});
 const switchSaving = ref<Record<string, boolean>>({});
-const noticeLimit = ref(50);
+const noticePage = ref(1);
+const noticeLimit = ref(10);
+const futurePage = ref(1);
 const futureLimit = ref(10);
-const historyLimit = ref(50);
+const historyPage = ref(1);
+const historyLimit = ref(10);
 
 const noticeBatchColumns: TableColumnsType<DashboardNoticeUserSummaryItem> = [
   {
@@ -208,8 +211,11 @@ async function loadData() {
     detail.value = await getDashboardNoticePlanApi({
       compact: 1,
       future_limit: futureLimit.value,
+      future_offset: (futurePage.value - 1) * futureLimit.value,
       history_limit: historyLimit.value,
+      history_offset: (historyPage.value - 1) * historyLimit.value,
       limit: noticeLimit.value,
+      offset: (noticePage.value - 1) * noticeLimit.value,
     });
   } catch (error: any) {
     message.error(error?.message || '通知计划加载失败');
@@ -218,9 +224,21 @@ async function loadData() {
   }
 }
 
-async function loadMoreNotices() {
-  noticeLimit.value += 50;
-  historyLimit.value += 50;
+async function changeNoticePage(page: number, pageSize: number) {
+  noticePage.value = page;
+  noticeLimit.value = pageSize;
+  await loadData();
+}
+
+async function changeFuturePage(page: number, pageSize: number) {
+  futurePage.value = page;
+  futureLimit.value = pageSize;
+  await loadData();
+}
+
+async function changeHistoryPage(page: number, pageSize: number) {
+  historyPage.value = page;
+  historyLimit.value = pageSize;
   await loadData();
 }
 
@@ -343,9 +361,6 @@ onMounted(loadData);
             <Button size="small" :loading="loading" @click="loadData">
               刷新
             </Button>
-            <Button size="small" :loading="loading" @click="loadMoreNotices">
-              加载更多
-            </Button>
             <span>{{ detail?.task_label || '通知计划' }}</span>
             <Tag color="processing">
               {{ detail?.status_label || '置顶任务' }}
@@ -356,7 +371,7 @@ onMounted(loadData);
         <Alert
           type="info"
           show-icon
-          :message="`当前按 ${noticeLimit} 组通知 / ${historyLimit} 条历史分批加载，并压缩长文案预览；数据很多时可继续加载更多。`"
+          :message="`当前每页显示 ${noticeLimit} 组3天内通知 / ${historyLimit} 条历史，支持翻页，并压缩长文案预览。`"
           style="margin-bottom: 12px"
         />
         <Descriptions bordered :column="2" size="small">
@@ -435,7 +450,13 @@ onMounted(loadData);
           :columns="noticeBatchColumns"
           :data-source="dueBatchItems"
           :loading="loading"
-          :pagination="false"
+          :pagination="{
+            current: noticePage,
+            pageSize: noticeLimit,
+            showSizeChanger: true,
+            total: detail?.due_user_count || 0,
+            onChange: changeNoticePage,
+          }"
           :row-key="batchRowKey"
           :scroll="{ x: 1710 }"
         >
@@ -595,7 +616,13 @@ onMounted(loadData);
           :columns="noticeBatchColumns"
           :data-source="futureBatchItems"
           :loading="loading"
-          :pagination="false"
+          :pagination="{
+            current: futurePage,
+            pageSize: futureLimit,
+            showSizeChanger: true,
+            total: detail?.future_user_count || 0,
+            onChange: changeFuturePage,
+          }"
           :row-key="batchRowKey"
           :scroll="{ x: 1710 }"
         >
@@ -755,7 +782,15 @@ onMounted(loadData);
           :columns="historyColumns"
           :data-source="historyItems"
           :loading="loading"
-          :pagination="{ pageSize: 10 }"
+          :pagination="{
+            current: historyPage,
+            pageSize: historyLimit,
+            showSizeChanger: true,
+            total:
+              (detail?.recent_success_count || 0) +
+              (detail?.recent_failure_count || 0),
+            onChange: changeHistoryPage,
+          }"
           :row-key="historyRowKey"
           :scroll="{ x: 2290 }"
         >

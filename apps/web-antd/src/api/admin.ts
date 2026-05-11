@@ -1161,7 +1161,12 @@ export async function getDashboardTasksApi() {
 }
 
 export async function getDashboardNoticePlanApi(
-  params: { compact?: 0 | 1; future_limit?: number; history_limit?: number; limit?: number } = {},
+  params: {
+    compact?: 0 | 1;
+    future_limit?: number;
+    history_limit?: number;
+    limit?: number;
+  } = {},
 ) {
   return requestClient.get<DashboardNoticePlanDetail>('/admin/tasks/notices/', {
     params,
