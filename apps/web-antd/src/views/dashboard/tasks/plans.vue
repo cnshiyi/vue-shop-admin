@@ -311,7 +311,10 @@ function executionPlan(record: { execution_plan?: string }) {
   return record.execution_plan || '-';
 }
 
-function planNote(record: { display_note?: null | string; note?: null | string }) {
+function planNote(record: {
+  display_note?: null | string;
+  note?: null | string;
+}) {
   return record.display_note || record.note || '-';
 }
 
