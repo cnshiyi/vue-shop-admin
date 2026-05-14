@@ -18,7 +18,7 @@ const { destroyWatermark, updateWatermark } = useWatermark();
 const menus = computed(() => []);
 const AUTO_LOCK_IDLE_MS = 60 * 60 * 1000;
 
-let autoLockTimer: null | ReturnType<typeof window.setTimeout> = null;
+let autoLockTimer: null | number = null;
 
 function clearAutoLockTimer() {
   if (autoLockTimer !== null) {

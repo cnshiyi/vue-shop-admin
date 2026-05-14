@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { TableColumnsType } from 'ant-design-vue';
+
 import type { DashboardServerItem } from '#/api/admin';
 
 import { computed, onMounted, ref } from 'vue';
@@ -32,7 +34,7 @@ const totalSortMode = ref<
 const items = ref<DashboardServerItem[]>([]);
 const router = useRouter();
 
-const columns = computed(() => [
+const columns = computed<TableColumnsType<DashboardServerItem>>(() => [
   {
     title: '用户',
     dataIndex: 'user_display_name',
@@ -71,7 +73,7 @@ const columns = computed(() => [
         ? 'ascend'
         : (totalSortMode.value === 'remaining_desc'
           ? 'descend'
-          : null),
+          : undefined),
     width: 160,
   },
   {
@@ -84,7 +86,7 @@ const columns = computed(() => [
         ? 'ascend'
         : (totalSortMode.value === 'expires_desc'
           ? 'descend'
-          : null),
+          : undefined),
     width: 200,
   },
   { title: '更新时间', dataIndex: 'updated_at', key: 'updated_at', width: 200 },

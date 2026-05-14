@@ -252,6 +252,7 @@ function normalizeTaskDetail(value: unknown): DashboardAutoRenewTaskDetail {
       .map((item) => String(item || '').trim())
       .filter(Boolean),
     next_run_at: source.next_run_at || null,
+    notice_switches: source.notice_switches || [],
     recent_failure_count: asNumber(source.recent_failure_count),
     recent_success_count: asNumber(source.recent_success_count),
     status_label: asText(source.status_label, '置顶任务'),

@@ -78,7 +78,7 @@ function formatTime(value?: null | string) {
   return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
 }
 
-function deleteColor(record: DashboardUnattachedIpDeletePlan) {
+function deleteColor(record: Record<string, any>) {
   if (record.is_overdue) return 'red';
   if (!record.delete_at) return 'default';
   const hours = dayjs(record.delete_at).diff(dayjs(), 'hour');
@@ -88,7 +88,7 @@ function deleteColor(record: DashboardUnattachedIpDeletePlan) {
   return 'blue';
 }
 
-function statusColor(record: DashboardUnattachedIpDeletePlan) {
+function statusColor(record: Record<string, any>) {
   if (record.is_overdue) return 'red';
   if ((record.provider_status || '').includes('未附加')) return 'warning';
   return 'processing';
@@ -99,7 +99,7 @@ function openDetail(path?: string) {
   router.push(path).catch(() => {});
 }
 
-function noteKey(record: DashboardUnattachedIpDeletePlan) {
+function noteKey(record: Record<string, any>) {
   return String(record.id || record.asset_name || record.public_ip || 'note');
 }
 
@@ -109,12 +109,12 @@ function noteTooLong(text?: null | string) {
   return value.length > 120 || value.split('\n').filter(Boolean).length > 2;
 }
 
-function toggleNote(record: DashboardUnattachedIpDeletePlan) {
+function toggleNote(record: Record<string, any>) {
   const key = noteKey(record);
   expandedNotes.value[key] = !expandedNotes.value[key];
 }
 
-function noteExpanded(record: DashboardUnattachedIpDeletePlan) {
+function noteExpanded(record: Record<string, any>) {
   return Boolean(expandedNotes.value[noteKey(record)]);
 }
 

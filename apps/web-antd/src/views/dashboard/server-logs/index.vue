@@ -65,7 +65,7 @@ function openDetail(path?: string) {
   router.push(path).catch(() => {});
 }
 
-function noteKey(record: DashboardCloudIpLogItem) {
+function noteKey(record: Record<string, any>) {
   return String(
     record.id ||
       record.order_no ||
@@ -81,12 +81,12 @@ function noteTooLong(text?: null | string) {
   return value.length > 120 || value.split('\n').filter(Boolean).length > 2;
 }
 
-function toggleNote(record: DashboardCloudIpLogItem) {
+function toggleNote(record: Record<string, any>) {
   const key = noteKey(record);
   expandedNotes.value[key] = !expandedNotes.value[key];
 }
 
-function noteExpanded(record: DashboardCloudIpLogItem) {
+function noteExpanded(record: Record<string, any>) {
   return Boolean(expandedNotes.value[noteKey(record)]);
 }
 

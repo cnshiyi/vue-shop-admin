@@ -83,6 +83,7 @@ export interface DashboardShutdownLog {
 
 export interface DashboardUnattachedIpDeletePlan {
   asset_name: string;
+  asset_id?: null | number;
   asset_detail_path?: string;
   delete_at: null | string;
   deletion_source_label?: string;
@@ -93,9 +94,18 @@ export interface DashboardUnattachedIpDeletePlan {
   is_history?: boolean;
   is_overdue?: boolean;
   logged_at?: null | string;
+  missing_confirm_checked_at?: null | string;
+  missing_confirm_count?: number;
+  missing_confirm_due?: boolean;
+  missing_confirm_interval_minutes?: number;
+  missing_confirm_next_check_at?: null | string;
+  missing_confirm_remaining?: number;
+  missing_confirm_threshold?: number;
   note: string;
   provider_status: string;
   public_ip: string;
+  quality_flags?: string[];
+  quality_label?: string;
   service_expires_at?: null | string;
   user_display_name?: string;
   username_label?: string;
@@ -373,6 +383,7 @@ export interface DashboardCloudAssetsResponse {
   page: number;
   page_size: number;
   total: number;
+  total_pages?: number;
 }
 
 export interface DashboardBotOperationLogItem {
@@ -1068,7 +1079,7 @@ export interface DashboardTelegramLoginAccountCreatePayload {
   label: string;
   note?: string;
   phone?: string;
-  tg_user_id?: null | number | string;
+  tg_user_id?: number | string;
   username?: string;
 }
 
@@ -1165,8 +1176,11 @@ export async function getDashboardNoticePlanApi(
   params: {
     compact?: 0 | 1;
     future_limit?: number;
+    future_offset?: number;
     history_limit?: number;
+    history_offset?: number;
     limit?: number;
+    offset?: number;
   } = {},
 ) {
   return requestClient.get<DashboardNoticePlanDetail>('/admin/tasks/notices/', {

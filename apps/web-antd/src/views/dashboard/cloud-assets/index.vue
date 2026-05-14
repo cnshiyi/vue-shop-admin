@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { TableColumnsType } from 'ant-design-vue';
+
 import type {
   DashboardCloudAssetGroup,
   DashboardCloudAssetItem,
@@ -43,7 +45,7 @@ import {
 } from '#/api/admin';
 
 const DEFAULT_AUTO_REFRESH_SECONDS = 5 * 60 * 60;
-const ASSET_PAGE_SIZE = 20;
+const ASSET_PAGE_SIZE = 50;
 
 const router = useRouter();
 const loading = ref(false);
@@ -451,7 +453,7 @@ const columns = [
   { title: '操作', key: 'actions', fixed: 'right' as const, width: 210 },
 ];
 
-function tableColumnSortOrder(key: string) {
+function tableColumnSortOrder(key: string): 'ascend' | 'descend' | undefined {
   if (key === 'actual_expires_at') {
     if (totalSortMode.value === 'expires_asc') return 'ascend';
     if (totalSortMode.value === 'expires_desc') return 'descend';
@@ -460,21 +462,24 @@ function tableColumnSortOrder(key: string) {
     if (totalSortMode.value === 'remaining_asc') return 'ascend';
     if (totalSortMode.value === 'remaining_desc') return 'descend';
   }
-  return null;
+  return undefined;
 }
 
-const assetTableColumns = computed(() => {
-  const mappedColumns = columns.map((column) => ({
-    ...column,
-    sortOrder: tableColumnSortOrder(column.key),
-  }));
-  if (grouped.value && groupMode.value === 'telegram_group') {
-    return mappedColumns.filter(
-      (column) => !['user_display_name', 'username_label'].includes(column.key),
-    );
-  }
-  return mappedColumns;
-});
+const assetTableColumns = computed<TableColumnsType<DashboardCloudAssetItem>>(
+  () => {
+    const mappedColumns = columns.map((column) => ({
+      ...column,
+      sortOrder: tableColumnSortOrder(column.key),
+    }));
+    if (grouped.value && groupMode.value === 'telegram_group') {
+      return mappedColumns.filter(
+        (column) =>
+          !['user_display_name', 'username_label'].includes(column.key),
+      );
+    }
+    return mappedColumns;
+  },
+);
 
 function handleAssetTableChange(
   _pagination: unknown,
@@ -608,7 +613,8 @@ async function loadData() {
     }
     loading.value = false;
 
-    const totalPages = Math.ceil(loadProgress.total / ASSET_PAGE_SIZE);
+    const totalPages =
+      firstPage.total_pages || Math.ceil(loadProgress.total / ASSET_PAGE_SIZE);
     loadingMore.value = totalPages > 1;
     for (let page = 2; page <= totalPages; page += 1) {
       const response = await getDashboardCloudAssetsPageApi({
@@ -659,6 +665,21 @@ function telegramGroupOptions() {
       label: `${item.title || item.chat_id}${item.username ? ` (@${item.username})` : ''}`,
       value: item.id,
     }));
+}
+
+function handleTelegramGroupSelectChange(value: unknown) {
+  if (!value) {
+    formState.telegram_group_query = '';
+    return;
+  }
+  const selectedGroup = telegramGroups.value.find(
+    (item) => item.id === Number(value),
+  );
+  if (selectedGroup) {
+    formState.telegram_group_query = selectedGroup.chat_id
+      ? String(selectedGroup.chat_id)
+      : selectedGroup.username || selectedGroup.title || '';
+  }
 }
 
 function isAssetSyncing(assetId: number) {
@@ -1659,6 +1680,7 @@ onBeforeUnmount(() => {
             :filter-option="true"
             :options="telegramGroupOptions()"
             placeholder="选择要绑定的 Telegram 群组"
+            @change="handleTelegramGroupSelectChange"
           />
         </Form.Item>
         <Form.Item
