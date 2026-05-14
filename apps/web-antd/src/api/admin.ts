@@ -88,6 +88,7 @@ export interface DashboardUnattachedIpDeletePlan {
   delete_at: null | string;
   deletion_source_label?: string;
   detail_path?: string;
+  display_note?: string;
   execution_plan?: string;
   execution_status?: string;
   id: number | string;
@@ -791,6 +792,7 @@ export interface DashboardShutdownPlanItem {
   asset_name?: string;
   delete_at: null | string;
   detail_path: string;
+  display_note?: null | string;
   execution_plan?: null | string;
   execution_status?: null | string;
   id: number | string;

@@ -311,8 +311,8 @@ function executionPlan(record: { execution_plan?: string }) {
   return record.execution_plan || '-';
 }
 
-function planNote(record: { note?: null | string }) {
-  return record.note || '-';
+function planNote(record: { display_note?: null | string; note?: null | string }) {
+  return record.display_note || record.note || '-';
 }
 
 function noteExpandedKey(record: {
@@ -323,6 +323,7 @@ function noteExpandedKey(record: {
 }
 
 function noteEllipsis(record: {
+  display_note?: null | string;
   id: number | string;
   note?: null | string;
   order_id?: null | number;

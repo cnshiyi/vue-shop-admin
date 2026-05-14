@@ -29,6 +29,7 @@ const filteredItems = computed(() => {
       item.provider_status,
       item.user_display_name,
       item.username_label,
+      item.display_note,
       item.note,
     ]
       .filter(Boolean)
@@ -101,6 +102,10 @@ function openDetail(path?: string) {
 
 function noteKey(record: Record<string, any>) {
   return String(record.id || record.asset_name || record.public_ip || 'note');
+}
+
+function displayNote(record: Record<string, any>) {
+  return record.display_note || record.note || '-';
 }
 
 function noteTooLong(text?: null | string) {
@@ -190,15 +195,15 @@ onMounted(loadData);
               <span
                 class="whitespace-pre-wrap break-all"
                 :class="[
-                  !noteExpanded(record) && noteTooLong(record.note)
+                  !noteExpanded(record) && noteTooLong(displayNote(record))
                     ? 'collapsed-note'
                     : '',
                 ]"
               >
-                {{ record.note || '-' }}
+                {{ displayNote(record) }}
               </span>
               <Button
-                v-if="noteTooLong(record.note)"
+                v-if="noteTooLong(displayNote(record))"
                 size="small"
                 type="link"
                 @click="toggleNote(record)"

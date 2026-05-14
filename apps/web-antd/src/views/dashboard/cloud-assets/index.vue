@@ -45,7 +45,7 @@ import {
 } from '#/api/admin';
 
 const DEFAULT_AUTO_REFRESH_SECONDS = 5 * 60 * 60;
-const ASSET_PAGE_SIZE = 50;
+const ASSET_PAGE_SIZE = 20;
 
 const router = useRouter();
 const loading = ref(false);
@@ -353,7 +353,7 @@ function setAllGroupsExpanded(expanded: boolean) {
 }
 
 function handleGroupModeChange() {
-  refreshGroupedItems(displayedItems.value, true);
+  loadData();
 }
 
 function handleGroupedChange(enabled: boolean | number | string) {
@@ -584,6 +584,7 @@ async function loadData() {
     const [syncStatus, firstPage] = await Promise.all([
       getDashboardCloudAssetsSyncStatusApi(),
       getDashboardCloudAssetsPageApi({
+        group_by: groupMode.value,
         keyword: keywordText,
         page: 1,
         page_size: ASSET_PAGE_SIZE,
@@ -618,6 +619,7 @@ async function loadData() {
     loadingMore.value = totalPages > 1;
     for (let page = 2; page <= totalPages; page += 1) {
       const response = await getDashboardCloudAssetsPageApi({
+        group_by: groupMode.value,
         keyword: keywordText,
         page,
         page_size: ASSET_PAGE_SIZE,
@@ -1413,7 +1415,7 @@ onBeforeUnmount(() => {
         :columns="assetTableColumns"
         :data-source="displayedItems"
         :loading="loading"
-        :pagination="{ pageSize: 10 }"
+        :pagination="{ pageSize: ASSET_PAGE_SIZE }"
         row-key="id"
         :scroll="{ x: 2150 }"
         size="small"
