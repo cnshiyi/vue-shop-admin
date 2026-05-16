@@ -254,7 +254,13 @@ onMounted(loadData);
   <Page title="账号列表" description="管理 Telegram 登录账号">
     <Card class="mb-4">
       <Space wrap>
-        <Button type="primary" :disabled="!canRunCloudDanger" @click="openCreate">登录</Button>
+        <Button
+          type="primary"
+          :disabled="!canRunCloudDanger"
+          @click="openCreate"
+          >
+登录
+</Button>
         <Button :loading="loading" @click="loadData">刷新</Button>
       </Space>
       <div class="mt-2 text-xs text-[var(--ant-color-text-description)]">

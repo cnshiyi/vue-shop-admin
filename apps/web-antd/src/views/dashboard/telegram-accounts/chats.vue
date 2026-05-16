@@ -103,7 +103,12 @@ async function toggleArchive(
   chat: DashboardTelegramChatItem,
   archived: boolean,
 ) {
-  if (!requireCloudDangerPermission(archived ? '归档 Telegram 会话' : '取消归档 Telegram 会话')) return;
+  if (
+    !requireCloudDangerPermission(
+      archived ? '归档 Telegram 会话' : '取消归档 Telegram 会话',
+    )
+  )
+    return;
   try {
     await updateDashboardTelegramChatArchiveApi({
       archived,
@@ -266,7 +271,9 @@ onMounted(() => loadData());
           />
           <Button
             type="primary"
-            :disabled="!selectedChat || !draftMessage.trim() || !canRunCloudDanger"
+            :disabled="
+              !selectedChat || !draftMessage.trim() || !canRunCloudDanger
+            "
             :loading="sending"
             @click="sendMessage"
           >

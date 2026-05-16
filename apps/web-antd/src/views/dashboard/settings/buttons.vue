@@ -148,9 +148,17 @@ onMounted(loadData);
         >
           保存设置
         </Button>
-        <Button :disabled="!canRunCloudDanger" @click="addLinkButton">添加自定义键盘</Button>
+        <Button :disabled="!canRunCloudDanger" @click="addLinkButton">
+添加自定义键盘
+</Button>
         <Button :loading="loading" @click="loadData">刷新</Button>
-        <Button :disabled="!canRunCloudDanger" :loading="loading" @click="initConfig">初始化默认按钮</Button>
+        <Button
+          :disabled="!canRunCloudDanger"
+          :loading="loading"
+          @click="initConfig"
+          >
+初始化默认按钮
+</Button>
       </Space>
 
       <Table
@@ -217,7 +225,9 @@ onMounted(loadData);
               title="确认删除这个链接按钮？"
               @confirm="removeItem(record)"
             >
-              <Button danger size="small" :disabled="!canRunCloudDanger">删除</Button>
+              <Button danger size="small" :disabled="!canRunCloudDanger">
+删除
+</Button>
             </Popconfirm>
             <span v-else class="text-gray-400">仅排序</span>
           </template>

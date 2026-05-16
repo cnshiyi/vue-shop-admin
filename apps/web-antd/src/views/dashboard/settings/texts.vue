@@ -175,7 +175,9 @@ onMounted(loadData);
           >
             保存
           </Button>
-          <Button :disabled="!canRunCloudDanger" @click="resetItem(item)">恢复默认</Button>
+          <Button :disabled="!canRunCloudDanger" @click="resetItem(item)">
+恢复默认
+</Button>
         </Space>
       </Card>
     </div>

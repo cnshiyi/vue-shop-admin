@@ -23,7 +23,9 @@ function flagEnabled(value: unknown) {
 export function useDashboardPermissions() {
   const userStore = useUserStore();
 
-  const userInfo = computed(() => userStore.userInfo as DashboardUserInfo | null);
+  const userInfo = computed(
+    () => userStore.userInfo as DashboardUserInfo | null,
+  );
   const roles = computed(() => [
     ...(userInfo.value?.roles || []),
     ...(userStore.userRoles || []),

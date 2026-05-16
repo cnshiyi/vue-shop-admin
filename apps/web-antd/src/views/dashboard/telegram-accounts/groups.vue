@@ -148,7 +148,12 @@ function openEdit(item: DashboardTelegramGroupFilterItem) {
 }
 
 async function submitForm() {
-  if (!requireCloudDangerPermission(current.value ? '保存 Telegram 群组' : '新增 Telegram 群组')) return;
+  if (
+    !requireCloudDangerPermission(
+      current.value ? '保存 Telegram 群组' : '新增 Telegram 群组',
+    )
+  )
+    return;
   if (!form.chat_id || !form.title) {
     message.warning('请填写群组 Chat ID 和群组名称');
     return;
@@ -292,7 +297,13 @@ onMounted(() => loadData());
             @search="loadData"
           />
           <Button @click="loadData">刷新</Button>
-          <Button type="primary" :disabled="!canRunCloudDanger" @click="openCreate">保存群组</Button>
+          <Button
+            type="primary"
+            :disabled="!canRunCloudDanger"
+            @click="openCreate"
+            >
+保存群组
+</Button>
         </Space>
       </template>
 

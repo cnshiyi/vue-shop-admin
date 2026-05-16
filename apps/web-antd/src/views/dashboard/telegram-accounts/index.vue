@@ -122,7 +122,11 @@ onMounted(loadData);
           style="width: 420px"
           @search="loadData"
         />
-        <Button type="primary" :disabled="!canRunCloudDanger" @click="openCreate">
+        <Button
+          type="primary"
+          :disabled="!canRunCloudDanger"
+          @click="openCreate"
+        >
           添加 Telegram 登录账号
         </Button>
         <Button :loading="loading" @click="loadData">刷新</Button>

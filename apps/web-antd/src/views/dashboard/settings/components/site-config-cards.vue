@@ -1,4 +1,10 @@
 <script lang="ts" setup>
+import type {
+  DashboardSiteConfigGroup,
+  DashboardSiteConfigGroupItem,
+  DashboardSiteConfigItem,
+} from '#/api/admin';
+
 import { computed, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
@@ -7,14 +13,18 @@ import {
   Button,
   Card,
   Input,
+  message,
   Space,
   Switch,
   Tag,
-  message,
 } from 'ant-design-vue';
 
-import { getDashboardSiteConfigGroupsApi, getDashboardSiteConfigsApi, initDashboardSiteConfigsApi, updateDashboardSiteConfigApi } from '#/api/admin';
-import type { DashboardSiteConfigGroup, DashboardSiteConfigGroupItem, DashboardSiteConfigItem } from '#/api/admin';
+import {
+  getDashboardSiteConfigGroupsApi,
+  getDashboardSiteConfigsApi,
+  initDashboardSiteConfigsApi,
+  updateDashboardSiteConfigApi,
+} from '#/api/admin';
 import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const props = defineProps<{
@@ -113,12 +123,13 @@ onMounted(loadData);
         :disabled="!canRunCloudDanger"
         :loading="initLoading"
         @click="initConfigs"
-        >初始化配置</Button
-      >
+        >
+初始化配置
+</Button>
       <Button :loading="loading" @click="loadData">刷新</Button>
     </Space>
 
-    <div class="config-grid" v-if="items.length">
+    <div class="config-grid" v-if="items.length > 0">
       <Card
         v-for="item in items"
         :key="item.key"
@@ -130,9 +141,11 @@ onMounted(loadData);
         </template>
         <div class="mb-2 flex items-center gap-2 text-xs text-gray-500">
           <span>键名：{{ item.key }}</span>
-          <Tag :color="sensitiveMap[item.key] ? 'orange' : 'default'">{{
+          <Tag :color="sensitiveMap[item.key] ? 'orange' : 'default'">
+{{
             sensitiveMap[item.key] ? '敏感' : '普通'
-          }}</Tag>
+          }}
+</Tag>
         </div>
         <Input.TextArea
           v-model:value="draftMap[item.key]"
@@ -142,15 +155,19 @@ onMounted(loadData);
         <div class="mt-3 flex items-center justify-between">
           <Space>
             <span class="text-sm text-gray-500">敏感配置</span>
-            <Switch v-model:checked="sensitiveMap[item.key]" :disabled="!canRunCloudDanger" />
+            <Switch
+              v-model:checked="sensitiveMap[item.key]"
+              :disabled="!canRunCloudDanger"
+            />
           </Space>
           <Button
             type="primary"
             :disabled="!canRunCloudDanger"
             :loading="savingMap[item.key]"
             @click="saveItem(item)"
-            >保存</Button
-          >
+            >
+保存
+</Button>
         </div>
       </Card>
     </div>
