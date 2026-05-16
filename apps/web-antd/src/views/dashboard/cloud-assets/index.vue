@@ -182,6 +182,8 @@ function compareByDaysLeft(
 function isUnattachedIpAsset(record: DashboardCloudAssetItem) {
   return (
     !record.public_ip ||
+    (record.provider_status || '').includes('固定IP保留中') ||
+    (record.provider_status || '').includes('固定 IP 保留中') ||
     (record.provider_status || '').includes('未附加固定IP') ||
     (record.provider_status || '').includes('未附加IP')
   );
