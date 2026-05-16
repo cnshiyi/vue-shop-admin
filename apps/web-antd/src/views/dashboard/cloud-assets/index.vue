@@ -1473,7 +1473,7 @@ onBeforeUnmount(() => {
             allow-clear
             class="cloud-assets-search"
             enter-button="搜索"
-            placeholder="搜索用户、用户名、IP、代理链接、订单号、实例ID、固定IP名、云账号"
+            placeholder="全量模糊搜索名称、用户、用户名、IP、代理链接、订单号、实例ID、固定IP名、云账号"
             @search="handleSearch"
           />
           <Select
