@@ -123,9 +123,9 @@ onMounted(loadData);
         :disabled="!canRunCloudDanger"
         :loading="initLoading"
         @click="initConfigs"
-        >
-初始化配置
-</Button>
+      >
+        初始化配置
+      </Button>
       <Button :loading="loading" @click="loadData">刷新</Button>
     </Space>
 
@@ -142,10 +142,8 @@ onMounted(loadData);
         <div class="mb-2 flex items-center gap-2 text-xs text-gray-500">
           <span>键名：{{ item.key }}</span>
           <Tag :color="sensitiveMap[item.key] ? 'orange' : 'default'">
-{{
-            sensitiveMap[item.key] ? '敏感' : '普通'
-          }}
-</Tag>
+            {{ sensitiveMap[item.key] ? '敏感' : '普通' }}
+          </Tag>
         </div>
         <Input.TextArea
           v-model:value="draftMap[item.key]"
@@ -165,9 +163,9 @@ onMounted(loadData);
             :disabled="!canRunCloudDanger"
             :loading="savingMap[item.key]"
             @click="saveItem(item)"
-            >
-保存
-</Button>
+          >
+            保存
+          </Button>
         </div>
       </Card>
     </div>

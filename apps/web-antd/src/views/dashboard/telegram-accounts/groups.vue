@@ -301,9 +301,9 @@ onMounted(() => loadData());
             type="primary"
             :disabled="!canRunCloudDanger"
             @click="openCreate"
-            >
-保存群组
-</Button>
+          >
+            保存群组
+          </Button>
         </Space>
       </template>
 

@@ -149,16 +149,16 @@ onMounted(loadData);
           保存设置
         </Button>
         <Button :disabled="!canRunCloudDanger" @click="addLinkButton">
-添加自定义键盘
-</Button>
+          添加自定义键盘
+        </Button>
         <Button :loading="loading" @click="loadData">刷新</Button>
         <Button
           :disabled="!canRunCloudDanger"
           :loading="loading"
           @click="initConfig"
-          >
-初始化默认按钮
-</Button>
+        >
+          初始化默认按钮
+        </Button>
       </Space>
 
       <Table
@@ -226,8 +226,8 @@ onMounted(loadData);
               @confirm="removeItem(record)"
             >
               <Button danger size="small" :disabled="!canRunCloudDanger">
-删除
-</Button>
+                删除
+              </Button>
             </Popconfirm>
             <span v-else class="text-gray-400">仅排序</span>
           </template>
