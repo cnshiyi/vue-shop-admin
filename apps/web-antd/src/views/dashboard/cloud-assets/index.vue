@@ -517,9 +517,10 @@ async function copySelectedProxyLinks() {
 }
 
 function exportSelectedAssetsCsv() {
-  const rows = selectedAssets.value.length > 0
-    ? selectedAssets.value
-    : displayedItems.value;
+  const rows =
+    selectedAssets.value.length > 0
+      ? selectedAssets.value
+      : displayedItems.value;
   if (rows.length === 0) {
     message.warning('没有可导出的代理');
     return;
@@ -714,9 +715,13 @@ const assetTableColumns = computed<TableColumnsType<DashboardCloudAssetItem>>(
       sortOrder: tableColumnSortOrder(column.key),
     }));
     const filteredByView = mappedColumns.filter((column) => {
-      if (grouped.value && groupMode.value === 'telegram_group' && ['user_display_name', 'username_label'].includes(column.key)) {
-          return false;
-        }
+      if (
+        grouped.value &&
+        groupMode.value === 'telegram_group' &&
+        ['user_display_name', 'username_label'].includes(column.key)
+      ) {
+        return false;
+      }
       if (columnView.value === 'compact') {
         return [
           'actions',
@@ -2098,7 +2103,8 @@ onBeforeUnmount(() => {
           <template v-else-if="column.key === 'mtproxy_link'">
             <div
               v-if="
-                buildProxyLinkItems(record as DashboardCloudAssetItem).length > 0
+                buildProxyLinkItems(record as DashboardCloudAssetItem).length >
+                0
               "
               class="max-w-full overflow-hidden"
             >

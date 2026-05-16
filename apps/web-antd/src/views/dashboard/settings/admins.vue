@@ -193,17 +193,13 @@ onMounted(loadData);
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'is_active'">
             <Tag :color="record.is_active ? 'success' : 'default'">
-{{
-              record.is_active ? '启用' : '停用'
-            }}
-</Tag>
+              {{ record.is_active ? '启用' : '停用' }}
+            </Tag>
           </template>
           <template v-else-if="column.key === 'is_superuser'">
             <Tag :color="record.is_superuser ? 'blue' : 'default'">
-{{
-              record.is_superuser ? '是' : '否'
-            }}
-</Tag>
+              {{ record.is_superuser ? '是' : '否' }}
+            </Tag>
           </template>
           <template v-else-if="column.key === 'actions'">
             <Space>
@@ -212,9 +208,9 @@ onMounted(loadData);
                 size="small"
                 :disabled="!canRunCloudDanger"
                 @click="openEdit(record as DashboardAdminUserItem)"
-                >
-编辑
-</Button>
+              >
+                编辑
+              </Button>
               <Popconfirm
                 title="确认删除该管理员吗？"
                 @confirm="remove(record as DashboardAdminUserItem)"
@@ -258,8 +254,8 @@ onMounted(loadData);
           />
         </Form.Item>
         <Button type="primary" :loading="passwordSaving" @click="savePassword">
-保存新密码
-</Button>
+          保存新密码
+        </Button>
       </Form>
     </Card>
 
