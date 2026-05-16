@@ -1631,6 +1631,7 @@ export async function updateDashboardCloudAssetApi(
   return requestClient.post<DashboardCloudAssetItem>(
     `/admin/cloud-assets/${assetId}/`,
     payload,
+    { timeout: 120_000 },
   );
 }
 
