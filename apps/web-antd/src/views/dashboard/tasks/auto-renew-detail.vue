@@ -32,8 +32,11 @@ import {
   runDashboardAutoRenewOrderApi,
   runDashboardAutoRenewTasksApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const router = useRouter();
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 const loading = ref(false);
 const runningAll = ref(false);
 const runningOrderIds = reactive<Record<number, boolean>>({});
@@ -244,6 +247,7 @@ function normalizeTaskDetail(value: unknown): DashboardAutoRenewTaskDetail {
     ).map((item, index) => normalizeHistoryItem(item, index)),
     interval_minutes: asNumber(source.interval_minutes),
     last_run_at: source.last_run_at || null,
+    last_refresh_at: source.last_refresh_at || null,
     latest_batch_count: asNumber(source.latest_batch_count),
     latest_batch_failure_count: asNumber(source.latest_batch_failure_count),
     latest_batch_id: asText(source.latest_batch_id),
@@ -255,6 +259,8 @@ function normalizeTaskDetail(value: unknown): DashboardAutoRenewTaskDetail {
     notice_switches: source.notice_switches || [],
     recent_failure_count: asNumber(source.recent_failure_count),
     recent_success_count: asNumber(source.recent_success_count),
+    refreshed: Boolean(source.refreshed),
+    cache_mode: asText(source.cache_mode, 'cached'),
     status_label: asText(source.status_label, '置顶任务'),
     task_key: asText(source.task_key, 'auto_renew_patrol'),
     task_label: asText(source.task_label, '续费列表'),
@@ -322,13 +328,15 @@ function queueColor(status?: string) {
   return 'default';
 }
 
-async function loadData(options?: { silent?: boolean }) {
+async function loadData(options?: { refresh?: boolean; silent?: boolean }) {
   if (!options?.silent) {
     loading.value = true;
   }
   try {
     detail.value = normalizeTaskDetail(
-      await getDashboardAutoRenewTaskDetailApi(),
+      await getDashboardAutoRenewTaskDetailApi({
+        refresh: options?.refresh ? 1 : undefined,
+      }),
     );
   } catch (error: any) {
     message.error(error?.message || '续费列表加载失败');
@@ -339,6 +347,7 @@ async function loadData(options?: { silent?: boolean }) {
 }
 
 async function runAllRenewals() {
+  if (!requireCloudDangerPermission('执行全部续费任务')) return;
   if (runningAll.value) {
     return;
   }
@@ -387,6 +396,7 @@ function isRenewRunning(record: DashboardAutoRenewTaskDueItem) {
 }
 
 async function runSingleRenewal(record: DashboardAutoRenewTaskDueItem) {
+  if (!requireCloudDangerPermission('执行续费')) return;
   const orderId = dueOrderId(record);
   if (!orderId || runningOrderIds[orderId]) {
     return;
@@ -447,8 +457,16 @@ onMounted(loadData);
           <Space wrap>
             <Button size="small" @click="goBack">返回云订单</Button>
             <Button
+              size="small"
+              :loading="loading"
+              @click="loadData({ refresh: true })"
+            >
+              刷新快照
+            </Button>
+            <Button
               type="primary"
               size="small"
+              :disabled="!canRunCloudDanger"
               :loading="runningAll"
               @click="runAllRenewals"
             >
@@ -477,6 +495,12 @@ onMounted(loadData);
           </Descriptions.Item>
           <Descriptions.Item label="上次执行">
             {{ fmtTime(summary?.last_run_at) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="快照刷新">
+            {{ fmtTime(summary?.last_refresh_at) }}
+            <Tag v-if="summary?.cache_mode" color="default">
+              {{ summary.cache_mode === 'refreshed' ? '已刷新' : '缓存' }}
+            </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="最近24小时成功">
             {{ summary?.recent_success_count ?? 0 }}
@@ -706,6 +730,7 @@ onMounted(loadData);
                     isRenewRunning(record as DashboardAutoRenewTaskDueItem)
                   "
                   :disabled="
+                    !canRunCloudDanger ||
                     !dueOrderId(record as DashboardAutoRenewTaskDueItem)
                   "
                   @click="

@@ -26,6 +26,7 @@ import {
   getDashboardCloudPricingApi,
   syncDashboardCloudPlansApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 interface RegionGroupItem {
   currency: string;
@@ -47,6 +48,8 @@ const syncing = ref(false);
 const syncSummary = ref<DashboardCloudPlanSyncResult | null>(null);
 const keyword = ref('');
 const pricing = ref<DashboardCloudPricingItem[]>([]);
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 
 const providerNameMap: Record<string, string> = {
   aliyun_simple: '阿里云',
@@ -239,6 +242,7 @@ async function loadData() {
 }
 
 async function syncPricing() {
+  if (!requireCloudDangerPermission('同步主规格与进货价')) return;
   syncing.value = true;
   try {
     const result = await syncDashboardCloudPlansApi();
@@ -286,6 +290,7 @@ onMounted(() => {
           <Button
             size="small"
             type="primary"
+            :disabled="!canRunCloudDanger"
             :loading="syncing"
             @click="syncPricing"
           >

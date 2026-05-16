@@ -22,9 +22,12 @@ import {
   getDashboardCloudOrderDetailApi,
   updateDashboardCloudOrderStatusApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const route = useRoute();
 const router = useRouter();
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 const loading = ref(false);
 const saving = ref(false);
 const detailRefreshing = ref(false);
@@ -142,6 +145,7 @@ async function loadData(options?: { silent?: boolean }) {
 }
 
 async function saveStatus() {
+  if (!requireCloudDangerPermission('保存云订单状态')) return;
   if (!detail.value || !selectedStatus.value || saving.value) {
     return;
   }
@@ -186,11 +190,12 @@ onMounted(loadData);
             v-if="detail"
             v-model:value="selectedStatus"
             :options="statusOptions"
-            :disabled="saving"
+            :disabled="saving || !canRunCloudDanger"
             style="width: 180px"
           />
           <Button
             v-if="detail"
+            :disabled="!canRunCloudDanger"
             :loading="saving"
             size="small"
             type="primary"

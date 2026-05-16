@@ -39,11 +39,21 @@ export const useAuthStore = defineStore('auth', () => {
       if (accessToken) {
         accessStore.setAccessToken(accessToken);
 
-        // 获取用户信息并存储到 accessStore 中
-        const [fetchUserInfoResult, accessCodes] = await Promise.all([
-          fetchUserInfo(),
-          getAccessCodesApi(),
-        ]);
+        let fetchUserInfoResult: UserInfo;
+        let accessCodes: string[];
+        try {
+          // 获取用户信息并存储到 accessStore 中
+          [fetchUserInfoResult, accessCodes] = await Promise.all([
+            fetchUserInfo(),
+            getAccessCodesApi(),
+          ]);
+        } catch (error) {
+          accessStore.setAccessToken(null);
+          accessStore.setAccessCodes([]);
+          accessStore.setIsAccessChecked(false);
+          userStore.setUserInfo(null);
+          throw error;
+        }
 
         userInfo = fetchUserInfoResult;
 

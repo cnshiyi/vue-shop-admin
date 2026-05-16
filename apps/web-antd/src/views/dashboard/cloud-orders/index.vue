@@ -29,11 +29,14 @@ import {
   getDashboardCloudOrdersApi,
   updateDashboardCloudOrderApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const loading = ref(false);
 const keyword = ref('');
 const items = ref<DashboardCloudOrderItem[]>([]);
 const router = useRouter();
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 const editOpen = ref(false);
 const editSaving = ref(false);
 const currentRow = ref<DashboardCloudOrderItem | null>(null);
@@ -198,6 +201,7 @@ function goToDetail(orderId: number) {
 }
 
 function openEdit(record: DashboardCloudOrderItem) {
+  if (!requireCloudDangerPermission('编辑云订单')) return;
   currentRow.value = record;
   editForm.user_query =
     record.username_label && record.username_label !== '-'
@@ -222,6 +226,7 @@ function openEdit(record: DashboardCloudOrderItem) {
 }
 
 async function saveEdit() {
+  if (!requireCloudDangerPermission('保存云订单')) return;
   if (!currentRow.value || editSaving.value) return;
   editSaving.value = true;
   try {
@@ -252,6 +257,7 @@ async function saveEdit() {
 }
 
 async function deleteOrder(record: DashboardCloudOrderItem) {
+  if (!requireCloudDangerPermission('删除云订单')) return;
   await deleteDashboardCloudOrderApi(record.id);
   message.success('订单记录已删除');
   await loadData();
@@ -351,6 +357,7 @@ async function deleteOrder(record: DashboardCloudOrderItem) {
               <Button
                 size="small"
                 type="link"
+                :disabled="!canRunCloudDanger"
                 @click="openEdit(record as DashboardCloudOrderItem)"
               >
                 编辑
@@ -361,7 +368,14 @@ async function deleteOrder(record: DashboardCloudOrderItem) {
                 cancel-text="取消"
                 @confirm="deleteOrder(record as DashboardCloudOrderItem)"
               >
-                <Button danger size="small" type="link">删除</Button>
+                <Button
+                  danger
+                  size="small"
+                  type="link"
+                  :disabled="!canRunCloudDanger"
+                >
+                  删除
+                </Button>
               </Popconfirm>
             </Space>
           </template>
@@ -371,6 +385,7 @@ async function deleteOrder(record: DashboardCloudOrderItem) {
     <Modal
       v-model:open="editOpen"
       :confirm-loading="editSaving"
+      :ok-button-props="{ disabled: !canRunCloudDanger }"
       title="编辑订单"
       width="760px"
       @ok="saveEdit"

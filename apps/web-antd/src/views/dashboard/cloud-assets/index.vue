@@ -2,7 +2,9 @@
 import type { TableColumnsType } from 'ant-design-vue';
 
 import type {
+  DashboardCloudAssetDetail,
   DashboardCloudAssetGroup,
+  DashboardCloudAssetGroupedResponse,
   DashboardCloudAssetItem,
   DashboardCloudAssetUpdatePayload,
   DashboardTelegramGroupFilterItem,
@@ -18,11 +20,15 @@ import {
   Card,
   Collapse,
   DatePicker,
+  Descriptions,
+  Drawer,
+  Empty,
   Form,
   Input,
   InputNumber,
   message,
   Modal,
+  Pagination,
   Popconfirm,
   Select,
   Space,
@@ -35,6 +41,9 @@ import dayjs from 'dayjs';
 
 import {
   deleteDashboardCloudAssetApi,
+  getDashboardCloudAssetDetailApi,
+  getDashboardCloudAssetRiskSummaryApi,
+  getDashboardCloudAssetsGroupedPageApi,
   getDashboardCloudAssetsPageApi,
   getDashboardCloudAssetsSyncStatusApi,
   getDashboardTelegramGroupsApi,
@@ -43,20 +52,26 @@ import {
   toggleDashboardCloudAssetAutoRenewApi,
   updateDashboardCloudAssetApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const DEFAULT_AUTO_REFRESH_SECONDS = 5 * 60 * 60;
 const ASSET_PAGE_SIZE = 20;
 
 const router = useRouter();
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 const loading = ref(false);
 const saving = ref(false);
 const syncing = ref(false);
+const syncScope = ref<'aliyun' | 'all' | 'aws' | 'selected'>('all');
+const lastSyncTasks = ref<any[]>([]);
+const lastSkippedSyncTasks = ref<any[]>([]);
 const assetSyncingIds = ref<number[]>([]);
 const autoRenewSavingIds = ref<number[]>([]);
 const keyword = ref('');
 const grouped = ref(true);
 const showDeletedAssets = ref(false);
-const groupMode = ref<'telegram_group' | 'user'>('telegram_group');
+const groupMode = ref<'telegram_group' | 'user'>('user');
 const totalSortMode = ref<
   | 'default'
   | 'expires_asc'
@@ -74,11 +89,19 @@ const aliyunExistingCount = ref(0);
 const unattachedIpCount = ref(0);
 const items = ref<DashboardCloudAssetItem[]>([]);
 const groups = ref<DashboardCloudAssetGroup[]>([]);
+const riskStatus = ref('all');
+const riskCounts = ref<Record<string, number>>({});
+const selectedRowKeys = ref<number[]>([]);
 const telegramGroups = ref<DashboardTelegramGroupFilterItem[]>([]);
 const loadingMore = ref(false);
 const loadProgress = reactive({
   done: true,
   loaded: 0,
+  pageSize: ASSET_PAGE_SIZE,
+  total: 0,
+});
+const groupPagination = reactive({
+  page: 1,
   pageSize: ASSET_PAGE_SIZE,
   total: 0,
 });
@@ -97,6 +120,10 @@ const expandedUsernameKeys = ref<string[]>([]);
 const expandedAssetNameKeys = ref<string[]>([]);
 const editOpen = ref(false);
 const currentRow = ref<DashboardCloudAssetItem | null>(null);
+const detailOpen = ref(false);
+const detailLoading = ref(false);
+const detailRow = ref<DashboardCloudAssetDetail | null>(null);
+const columnView = ref<'compact' | 'finance' | 'ops'>('ops');
 const formState = reactive({
   actual_expires_at: null as any,
   is_active: true,
@@ -190,9 +217,7 @@ const deletedAssetCount = computed(
 );
 
 function assetDisplayRank(record: DashboardCloudAssetItem) {
-  if (isDeletedAsset(record)) return 2;
-  if (isUnattachedIpAsset(record)) return 1;
-  return 0;
+  return Number(record.risk_rank ?? 20);
 }
 
 function compareByDisplayOrder(
@@ -203,7 +228,11 @@ function compareByDisplayOrder(
   if (rankDiff !== 0) {
     return rankDiff;
   }
-  return compareByDaysLeft(a, b);
+  const daysDiff = compareByDaysLeft(a, b);
+  if (daysDiff !== 0) {
+    return daysDiff;
+  }
+  return (b.sort_order || 99) - (a.sort_order || 99);
 }
 
 function sortAssets(records: DashboardCloudAssetItem[]) {
@@ -353,22 +382,33 @@ function setAllGroupsExpanded(expanded: boolean) {
 }
 
 function handleGroupModeChange() {
+  groupPagination.page = 1;
+  clearSelectedRows();
   loadData();
 }
 
 function handleGroupedChange(enabled: boolean | number | string) {
+  groupPagination.page = 1;
+  clearSelectedRows();
   if (enabled) {
-    refreshGroupedItems(displayedItems.value, true);
+    loadData();
     return;
   }
   groups.value = [];
   expandedGroupKeys.value = [];
+  loadData();
 }
 
 function handleDeletedAssetsVisibleChange() {
   if (grouped.value) {
     refreshGroupedItems(displayedItems.value, true);
   }
+}
+
+function handleGroupPageChange(page: number, pageSize: number) {
+  groupPagination.page = page;
+  groupPagination.pageSize = pageSize;
+  loadData();
 }
 
 function handleExpandedGroupKeysChange(
@@ -396,6 +436,189 @@ function assetPriceLabel(record: DashboardCloudAssetItem) {
   }
   return `${record.price} ${record.currency || 'USDT'}`;
 }
+
+function riskTagColor(record: DashboardCloudAssetItem) {
+  switch (record.risk_status) {
+    case 'abnormal': {
+      return 'error';
+    }
+    case 'auto_renew_off': {
+      return 'orange';
+    }
+    case 'deleted': {
+      return 'default';
+    }
+    case 'due_soon': {
+      return 'gold';
+    }
+    case 'expired': {
+      return 'error';
+    }
+    case 'normal': {
+      return 'success';
+    }
+    case 'shutdown_disabled': {
+      return 'warning';
+    }
+    case 'unattached_ip': {
+      return 'warning';
+    }
+    case 'unbound_group':
+    case 'unbound_user': {
+      return 'default';
+    }
+    default: {
+      return 'default';
+    }
+  }
+}
+
+function riskCountLabel(status: string) {
+  return Number(riskCounts.value[status] || 0);
+}
+
+function buildProxyLinkItems(record: DashboardCloudAssetItem) {
+  const links = [
+    record.mtproxy_link,
+    ...(record.proxy_links || []).map((item) => item.url),
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+  return [...new Set(links)];
+}
+
+function buildProxyLinkText(record: DashboardCloudAssetItem) {
+  return buildProxyLinkItems(record).join('\n');
+}
+
+async function copyText(text: string, successMessage: string) {
+  if (!text) {
+    message.warning('没有可复制的内容');
+    return;
+  }
+  await navigator.clipboard.writeText(text);
+  message.success(successMessage);
+}
+
+async function copyProxyLinks(record: DashboardCloudAssetItem) {
+  await copyText(
+    buildProxyLinkText(record),
+    `已复制 ${record.public_ip || record.asset_name || `#${record.id}`} 的代理链接`,
+  );
+}
+
+async function copySelectedProxyLinks() {
+  const text = selectedAssets.value
+    .map((item) => buildProxyLinkText(item))
+    .filter(Boolean)
+    .join('\n\n');
+  await copyText(text, '已复制选中代理的链接');
+}
+
+function exportSelectedAssetsCsv() {
+  const rows = selectedAssets.value.length > 0
+    ? selectedAssets.value
+    : displayedItems.value;
+  if (rows.length === 0) {
+    message.warning('没有可导出的代理');
+    return;
+  }
+  const headers = [
+    'id',
+    'user',
+    'username',
+    'asset_name',
+    'public_ip',
+    'risk',
+    'expires_at',
+    'link',
+  ];
+  const lines = [
+    headers.join(','),
+    ...rows.map((item) =>
+      [
+        item.id,
+        JSON.stringify(item.user_display_name || ''),
+        JSON.stringify(item.username_label || ''),
+        JSON.stringify(item.asset_name || ''),
+        JSON.stringify(item.public_ip || ''),
+        JSON.stringify(item.risk_label || ''),
+        JSON.stringify(item.actual_expires_at || ''),
+        JSON.stringify(buildProxyLinkText(item)),
+      ].join(','),
+    ),
+  ];
+  const blob = new Blob([lines.join('\n')], {
+    type: 'text/csv;charset=utf-8;',
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `cloud-assets-${dayjs().format('YYYYMMDD-HHmmss')}.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function clearSelectedRows() {
+  selectedRowKeys.value = [];
+}
+
+const selectedAssets = computed(() =>
+  items.value.filter((item) => selectedRowKeys.value.includes(item.id)),
+);
+
+const rowSelection = computed(() => ({
+  preserveSelectedRowKeys: true,
+  selectedRowKeys: selectedRowKeys.value,
+  onChange: (keys: Array<number | string>) => {
+    selectedRowKeys.value = keys
+      .map(Number)
+      .filter((value) => Number.isFinite(value));
+  },
+}));
+
+function hasRiskCountBreakdown(counts?: Record<string, number>) {
+  if (!counts || Number(counts.all || 0) <= 0) {
+    return false;
+  }
+  return Object.keys(counts).some((key) => key !== 'all');
+}
+
+async function refreshGlobalRiskCounts(keywordText: string) {
+  const summary = await getDashboardCloudAssetRiskSummaryApi({
+    keyword: keywordText,
+  });
+  riskCounts.value = summary.risk_counts || { all: 0 };
+}
+
+const riskFilterOptions = computed(() => [
+  { label: `全部 (${riskCounts.value.all || 0})`, value: 'all' },
+  { label: `运行中 (${riskCountLabel('normal')})`, value: 'normal' },
+  { label: `即将到期 (${riskCountLabel('due_soon')})`, value: 'due_soon' },
+  { label: `已过期 (${riskCountLabel('expired')})`, value: 'expired' },
+  {
+    label: `未附加固定IP (${riskCountLabel('unattached_ip')})`,
+    value: 'unattached_ip',
+  },
+  { label: `异常/待确认 (${riskCountLabel('abnormal')})`, value: 'abnormal' },
+  {
+    label: `关机计划关闭 (${riskCountLabel('shutdown_disabled')})`,
+    value: 'shutdown_disabled',
+  },
+  {
+    label: `未绑定用户 (${riskCountLabel('unbound_user')})`,
+    value: 'unbound_user',
+  },
+  {
+    label: `未绑定群组 (${riskCountLabel('unbound_group')})`,
+    value: 'unbound_group',
+  },
+  {
+    label: `续费关闭 (${riskCountLabel('auto_renew_off')})`,
+    value: 'auto_renew_off',
+  },
+]);
 
 const columns = [
   {
@@ -428,6 +651,12 @@ const columns = [
     key: 'mtproxy_link',
     width: 320,
   },
+  {
+    title: '风险',
+    dataIndex: 'risk_label',
+    key: 'risk_label',
+    width: 160,
+  },
   { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
   {
     title: '剩余天数',
@@ -453,6 +682,19 @@ const columns = [
   { title: '操作', key: 'actions', fixed: 'right' as const, width: 210 },
 ];
 
+const columnViewOptions = [
+  { label: '操作视图', value: 'ops' },
+  { label: '紧凑视图', value: 'compact' },
+  { label: '财务视图', value: 'finance' },
+];
+
+const syncScopeOptions = [
+  { label: '同步全部', value: 'all' },
+  { label: '只同步AWS', value: 'aws' },
+  { label: '只同步阿里云', value: 'aliyun' },
+  { label: '同步选中', value: 'selected' },
+];
+
 function tableColumnSortOrder(key: string): 'ascend' | 'descend' | undefined {
   if (key === 'actual_expires_at') {
     if (totalSortMode.value === 'expires_asc') return 'ascend';
@@ -471,13 +713,36 @@ const assetTableColumns = computed<TableColumnsType<DashboardCloudAssetItem>>(
       ...column,
       sortOrder: tableColumnSortOrder(column.key),
     }));
-    if (grouped.value && groupMode.value === 'telegram_group') {
-      return mappedColumns.filter(
-        (column) =>
-          !['user_display_name', 'username_label'].includes(column.key),
-      );
-    }
-    return mappedColumns;
+    const filteredByView = mappedColumns.filter((column) => {
+      if (grouped.value && groupMode.value === 'telegram_group' && ['user_display_name', 'username_label'].includes(column.key)) {
+          return false;
+        }
+      if (columnView.value === 'compact') {
+        return [
+          'actions',
+          'asset_name',
+          'mtproxy_link',
+          'public_ip',
+          'risk_label',
+          'status_countdown',
+        ].includes(column.key);
+      }
+      if (columnView.value === 'finance') {
+        return [
+          'actions',
+          'actual_expires_at',
+          'asset_name',
+          'auto_renew_enabled',
+          'price',
+          'public_ip',
+          'risk_label',
+          'user_display_name',
+          'username_label',
+        ].includes(column.key);
+      }
+      return true;
+    });
+    return filteredByView;
   },
 );
 
@@ -530,8 +795,22 @@ function asDashboardCloudAssetItem(record: Record<string, any>) {
   return record as DashboardCloudAssetItem;
 }
 
-function openDetail(record: DashboardCloudAssetItem) {
-  router.push(`/admin/cloud-assets/${record.id}`).catch(() => {});
+async function openDetail(record: DashboardCloudAssetItem) {
+  detailOpen.value = true;
+  detailLoading.value = true;
+  try {
+    detailRow.value = await getDashboardCloudAssetDetailApi(record.id);
+  } catch (error: any) {
+    message.error(error?.message || '加载详情失败');
+    detailOpen.value = false;
+  } finally {
+    detailLoading.value = false;
+  }
+}
+
+function openDetailPage(assetId?: number) {
+  if (!assetId) return;
+  router.push(`/admin/cloud-assets/${assetId}`).catch(() => {});
 }
 
 function formatRefreshTime(value: dayjs.Dayjs | null) {
@@ -570,6 +849,24 @@ function markRecentSync() {
   }, 10_000);
 }
 
+function handleRiskStatusChange() {
+  groupPagination.page = 1;
+  clearSelectedRows();
+  loadData();
+}
+
+function setRiskStatus(status: string) {
+  if (riskStatus.value === status) {
+    return;
+  }
+  riskStatus.value = status;
+  handleRiskStatusChange();
+}
+
+function handleColumnViewChange() {
+  loadData();
+}
+
 async function loadData() {
   const sequence = ++loadSequence;
   loading.value = true;
@@ -577,19 +874,33 @@ async function loadData() {
   loadProgress.done = false;
   loadProgress.loaded = 0;
   loadProgress.total = 0;
-  loadProgress.pageSize = ASSET_PAGE_SIZE;
+  loadProgress.pageSize = grouped.value
+    ? groupPagination.pageSize
+    : ASSET_PAGE_SIZE;
   try {
     const keywordText = keyword.value.trim();
     const sortParams = totalSortParams();
-    const [syncStatus, firstPage] = await Promise.all([
+    const assetRequest = grouped.value
+      ? getDashboardCloudAssetsGroupedPageApi({
+          group_by: groupMode.value,
+          keyword: keywordText,
+          page: groupPagination.page,
+          page_size: groupPagination.pageSize,
+          risk_status: riskStatus.value,
+          ...sortParams,
+        })
+      : getDashboardCloudAssetsPageApi({
+          group_by: groupMode.value,
+          keyword: keywordText,
+          page: 1,
+          page_size: ASSET_PAGE_SIZE,
+          risk_status: riskStatus.value,
+          ...sortParams,
+        });
+    const [syncStatus, firstPage, riskSummary] = await Promise.all([
       getDashboardCloudAssetsSyncStatusApi(),
-      getDashboardCloudAssetsPageApi({
-        group_by: groupMode.value,
-        keyword: keywordText,
-        page: 1,
-        page_size: ASSET_PAGE_SIZE,
-        ...sortParams,
-      }),
+      assetRequest,
+      getDashboardCloudAssetRiskSummaryApi({ keyword: keywordText }),
     ]);
     if (sequence !== loadSequence) return;
     autoSyncEverySeconds.value = normalizedIntervalSeconds(
@@ -602,16 +913,36 @@ async function loadData() {
     awsExistingCount.value = syncStatus.aws_existing_count || 0;
     aliyunExistingCount.value = syncStatus.aliyun_existing_count || 0;
     unattachedIpCount.value = syncStatus.unattached_ip_count || 0;
+    lastSyncTasks.value = syncStatus.recent_syncs?.[0]?.tasks || [];
+    lastSkippedSyncTasks.value =
+      syncStatus.recent_syncs?.[0]?.skipped_tasks || [];
+
+    const nextRiskCounts =
+      riskSummary.risk_counts || firstPage.risk_counts || {};
+    riskCounts.value = nextRiskCounts;
+    if (!hasRiskCountBreakdown(nextRiskCounts)) {
+      await refreshGlobalRiskCounts(keywordText);
+      if (sequence !== loadSequence) return;
+    }
 
     items.value = sortAssets(firstPage.items || []);
     loadProgress.total = firstPage.total || items.value.length;
-    loadProgress.loaded = items.value.length;
     if (grouped.value) {
-      refreshGroupedItems(displayedItems.value);
-    } else {
-      groups.value = [];
-      expandedGroupKeys.value = [];
+      const groupedPage = firstPage as DashboardCloudAssetGroupedResponse;
+      loadProgress.loaded = groupedPage.groups?.length || 0;
+      groupPagination.page = groupedPage.page || groupPagination.page;
+      groupPagination.pageSize =
+        groupedPage.page_size || groupPagination.pageSize;
+      groupPagination.total =
+        groupedPage.total || groupedPage.groups?.length || 0;
+      loadProgress.total = groupPagination.total;
+      refreshGroupedItems(displayedItems.value, true);
+      return;
     }
+
+    loadProgress.loaded = items.value.length;
+    groups.value = [];
+    expandedGroupKeys.value = [];
     loading.value = false;
 
     const totalPages =
@@ -623,14 +954,15 @@ async function loadData() {
         keyword: keywordText,
         page,
         page_size: ASSET_PAGE_SIZE,
+        risk_status: riskStatus.value,
         ...sortParams,
       });
       if (sequence !== loadSequence) return;
       items.value = sortAssets([...items.value, ...(response.items || [])]);
       loadProgress.total = response.total || loadProgress.total;
       loadProgress.loaded = items.value.length;
-      if (grouped.value) {
-        refreshGroupedItems(displayedItems.value);
+      if (hasRiskCountBreakdown(response.risk_counts)) {
+        riskCounts.value = response.risk_counts || riskCounts.value;
       }
     }
     loadProgress.done = true;
@@ -645,8 +977,17 @@ async function loadData() {
   }
 }
 
+function handleSearch() {
+  groupPagination.page = 1;
+  clearSelectedRows();
+  loadData();
+}
+
 function resetSearch() {
   keyword.value = '';
+  riskStatus.value = 'all';
+  clearSelectedRows();
+  groupPagination.page = 1;
   loadData();
 }
 
@@ -688,24 +1029,64 @@ function isAssetSyncing(assetId: number) {
   return assetSyncingIds.value.includes(assetId);
 }
 
+function logCloudSyncConsole(label: string, payload: unknown, isError = false) {
+  void label;
+  void payload;
+  void isError;
+}
+
 async function syncAssetStatus(record: DashboardCloudAssetItem) {
+  try {
+    await syncAssetStatusInternal(record, false);
+  } catch {
+    // 错误消息已在 syncAssetStatusInternal 内展示。
+  }
+}
+
+async function syncAssetStatusInternal(
+  record: DashboardCloudAssetItem,
+  silent = false,
+) {
+  if (!requireCloudDangerPermission('更新云上状态')) return;
   assetSyncingIds.value = [...assetSyncingIds.value, record.id];
   try {
+    logCloudSyncConsole('single-start', {
+      asset_id: record.id,
+      instance_id: record.instance_id,
+      provider: record.provider,
+      public_ip: record.public_ip || record.previous_public_ip,
+    });
     const result = await syncDashboardCloudAssetStatusApi(record.id);
+    logCloudSyncConsole('single-result', result, result?.ok === false);
     if (result?.asset) {
       replaceAssetInList(result.asset);
     }
     if (result?.ok === false || result?.errors?.length) {
-      message.warning(
-        `已尝试更新 ${record.public_ip || record.asset_name || `#${record.id}`}，但同步返回异常`,
-      );
-      return;
+      if (!silent) {
+        message.warning(
+          `已尝试更新 ${record.public_ip || record.asset_name || `#${record.id}`}，但同步返回异常`,
+        );
+      }
+      throw new Error('同步返回异常');
     }
-    message.success(
-      `已更新 ${record.public_ip || record.asset_name || `#${record.id}`} 的服务器状态`,
-    );
+    if (!silent) {
+      message.success(
+        `已更新 ${record.public_ip || record.asset_name || `#${record.id}`} 的服务器状态`,
+      );
+    }
   } catch (error: any) {
-    message.error(error?.message || '更新状态失败');
+    logCloudSyncConsole(
+      'single-error',
+      {
+        asset_id: record.id,
+        error,
+      },
+      true,
+    );
+    if (!silent) {
+      message.error(error?.message || '更新状态失败');
+    }
+    throw error;
   } finally {
     assetSyncingIds.value = assetSyncingIds.value.filter(
       (id) => id !== record.id,
@@ -713,12 +1094,74 @@ async function syncAssetStatus(record: DashboardCloudAssetItem) {
   }
 }
 
-async function syncAssets() {
+async function batchSyncSelectedAssets() {
+  if (!requireCloudDangerPermission('批量同步代理')) return;
+  if (selectedAssets.value.length === 0) {
+    message.warning('请先选择要同步的代理');
+    return;
+  }
   syncing.value = true;
   try {
-    const result = await syncDashboardCloudAssetsApi();
+    const assetIds = selectedAssets.value.map((asset) => asset.id);
+    logCloudSyncConsole('batch-start', {
+      asset_ids: assetIds,
+      selected_count: selectedAssets.value.length,
+    });
+    const result = await syncDashboardCloudAssetsApi('cn-hongkong', 'all', {
+      asset_ids: assetIds,
+    });
+    logCloudSyncConsole('batch-result', result, result?.ok === false);
+    await loadData();
+    lastSyncTasks.value = result.tasks || [];
+    lastSkippedSyncTasks.value = result.skipped_tasks || [];
+    if (result?.ok === false || result?.errors?.length) {
+      message.warning('选中代理同步完成，但存在错误，请查看同步摘要');
+      return;
+    }
+    message.success(
+      `已按选中代理涉及账号同步 ${selectedAssets.value.length} 条`,
+    );
+    clearSelectedRows();
+  } catch (error: any) {
+    logCloudSyncConsole('batch-error', error, true);
+    message.error(error?.message || '批量同步失败');
+  } finally {
+    syncing.value = false;
+  }
+}
+
+async function syncAssets() {
+  if (!requireCloudDangerPermission('同步代理')) return;
+  if (syncScope.value === 'selected' && selectedAssets.value.length === 0) {
+    message.warning('请先选择要同步的代理');
+    return;
+  }
+  syncing.value = true;
+  try {
+    const providers =
+      syncScope.value === 'aws'
+        ? ['aws']
+        : (syncScope.value === 'aliyun'
+          ? ['aliyun']
+          : undefined);
+    const assetIds =
+      syncScope.value === 'selected'
+        ? selectedAssets.value.map((asset) => asset.id)
+        : undefined;
+    logCloudSyncConsole('all-start', {
+      scope: syncScope.value,
+      providers,
+      asset_ids: assetIds,
+    });
+    const result = await syncDashboardCloudAssetsApi('cn-hongkong', 'all', {
+      providers,
+      asset_ids: assetIds,
+    });
+    logCloudSyncConsole('all-result', result, result?.ok === false);
     markRecentSync();
     await loadData();
+    lastSyncTasks.value = result.tasks || [];
+    lastSkippedSyncTasks.value = result.skipped_tasks || [];
     if (result?.ok === false || result?.errors?.length) {
       message.warning('代理同步完成，但存在错误，请查看后端同步日志');
       return;
@@ -727,6 +1170,7 @@ async function syncAssets() {
       `代理同步完成：AWS 存在 ${awsExistingCount.value} 条，阿里云存在 ${aliyunExistingCount.value} 条，未附加IP ${unattachedIpCount.value} 条`,
     );
   } catch (error: any) {
+    logCloudSyncConsole('all-error', error, true);
     message.error(error?.message || '代理同步失败，请查看后端日志');
   } finally {
     syncing.value = false;
@@ -734,6 +1178,7 @@ async function syncAssets() {
 }
 
 function openEdit(record: DashboardCloudAssetItem) {
+  if (!requireCloudDangerPermission('编辑代理')) return;
   currentRow.value = record;
   formState.actual_expires_at = record.actual_expires_at
     ? dayjs(record.actual_expires_at)
@@ -859,6 +1304,7 @@ async function toggleAutoRenew(
   record: DashboardCloudAssetItem,
   enabled: boolean,
 ) {
+  if (!requireCloudDangerPermission('自动续费开关')) return;
   if (!record.order_id) {
     message.error('该代理未绑定订单，无法设置自动续费');
     return;
@@ -881,6 +1327,7 @@ async function toggleAutoRenew(
 }
 
 async function deleteAsset(record: DashboardCloudAssetItem) {
+  if (!requireCloudDangerPermission('删除代理本地状态')) return;
   try {
     await deleteDashboardCloudAssetApi(record.id);
     removeAssetFromList(record.id);
@@ -898,6 +1345,7 @@ function startAutoRefresh() {
   countdownTimer = setInterval(() => {
     if (
       !editOpen.value &&
+      !detailOpen.value &&
       !loading.value &&
       !loadingMore.value &&
       !saving.value &&
@@ -1015,6 +1463,7 @@ function buildAssetEditPayload(record: DashboardCloudAssetItem) {
 }
 
 async function submitEdit() {
+  if (!requireCloudDangerPermission('保存代理')) return;
   if (!currentRow.value) return;
   saving.value = true;
   try {
@@ -1063,17 +1512,65 @@ onBeforeUnmount(() => {
             allow-clear
             class="cloud-assets-search"
             enter-button="搜索"
-            placeholder="搜索用户、用户名、IP、代理链接"
-            @search="loadData"
+            placeholder="搜索用户、用户名、IP、代理链接、订单号、实例ID、固定IP名、云账号"
+            @search="handleSearch"
           />
-          <Button size="small" :loading="syncing" @click="syncAssets">
+          <Select
+            v-model:value="columnView"
+            style="width: 120px"
+            :options="columnViewOptions"
+            @change="handleColumnViewChange"
+          />
+          <Select
+            v-model:value="syncScope"
+            style="width: 120px"
+            :options="syncScopeOptions"
+          />
+          <Button
+            size="small"
+            :disabled="!canRunCloudDanger"
+            :loading="syncing"
+            @click="syncAssets"
+          >
             同步代理
+          </Button>
+          <Button
+            size="small"
+            :disabled="!canRunCloudDanger || selectedAssets.length === 0"
+            :loading="syncing"
+            @click="batchSyncSelectedAssets"
+          >
+            批量同步
+          </Button>
+          <Button
+            size="small"
+            :disabled="selectedAssets.length === 0"
+            @click="copySelectedProxyLinks"
+          >
+            复制选中链接
+          </Button>
+          <Button size="small" @click="exportSelectedAssetsCsv">导出CSV</Button>
+          <Button
+            v-if="selectedAssets.length > 0"
+            size="small"
+            @click="clearSelectedRows"
+          >
+            清空选择
           </Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
+          <Tag v-if="selectedAssets.length > 0" color="geekblue">
+            已选 {{ selectedAssets.length }} 条
+          </Tag>
           <Tag v-if="syncing" color="processing">同步中…</Tag>
-          <Tag v-else-if="loading" color="processing">刷新中…</Tag>
-          <Tag v-else-if="loadingMore" color="processing">继续加载中…</Tag>
+          <Tag v-if="lastSyncTasks.length > 0" color="cyan">
+            最近同步 {{ lastSyncTasks.length }} 个账号
+          </Tag>
+          <Tag v-if="lastSkippedSyncTasks.length > 0" color="warning">
+            跳过 {{ lastSkippedSyncTasks.length }} 个账号
+          </Tag>
+          <Tag v-if="loading" color="processing">刷新中…</Tag>
+          <Tag v-if="loadingMore" color="processing">继续加载中…</Tag>
           <Tag color="blue">
             最后刷新：{{ formatRefreshTime(lastRefreshedAt) }}
           </Tag>
@@ -1134,6 +1631,18 @@ onBeforeUnmount(() => {
         </Space>
       </template>
 
+      <div class="cloud-assets-status-shortcuts">
+        <Button
+          v-for="option in riskFilterOptions"
+          :key="option.value"
+          size="small"
+          :type="riskStatus === option.value ? 'primary' : 'default'"
+          @click="setRiskStatus(option.value)"
+        >
+          {{ option.label }}
+        </Button>
+      </div>
+
       <Collapse
         v-if="grouped"
         v-model:active-key="expandedGroupKeys"
@@ -1164,8 +1673,9 @@ onBeforeUnmount(() => {
             :data-source="group.items"
             :loading="loading"
             :pagination="false"
+            :row-selection="rowSelection"
             row-key="id"
-            :scroll="{ x: 2150 }"
+            :scroll="{ x: 2380 }"
             size="small"
             @change="handleAssetTableChange"
           >
@@ -1266,7 +1776,7 @@ onBeforeUnmount(() => {
                     :checked="Boolean(record.auto_renew_enabled)"
                     checked-children="开"
                     un-checked-children="关"
-                    :disabled="!record.order_id"
+                    :disabled="!canRunCloudDanger || !record.order_id"
                     :loading="isAutoRenewSaving(record.id)"
                     @change="
                       (checked) =>
@@ -1280,28 +1790,50 @@ onBeforeUnmount(() => {
               </template>
               <template v-else-if="column.key === 'mtproxy_link'">
                 <div
-                  v-if="record.mtproxy_link"
+                  v-if="
+                    buildProxyLinkItems(asDashboardCloudAssetItem(record))
+                      .length > 0
+                  "
                   class="max-w-full overflow-hidden"
                 >
                   <TypographyParagraph
                     :ellipsis="
                       isLinkExpanded(record.id)
                         ? false
-                        : { rows: 1, tooltip: record.mtproxy_link }
+                        : {
+                            rows: 1,
+                            tooltip: buildProxyLinkText(
+                              asDashboardCloudAssetItem(record),
+                            ),
+                          }
                     "
-                    :copyable="{ text: record.mtproxy_link }"
+                    :copyable="{
+                      text: buildProxyLinkText(
+                        asDashboardCloudAssetItem(record),
+                      ),
+                    }"
                     class="mb-0 max-h-32 overflow-y-auto break-all font-mono text-xs leading-5"
                   >
-                    {{ record.mtproxy_link }}
+                    {{ buildProxyLinkText(asDashboardCloudAssetItem(record)) }}
                   </TypographyParagraph>
-                  <Button
-                    size="small"
-                    type="link"
-                    class="mt-1 h-auto px-0 py-0"
-                    @click="toggleLinkExpand(record.id)"
-                  >
-                    {{ isLinkExpanded(record.id) ? '收起' : '展开' }}
-                  </Button>
+                  <Space :size="6" class="mt-1">
+                    <Button
+                      size="small"
+                      type="link"
+                      class="h-auto px-0 py-0"
+                      @click="toggleLinkExpand(record.id)"
+                    >
+                      {{ isLinkExpanded(record.id) ? '收起' : '展开' }}
+                    </Button>
+                    <Button
+                      size="small"
+                      type="link"
+                      class="h-auto px-0 py-0"
+                      @click="copyProxyLinks(asDashboardCloudAssetItem(record))"
+                    >
+                      复制全部
+                    </Button>
+                  </Space>
                 </div>
                 <span v-else>-</span>
               </template>
@@ -1334,6 +1866,23 @@ onBeforeUnmount(() => {
                   </Button>
                 </div>
                 <span v-else>-</span>
+              </template>
+              <template v-else-if="column.key === 'risk_label'">
+                <Space direction="vertical" :size="2">
+                  <Tag :color="riskTagColor(asDashboardCloudAssetItem(record))">
+                    {{ record.risk_label || '正常' }}
+                  </Tag>
+                  <TypographyParagraph
+                    v-if="record.risk_reasons?.length"
+                    :ellipsis="{
+                      rows: 1,
+                      tooltip: record.risk_reasons.join('；'),
+                    }"
+                    class="mb-0 break-all text-xs leading-5"
+                  >
+                    {{ record.risk_reasons.join('；') }}
+                  </TypographyParagraph>
+                </Space>
               </template>
               <template v-else-if="column.key === 'status'">
                 <Tag
@@ -1385,12 +1934,14 @@ onBeforeUnmount(() => {
                   </Button>
                   <Button
                     type="link"
+                    :disabled="!canRunCloudDanger"
                     @click="openEdit(asDashboardCloudAssetItem(record))"
                   >
                     编辑
                   </Button>
                   <Button
                     type="link"
+                    :disabled="!canRunCloudDanger"
                     :loading="isAssetSyncing(record.id)"
                     @click="syncAssetStatus(asDashboardCloudAssetItem(record))"
                   >
@@ -1400,7 +1951,9 @@ onBeforeUnmount(() => {
                     title="确认清除这条代理的本地状态吗？不会删除真实云服务器/IP；会清除关联订单的云资源绑定，后续同步按全新资源重新拉回。"
                     @confirm="deleteAsset(asDashboardCloudAssetItem(record))"
                   >
-                    <Button danger type="link">删除</Button>
+                    <Button danger type="link" :disabled="!canRunCloudDanger">
+                      删除
+                    </Button>
                   </Popconfirm>
                 </Space>
               </template>
@@ -1409,6 +1962,17 @@ onBeforeUnmount(() => {
         </Collapse.Panel>
       </Collapse>
 
+      <div v-if="grouped" class="mt-4 flex justify-end">
+        <Pagination
+          v-model:current="groupPagination.page"
+          v-model:page-size="groupPagination.pageSize"
+          show-less-items
+          :show-total="(total: number) => `共 ${total} 个用户/分组`"
+          :total="groupPagination.total"
+          @change="handleGroupPageChange"
+        />
+      </div>
+
       <Table
         v-else
         class="cloud-assets-table"
@@ -1416,8 +1980,9 @@ onBeforeUnmount(() => {
         :data-source="displayedItems"
         :loading="loading"
         :pagination="{ pageSize: ASSET_PAGE_SIZE }"
+        :row-selection="rowSelection"
         row-key="id"
-        :scroll="{ x: 2150 }"
+        :scroll="{ x: 2380 }"
         size="small"
         @change="handleAssetTableChange"
       >
@@ -1518,7 +2083,7 @@ onBeforeUnmount(() => {
                 :checked="Boolean(record.auto_renew_enabled)"
                 checked-children="开"
                 un-checked-children="关"
-                :disabled="!record.order_id"
+                :disabled="!canRunCloudDanger || !record.order_id"
                 :loading="isAutoRenewSaving(record.id)"
                 @change="
                   (checked) =>
@@ -1531,26 +2096,48 @@ onBeforeUnmount(() => {
             </Space>
           </template>
           <template v-else-if="column.key === 'mtproxy_link'">
-            <div v-if="record.mtproxy_link" class="max-w-full overflow-hidden">
+            <div
+              v-if="
+                buildProxyLinkItems(record as DashboardCloudAssetItem).length > 0
+              "
+              class="max-w-full overflow-hidden"
+            >
               <TypographyParagraph
                 :ellipsis="
                   isLinkExpanded(record.id)
                     ? false
-                    : { rows: 1, tooltip: record.mtproxy_link }
+                    : {
+                        rows: 1,
+                        tooltip: buildProxyLinkText(
+                          record as DashboardCloudAssetItem,
+                        ),
+                      }
                 "
-                :copyable="{ text: record.mtproxy_link }"
+                :copyable="{
+                  text: buildProxyLinkText(record as DashboardCloudAssetItem),
+                }"
                 class="mb-0 max-h-32 overflow-y-auto break-all font-mono text-xs leading-5"
               >
-                {{ record.mtproxy_link }}
+                {{ buildProxyLinkText(record as DashboardCloudAssetItem) }}
               </TypographyParagraph>
-              <Button
-                size="small"
-                type="link"
-                class="mt-1 h-auto px-0 py-0"
-                @click="toggleLinkExpand(record.id)"
-              >
-                {{ isLinkExpanded(record.id) ? '收起' : '展开' }}
-              </Button>
+              <Space :size="6" class="mt-1">
+                <Button
+                  size="small"
+                  type="link"
+                  class="h-auto px-0 py-0"
+                  @click="toggleLinkExpand(record.id)"
+                >
+                  {{ isLinkExpanded(record.id) ? '收起' : '展开' }}
+                </Button>
+                <Button
+                  size="small"
+                  type="link"
+                  class="h-auto px-0 py-0"
+                  @click="copyProxyLinks(record as DashboardCloudAssetItem)"
+                >
+                  复制全部
+                </Button>
+              </Space>
             </div>
             <span v-else>-</span>
           </template>
@@ -1583,6 +2170,20 @@ onBeforeUnmount(() => {
               </Button>
             </div>
             <span v-else>-</span>
+          </template>
+          <template v-else-if="column.key === 'risk_label'">
+            <Space direction="vertical" :size="2">
+              <Tag :color="riskTagColor(record as DashboardCloudAssetItem)">
+                {{ record.risk_label || '正常' }}
+              </Tag>
+              <TypographyParagraph
+                v-if="record.risk_reasons?.length"
+                :ellipsis="{ rows: 1, tooltip: record.risk_reasons.join('；') }"
+                class="mb-0 break-all text-xs leading-5"
+              >
+                {{ record.risk_reasons.join('；') }}
+              </TypographyParagraph>
+            </Space>
           </template>
           <template v-else-if="column.key === 'status'">
             <Tag
@@ -1634,12 +2235,14 @@ onBeforeUnmount(() => {
               </Button>
               <Button
                 type="link"
+                :disabled="!canRunCloudDanger"
                 @click="openEdit(record as DashboardCloudAssetItem)"
               >
                 编辑
               </Button>
               <Button
                 type="link"
+                :disabled="!canRunCloudDanger"
                 :loading="isAssetSyncing(record.id)"
                 @click="syncAssetStatus(record as DashboardCloudAssetItem)"
               >
@@ -1649,7 +2252,9 @@ onBeforeUnmount(() => {
                 title="确认清除这条代理的本地状态吗？不会删除真实云服务器/IP；会清除关联订单的云资源绑定，后续同步按全新资源重新拉回。"
                 @confirm="deleteAsset(record as DashboardCloudAssetItem)"
               >
-                <Button danger type="link">删除</Button>
+                <Button danger type="link" :disabled="!canRunCloudDanger">
+                  删除
+                </Button>
               </Popconfirm>
             </Space>
           </template>
@@ -1657,9 +2262,131 @@ onBeforeUnmount(() => {
       </Table>
     </Card>
 
+    <Drawer
+      v-model:open="detailOpen"
+      placement="right"
+      title="代理详情"
+      width="min(720px, 100vw)"
+    >
+      <div v-if="detailLoading">
+        <Tag color="processing">详情加载中…</Tag>
+      </div>
+      <Empty v-else-if="!detailRow" description="暂无详情" />
+      <template v-else>
+        <Space class="mb-3" wrap>
+          <Tag :color="riskTagColor(detailRow)">
+            {{ detailRow.risk_label || '正常' }}
+          </Tag>
+          <Button size="small" @click="copyProxyLinks(detailRow)">
+            复制全部链接
+          </Button>
+          <Button size="small" @click="openDetailPage(detailRow.id)">
+            打开详情页
+          </Button>
+        </Space>
+        <Descriptions bordered size="small" :column="2">
+          <Descriptions.Item label="用户">
+            {{ detailRow.user_display_name || '-' }}
+          </Descriptions.Item>
+          <Descriptions.Item label="用户名">
+            {{ detailRow.username_label || '-' }}
+          </Descriptions.Item>
+          <Descriptions.Item label="群组">
+            {{ detailRow.telegram_group_title || '-' }}
+          </Descriptions.Item>
+          <Descriptions.Item label="云账号">
+            {{ detailRow.account_label || '-' }}
+          </Descriptions.Item>
+          <Descriptions.Item label="公网IP">
+            {{ detailRow.public_ip || '-' }}
+          </Descriptions.Item>
+          <Descriptions.Item label="实例ID">
+            {{ detailRow.instance_id || detailRow.provider_resource_id || '-' }}
+          </Descriptions.Item>
+          <Descriptions.Item label="状态">
+            {{ detailRow.status_label || detailRow.status || '-' }}
+          </Descriptions.Item>
+          <Descriptions.Item label="云上状态">
+            {{ detailRow.provider_status || '-' }}
+          </Descriptions.Item>
+          <Descriptions.Item label="剩余">
+            {{
+              detailRow.preserve_link_status ||
+              detailRow.status_countdown ||
+              '-'
+            }}
+          </Descriptions.Item>
+          <Descriptions.Item label="到期">
+            {{
+              detailRow.actual_expires_at
+                ? dayjs(detailRow.actual_expires_at).format('YYYY-MM-DD HH:mm')
+                : '-'
+            }}
+          </Descriptions.Item>
+          <Descriptions.Item label="价格">
+            {{ assetPriceLabel(detailRow) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="自动续费">
+            {{ detailRow.auto_renew_enabled ? '已开启' : '已关闭' }}
+          </Descriptions.Item>
+        </Descriptions>
+        <div class="mt-3">
+          <TypographyParagraph
+            v-if="buildProxyLinkText(detailRow)"
+            :copyable="{ text: buildProxyLinkText(detailRow) }"
+            class="break-all font-mono text-xs leading-5"
+          >
+            {{ buildProxyLinkText(detailRow) }}
+          </TypographyParagraph>
+        </div>
+        <div v-if="detailRow.risk_reasons?.length" class="mt-3">
+          <Tag
+            v-for="reason in detailRow.risk_reasons"
+            :key="reason"
+            color="warning"
+          >
+            {{ reason }}
+          </Tag>
+        </div>
+        <div v-if="detailRow.note" class="mt-3">
+          <TypographyParagraph
+            :ellipsis="{ rows: 4, expandable: true, symbol: '展开备注' }"
+            class="break-all text-xs leading-5"
+          >
+            {{ detailRow.note }}
+          </TypographyParagraph>
+        </div>
+        <div v-if="detailRow.ip_logs?.length" class="detail-log-list mt-4">
+          <div
+            v-for="log in detailRow.ip_logs.slice(0, 8)"
+            :key="log.id"
+            class="detail-log-row"
+          >
+            <Space wrap>
+              <Tag color="blue">{{ log.event_label || log.event_type }}</Tag>
+              <span>{{
+                log.created_at
+                  ? dayjs(log.created_at).format('MM-DD HH:mm:ss')
+                  : '-'
+              }}</span>
+              <span>{{ log.public_ip || log.previous_public_ip || '-' }}</span>
+            </Space>
+            <TypographyParagraph
+              v-if="log.note"
+              :ellipsis="{ rows: 2, expandable: true, symbol: '展开' }"
+              class="mb-0 mt-1 break-all text-xs leading-5"
+            >
+              {{ log.note }}
+            </TypographyParagraph>
+          </div>
+        </div>
+      </template>
+    </Drawer>
+
     <Modal
       v-model:open="editOpen"
       :confirm-loading="saving"
+      :ok-button-props="{ disabled: !canRunCloudDanger }"
       title="编辑代理"
       width="min(720px, calc(100vw - 32px))"
       @ok="submitEdit"
@@ -1739,12 +2466,20 @@ onBeforeUnmount(() => {
 <style scoped>
 .cloud-assets-toolbar {
   row-gap: 8px;
+  align-items: center;
   width: 100%;
 }
 
 .cloud-assets-search {
   width: min(360px, 100%);
   min-width: 180px;
+}
+
+.cloud-assets-status-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
 }
 
 .cloud-assets-actions {
@@ -1755,7 +2490,15 @@ onBeforeUnmount(() => {
 
 :deep(.ant-card-head-title) {
   min-width: 0;
+  padding: 10px 0 !important;
+  overflow: visible;
   white-space: normal;
+}
+
+:deep(.ant-card-head) {
+  min-height: 72px;
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
 :deep(.ant-table-wrapper) {
@@ -1783,6 +2526,15 @@ onBeforeUnmount(() => {
 
 .compact-cloud-assets :deep(.ant-collapse-content-box) {
   padding: 8px 12px !important;
+}
+
+.detail-log-list {
+  border-top: 1px solid #f0f0f0;
+}
+
+.detail-log-row {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 :deep(.ant-table-small .ant-table-thead > tr > th),

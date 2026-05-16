@@ -8,6 +8,7 @@ interface DashboardListQuery {
   page?: number;
   page_size?: number;
   paginated?: 0 | 1;
+  risk_status?: string;
   sort_by?: 'actual_expires_at' | 'days_left' | 'expires_at' | 'remaining_days';
   sort_order?: 'asc' | 'desc';
 }
@@ -85,8 +86,12 @@ export interface DashboardUnattachedIpDeletePlan {
   asset_name: string;
   asset_id?: null | number;
   asset_detail_path?: string;
+  blocked_reason?: null | string;
   delete_at: null | string;
   deletion_source_label?: string;
+  delete_attempt_count?: number;
+  delete_attempt_label?: string;
+  delete_next_attempt?: null | number;
   detail_path?: string;
   display_note?: string;
   execution_plan?: string;
@@ -103,11 +108,17 @@ export interface DashboardUnattachedIpDeletePlan {
   missing_confirm_remaining?: number;
   missing_confirm_threshold?: number;
   note: string;
+  plan_state?: string;
+  plan_state_label?: string;
   provider_status: string;
   public_ip: string;
   quality_flags?: string[];
   quality_label?: string;
+  resource_state?: string;
+  resource_state_label?: string;
   service_expires_at?: null | string;
+  should_execute?: boolean;
+  state_summary?: string;
   user_display_name?: string;
   username_label?: string;
 }
@@ -334,6 +345,12 @@ export interface DashboardCloudAssetItem {
   region_code?: null | string;
   region_label?: null | string;
   region_name: null | string;
+  risk_label?: string;
+  risk_rank?: number;
+  risk_reasons?: string[];
+  risk_status?: string;
+  risk_statuses?: string[];
+  shutdown_enabled?: boolean;
   source: string;
   source_label?: string;
   tg_user_id: null | number;
@@ -377,12 +394,18 @@ export interface DashboardCloudAssetGroup {
 export interface DashboardCloudAssetGroupedResponse {
   groups: DashboardCloudAssetGroup[];
   items: DashboardCloudAssetItem[];
+  page?: number;
+  page_size?: number;
+  risk_counts?: Record<string, number>;
+  total?: number;
+  total_pages?: number;
 }
 
 export interface DashboardCloudAssetsResponse {
   items: DashboardCloudAssetItem[];
   page: number;
   page_size: number;
+  risk_counts?: Record<string, number>;
   total: number;
   total_pages?: number;
 }
@@ -704,6 +727,7 @@ export interface DashboardNoticePlanDetail {
   history_items: DashboardNoticePlanHistoryItem[];
   interval_minutes: number;
   last_run_at: null | string;
+  last_refresh_at?: null | string;
   next_run_at: null | string;
   notice_switches: DashboardNoticeSwitchItem[];
   recent_failure_count: number;
@@ -767,12 +791,14 @@ export interface DashboardAutoRenewTaskHistoryItem {
 }
 
 export interface DashboardAutoRenewTaskDetail {
+  cache_mode?: string;
   due_count: number;
   due_items: DashboardAutoRenewTaskDueItem[];
   future_plan_items: DashboardAutoRenewTaskDueItem[];
   history_items: DashboardAutoRenewTaskHistoryItem[];
   interval_minutes: number;
   last_run_at: null | string;
+  last_refresh_at?: null | string;
   latest_batch_count: number;
   latest_batch_failure_count: number;
   latest_batch_id: string;
@@ -782,6 +808,7 @@ export interface DashboardAutoRenewTaskDetail {
   notice_switches: DashboardNoticeSwitchItem[];
   recent_failure_count: number;
   recent_success_count: number;
+  refreshed?: boolean;
   status_label: string;
   task_key: string;
   task_label: string;
@@ -790,9 +817,13 @@ export interface DashboardAutoRenewTaskDetail {
 export interface DashboardShutdownPlanItem {
   asset_id?: null | number;
   asset_name?: string;
+  blocked_reason?: null | string;
   delete_at: null | string;
   detail_path: string;
   display_note?: null | string;
+  delete_attempt_count?: number;
+  delete_attempt_label?: string;
+  delete_next_attempt?: null | number;
   execution_plan?: null | string;
   execution_status?: null | string;
   id: number | string;
@@ -804,12 +835,18 @@ export interface DashboardShutdownPlanItem {
   next_run_at?: null | string;
   order_id: null | number;
   order_no: string;
+  plan_state?: string;
+  plan_state_label?: string;
   provider: string;
   provider_label?: string;
   queue_status?: string;
   queue_status_label?: string;
   related_path: string;
+  resource_state?: string;
+  resource_state_label?: string;
   service_expires_at: null | string;
+  should_execute?: boolean;
+  state_summary?: string;
   status: string;
   status_label?: string;
   suspend_at: null | string;
@@ -844,6 +881,7 @@ export interface DashboardShutdownPlanHistoryItem {
 }
 
 export interface DashboardLifecyclePlansDetail {
+  cache_mode?: 'cached' | 'refreshed' | string;
   due_count: number;
   due_items: DashboardShutdownPlanItem[];
   future_plan_items: DashboardShutdownPlanItem[];
@@ -854,10 +892,12 @@ export interface DashboardLifecyclePlansDetail {
   ip_delete_history_count?: number;
   ip_delete_items: DashboardUnattachedIpDeletePlan[];
   last_run_at: null | string;
+  last_refresh_at?: null | string;
   next_run_at: null | string;
   pending_ip_delete_count?: number;
   recent_failure_count: number;
   recent_success_count: number;
+  refreshed?: boolean;
   server_delete_history_count?: number;
   shutdown_count: number;
   shutdown_due_count: number;
@@ -1034,6 +1074,7 @@ export interface DashboardTelegramMessageItem {
 }
 
 export interface DashboardTelegramGroupFilterItem {
+  archived: boolean;
   chat_id: number;
   collapsed: boolean;
   created_at: null | string;
@@ -1062,6 +1103,7 @@ export interface DashboardTelegramGroupDetail {
 }
 
 export interface DashboardTelegramGroupFilterPayload {
+  archived?: boolean;
   chat_id?: number | string;
   collapsed?: boolean;
   enabled?: boolean;
@@ -1191,6 +1233,21 @@ export async function getDashboardNoticePlanApi(
   });
 }
 
+export async function refreshDashboardNoticePlanApi(
+  payload: {
+    future_limit?: number;
+    history_limit?: number;
+    limit?: number;
+  } = {},
+) {
+  return requestClient.post<{
+    due_count: number;
+    future_count: number;
+    history_count: number;
+    refreshed: boolean;
+  }>('/admin/tasks/notices/refresh/', payload);
+}
+
 export async function deleteDashboardNoticeHistoryApi(logId: number | string) {
   return requestClient.post<{ deleted: boolean; reset_count: number }>(
     `/admin/tasks/notices/history/${logId}/delete/`,
@@ -1219,9 +1276,12 @@ export async function updateDashboardNoticePlanTextApi(payload: {
   }>('/admin/tasks/notices/text/', payload);
 }
 
-export async function getDashboardAutoRenewTaskDetailApi() {
+export async function getDashboardAutoRenewTaskDetailApi(
+  params: { refresh?: 0 | 1 } = {},
+) {
   return requestClient.get<DashboardAutoRenewTaskDetail>(
     '/admin/tasks/auto-renew/',
+    { params },
   );
 }
 
@@ -1232,6 +1292,21 @@ export async function getDashboardLifecyclePlansApi(
     '/admin/tasks/plans/',
     { params, timeout: 600_000 },
   );
+}
+
+export async function refreshDashboardLifecyclePlansApi(
+  payload: {
+    limit?: number;
+  } = {},
+) {
+  return requestClient.post<{
+    due_count: number;
+    future_count: number;
+    history_count: number;
+    ip_delete_count: number;
+    last_refresh_at?: null | string;
+    refreshed: boolean;
+  }>('/admin/tasks/plans/refresh/', payload);
 }
 
 export interface DashboardShutdownPlanRunResultItem {
@@ -1259,7 +1334,7 @@ export async function updateDashboardLifecyclePlanNoteApi(payload: {
   note: string;
   order_id?: number;
 }) {
-  return requestClient.post<{ note: string }>(
+  return requestClient.post<{ display_note?: string; note: string }>(
     '/admin/tasks/plans/notes/',
     payload,
   );
@@ -1387,6 +1462,17 @@ export async function getDashboardCloudAssetsGroupedApi(
   );
 }
 
+export async function getDashboardCloudAssetsGroupedPageApi(
+  params: DashboardListQuery = {},
+) {
+  return requestClient.get<DashboardCloudAssetGroupedResponse>(
+    '/admin/cloud-assets/',
+    {
+      params: { ...params, grouped: 1, paginated: 1 },
+    },
+  );
+}
+
 export async function getDashboardCloudAssetDetailApi(assetId: number) {
   return requestClient.get<DashboardCloudAssetDetail>(
     `/admin/cloud-assets/${assetId}/`,
@@ -1414,27 +1500,66 @@ export interface DashboardCloudAssetsSyncResult {
   errors?: string[];
   logs?: string[];
   ok?: boolean;
+  providers?: string[];
+  skipped_tasks?: DashboardCloudAssetSyncTask[];
   synced?: Record<string, boolean>;
+  tasks?: DashboardCloudAssetSyncTask[];
   warnings?: string[];
+}
+
+export interface DashboardCloudAssetSyncTask {
+  account?: null | {
+    id: number;
+    label: string;
+    name: string;
+    provider: string;
+  };
+  command?: string;
+  duration_seconds?: number;
+  provider?: string;
+  reason?: string;
+  region?: string;
+  summary?: Record<string, any>;
 }
 
 export async function syncDashboardCloudAssetsApi(
   region = 'cn-hongkong',
   awsRegion = 'all',
+  options: {
+    account_ids?: number[];
+    asset_ids?: number[];
+    providers?: string[];
+  } = {},
 ) {
   return requestClient.post<DashboardCloudAssetsSyncResult>(
     '/admin/cloud-assets/sync/',
-    { aws_region: awsRegion, region },
+    { aws_region: awsRegion, region, ...options },
     { timeout: 0 },
   );
 }
 
 export interface DashboardCloudAssetsSyncStatus {
+  accounts?: DashboardCloudAssetsSyncResult['accounts'];
   aliyun_existing_count: number;
   auto_sync_every_seconds: number;
   aws_existing_count: number;
   last_synced_at: null | string;
+  recent_syncs?: Array<{
+    created_at?: null | string;
+    error_message?: string;
+    id: number;
+    is_success?: boolean;
+    providers?: string[];
+    skipped_tasks?: DashboardCloudAssetSyncTask[];
+    target?: string;
+    tasks?: DashboardCloudAssetSyncTask[];
+  }>;
   unattached_ip_count?: number;
+}
+
+export interface DashboardCloudAssetRiskSummary {
+  risk_counts: Record<string, number>;
+  total: number;
 }
 
 export interface DashboardCloudAssetSyncResult {
@@ -1455,6 +1580,15 @@ export interface DashboardCloudAssetSyncResult {
 export async function getDashboardCloudAssetsSyncStatusApi() {
   return requestClient.get<DashboardCloudAssetsSyncStatus>(
     '/admin/cloud-assets/sync-status/',
+  );
+}
+
+export async function getDashboardCloudAssetRiskSummaryApi(
+  params: DashboardListQuery = {},
+) {
+  return requestClient.get<DashboardCloudAssetRiskSummary>(
+    '/admin/cloud-assets/risk-summary/',
+    { params },
   );
 }
 

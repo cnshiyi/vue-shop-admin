@@ -31,12 +31,14 @@ import dayjs from 'dayjs';
 import {
   deleteDashboardNoticeHistoryApi,
   getDashboardNoticePlanApi,
+  refreshDashboardNoticePlanApi,
   updateDashboardNoticePlanTextApi,
   updateDashboardNoticeSwitchesApi,
 } from '#/api/admin';
 
 const router = useRouter();
 const loading = ref(false);
+const refreshingNoticePlan = ref(false);
 const detail = ref<DashboardNoticePlanDetail | null>(null);
 const textModalOpen = ref(false);
 const textSaving = ref(false);
@@ -244,6 +246,25 @@ async function changeHistoryPage(page: number, pageSize: number) {
   await loadData();
 }
 
+async function refreshNoticePlan() {
+  refreshingNoticePlan.value = true;
+  try {
+    const result = await refreshDashboardNoticePlanApi({
+      limit: noticeLimit.value,
+      future_limit: futureLimit.value,
+      history_limit: historyLimit.value,
+    });
+    message.success(
+      `通知计划已刷新：3天内 ${result.due_count} / 未来 ${result.future_count}`,
+    );
+    await loadData();
+  } catch (error: any) {
+    message.error(error?.message || '刷新通知计划失败');
+  } finally {
+    refreshingNoticePlan.value = false;
+  }
+}
+
 function noticeTextRows(record: { ip_count?: number; ips?: string[] }) {
   const count = Number(record.ip_count || record.ips?.length || 1);
   return Math.min(Math.max(count * 3, 3), 12);
@@ -380,9 +401,23 @@ onMounted(loadData);
             <Button size="small" :loading="loading" @click="loadData">
               刷新
             </Button>
+            <Button
+              size="small"
+              :loading="refreshingNoticePlan"
+              @click="refreshNoticePlan"
+            >
+              刷新计划表
+            </Button>
             <span>{{ detail?.task_label || '通知计划' }}</span>
             <Tag color="processing">
               {{ detail?.status_label || '置顶任务' }}
+            </Tag>
+            <Tag :color="refreshingNoticePlan ? 'warning' : 'default'">
+              {{
+                refreshingNoticePlan
+                  ? '计划表刷新中'
+                  : `最后刷新：${fmtTime(detail?.last_refresh_at)}`
+              }}
             </Tag>
           </Space>
         </template>
@@ -407,6 +442,14 @@ onMounted(loadData);
           </Descriptions.Item>
           <Descriptions.Item label="上次通知">
             {{ fmtTime(detail?.last_run_at) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="计划表最后刷新">
+            {{ fmtTime(detail?.last_refresh_at) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="刷新状态">
+            <Tag :color="refreshingNoticePlan ? 'warning' : 'success'">
+              {{ refreshingNoticePlan ? '刷新中' : '空闲' }}
+            </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="最近24小时送达">
             <Tag color="success">

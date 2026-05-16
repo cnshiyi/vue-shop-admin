@@ -9,7 +9,7 @@ import type {
   DashboardTelegramMessageItem,
 } from '#/api/admin';
 
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
@@ -39,10 +39,12 @@ const modalOpen = ref(false);
 const keyword = ref('');
 const current = ref<DashboardTelegramGroupFilterItem | null>(null);
 const groups = ref<DashboardTelegramGroupFilterItem[]>([]);
+const showArchived = ref(false);
 const details = ref<Record<number, DashboardTelegramGroupDetail>>({});
 const detailLoading = ref<Record<number, boolean>>({});
 
 const form = reactive<DashboardTelegramGroupFilterPayload>({
+  archived: false,
   chat_id: '',
   collapsed: false,
   enabled: false,
@@ -56,6 +58,7 @@ const columns: TableColumnsType<DashboardTelegramGroupFilterItem> = [
   { title: '转发给管理员', key: 'enabled', width: 140 },
   { title: '推送', key: 'push_enabled', width: 120 },
   { title: '绑定页显示', key: 'collapsed', width: 140 },
+  { title: '归档', key: 'archived', width: 120 },
   { title: '更新时间', key: 'updated_at', width: 190 },
   { title: '操作', key: 'action', width: 100 },
 ];
@@ -72,8 +75,19 @@ const messageColumns: TableColumnsType<DashboardTelegramMessageItem> = [
   { title: '时间', key: 'created_at', width: 180 },
 ];
 
+const archivedCount = computed(
+  () => groups.value.filter((item) => item.archived).length,
+);
+
+const visibleGroups = computed(() =>
+  showArchived.value
+    ? groups.value
+    : groups.value.filter((item) => !item.archived),
+);
+
 function resetForm() {
   current.value = null;
+  form.archived = false;
   form.chat_id = '';
   form.collapsed = false;
   form.enabled = false;
@@ -118,6 +132,7 @@ function openCreate() {
 
 function openEdit(item: DashboardTelegramGroupFilterItem) {
   current.value = item;
+  form.archived = item.archived;
   form.chat_id = item.chat_id;
   form.collapsed = item.collapsed;
   form.enabled = item.enabled;
@@ -222,6 +237,24 @@ async function toggleCollapsed(
   }
 }
 
+async function toggleArchived(
+  item: DashboardTelegramGroupFilterItem,
+  archived: boolean,
+) {
+  const previous = item.archived;
+  item.archived = archived;
+  try {
+    const updated = await updateDashboardTelegramGroupApi(item.id, {
+      archived,
+    });
+    Object.assign(item, updated);
+    message.success(archived ? '已归档群组' : '已取消归档');
+  } catch (error: any) {
+    item.archived = previous;
+    message.error(error?.message || '操作失败');
+  }
+}
+
 onMounted(() => loadData());
 </script>
 
@@ -233,6 +266,14 @@ onMounted(() => loadData());
     <Card :loading="loading" title="群组通知开关">
       <template #extra>
         <Space>
+          <Tag v-if="archivedCount" color="default">
+            已归档 {{ archivedCount }}
+          </Tag>
+          <Switch
+            v-model:checked="showArchived"
+            checked-children="显示归档"
+            un-checked-children="折叠归档"
+          />
           <Input.Search
             v-model:value="keyword"
             allow-clear
@@ -247,7 +288,7 @@ onMounted(() => loadData());
 
       <Table
         :columns="columns"
-        :data-source="groups"
+        :data-source="visibleGroups"
         :pagination="false"
         row-key="id"
         size="middle"
@@ -426,6 +467,20 @@ onMounted(() => loadData());
               "
             />
           </template>
+          <template v-else-if="column.key === 'archived'">
+            <Switch
+              :checked="(record as DashboardTelegramGroupFilterItem).archived"
+              checked-children="归档"
+              un-checked-children="正常"
+              @change="
+                (checked) =>
+                  toggleArchived(
+                    record as DashboardTelegramGroupFilterItem,
+                    Boolean(checked),
+                  )
+              "
+            />
+          </template>
           <template v-else-if="column.key === 'updated_at'">
             {{
               formatTime(
@@ -488,6 +543,13 @@ onMounted(() => loadData());
             checked-children="显示"
             un-checked-children="隐藏"
             @change="(checked) => (form.collapsed = !Boolean(checked))"
+          />
+        </Form.Item>
+        <Form.Item label="归档">
+          <Switch
+            v-model:checked="form.archived"
+            checked-children="归档"
+            un-checked-children="正常"
           />
         </Form.Item>
       </Form>

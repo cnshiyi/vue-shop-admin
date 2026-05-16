@@ -1,4 +1,11 @@
 <script lang="ts" setup>
+import type { TableColumnsType } from 'ant-design-vue';
+
+import type {
+  DashboardAdminUserItem,
+  DashboardAdminUserUpsertPayload,
+} from '#/api/admin';
+
 import { onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
@@ -8,18 +15,23 @@ import {
   Card,
   Form,
   Input,
+  message,
   Modal,
   Popconfirm,
   Space,
   Switch,
   Table,
   Tag,
-  message,
 } from 'ant-design-vue';
-import type { TableColumnsType } from 'ant-design-vue';
 
-import { changeDashboardMyPasswordApi, createDashboardAdminUserApi, deleteDashboardAdminUserApi, getDashboardAdminUsersApi, updateDashboardAdminUserApi } from '#/api/admin';
-import type { DashboardAdminUserItem, DashboardAdminUserUpsertPayload } from '#/api/admin';
+import {
+  changeDashboardMyPasswordApi,
+  createDashboardAdminUserApi,
+  deleteDashboardAdminUserApi,
+  getDashboardAdminUsersApi,
+  updateDashboardAdminUserApi,
+} from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -27,6 +39,8 @@ const passwordSaving = ref(false);
 const open = ref(false);
 const current = ref<DashboardAdminUserItem | null>(null);
 const items = ref<DashboardAdminUserItem[]>([]);
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 
 const form = reactive<DashboardAdminUserUpsertPayload>({
   email: '',
@@ -74,12 +88,14 @@ async function loadData() {
 }
 
 function openCreate() {
+  if (!requireCloudDangerPermission('添加管理员')) return;
   current.value = null;
   resetForm();
   open.value = true;
 }
 
 function openEdit(record: DashboardAdminUserItem) {
+  if (!requireCloudDangerPermission('编辑管理员')) return;
   current.value = record;
   form.email = record.email || '';
   form.is_active = !!record.is_active;
@@ -90,6 +106,11 @@ function openEdit(record: DashboardAdminUserItem) {
 }
 
 async function save() {
+  if (
+    !requireCloudDangerPermission(current.value ? '保存管理员' : '添加管理员')
+  ) {
+    return;
+  }
   saving.value = true;
   try {
     if (current.value) {
@@ -118,6 +139,7 @@ async function save() {
 }
 
 async function remove(record: DashboardAdminUserItem) {
+  if (!requireCloudDangerPermission('删除管理员')) return;
   try {
     await deleteDashboardAdminUserApi(record.id);
     message.success('管理员已删除');
@@ -150,7 +172,13 @@ onMounted(loadData);
     <Card class="mb-4" title="管理员列表">
       <template #extra>
         <Space>
-          <Button type="primary" @click="openCreate">添加管理员</Button>
+          <Button
+            type="primary"
+            :disabled="!canRunCloudDanger"
+            @click="openCreate"
+          >
+            添加管理员
+          </Button>
           <Button :loading="loading" @click="loadData">刷新</Button>
         </Space>
       </template>
@@ -164,28 +192,41 @@ onMounted(loadData);
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'is_active'">
-            <Tag :color="record.is_active ? 'success' : 'default'">{{
+            <Tag :color="record.is_active ? 'success' : 'default'">
+{{
               record.is_active ? '启用' : '停用'
-            }}</Tag>
+            }}
+</Tag>
           </template>
           <template v-else-if="column.key === 'is_superuser'">
-            <Tag :color="record.is_superuser ? 'blue' : 'default'">{{
+            <Tag :color="record.is_superuser ? 'blue' : 'default'">
+{{
               record.is_superuser ? '是' : '否'
-            }}</Tag>
+            }}
+</Tag>
           </template>
           <template v-else-if="column.key === 'actions'">
             <Space>
               <Button
                 type="link"
                 size="small"
+                :disabled="!canRunCloudDanger"
                 @click="openEdit(record as DashboardAdminUserItem)"
-                >编辑</Button
-              >
+                >
+编辑
+</Button>
               <Popconfirm
                 title="确认删除该管理员吗？"
                 @confirm="remove(record as DashboardAdminUserItem)"
               >
-                <Button danger type="link" size="small">删除</Button>
+                <Button
+                  danger
+                  type="link"
+                  size="small"
+                  :disabled="!canRunCloudDanger"
+                >
+                  删除
+                </Button>
               </Popconfirm>
             </Space>
           </template>
@@ -216,9 +257,9 @@ onMounted(loadData);
             placeholder="再次输入新密码"
           />
         </Form.Item>
-        <Button type="primary" :loading="passwordSaving" @click="savePassword"
-          >保存新密码</Button
-        >
+        <Button type="primary" :loading="passwordSaving" @click="savePassword">
+保存新密码
+</Button>
       </Form>
     </Card>
 

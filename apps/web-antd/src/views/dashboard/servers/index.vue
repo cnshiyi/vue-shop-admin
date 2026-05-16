@@ -20,6 +20,7 @@ import {
 import dayjs from 'dayjs';
 
 import { getDashboardServersApi, syncDashboardServersApi } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const loading = ref(false);
 const syncing = ref(false);
@@ -33,6 +34,8 @@ const totalSortMode = ref<
 >('default');
 const items = ref<DashboardServerItem[]>([]);
 const router = useRouter();
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 
 const columns = computed<TableColumnsType<DashboardServerItem>>(() => [
   {
@@ -206,6 +209,7 @@ function resetSearch() {
 }
 
 async function syncServers() {
+  if (!requireCloudDangerPermission('同步服务器')) return;
   syncing.value = true;
   try {
     await syncDashboardServersApi();
@@ -271,7 +275,12 @@ onMounted(loadData);
             style="width: 380px"
             @search="loadData"
           />
-          <Button size="small" :loading="syncing" @click="syncServers">
+          <Button
+            size="small"
+            :disabled="!canRunCloudDanger"
+            :loading="syncing"
+            @click="syncServers"
+          >
             同步服务器
           </Button>
           <Button size="small" @click="resetSearch">重置</Button>

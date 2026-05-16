@@ -52,7 +52,10 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   async function doRefreshToken() {
     const accessStore = useAccessStore();
     const resp = await refreshTokenApi();
-    const newToken = resp.data.accessToken;
+    const newToken = resp.data?.data?.accessToken;
+    if (!newToken) {
+      throw new Error('刷新登录状态失败');
+    }
     accessStore.setAccessToken(newToken);
     return newToken;
   }
@@ -66,7 +69,11 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     fulfilled: async (config) => {
       const accessStore = useAccessStore();
 
-      config.headers.Authorization = formatToken(accessStore.accessToken);
+      if (accessStore.accessToken) {
+        config.headers.Authorization = formatToken(accessStore.accessToken);
+      } else {
+        delete config.headers.Authorization;
+      }
       config.headers['Accept-Language'] = preferences.app.locale;
       return config;
     },

@@ -33,6 +33,7 @@ import {
   getDashboardCloudPricingApi,
   updateDashboardCloudPlanApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -63,6 +64,8 @@ const editForm = ref<DashboardCloudPlanUpdatePayload>({
   sort_order: 0,
   is_active: true,
 });
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 
 const providerOptions = [
   { label: 'AWS 光帆服务器', value: 'aws_lightsail' },
@@ -237,6 +240,7 @@ async function loadData() {
 }
 
 function openCreate() {
+  if (!requireCloudDangerPermission('新增套餐')) return;
   createMode.value = true;
   editingPlan.value = null;
   resetEditForm();
@@ -244,6 +248,7 @@ function openCreate() {
 }
 
 function openEdit(record: DashboardCloudPlanItem) {
+  if (!requireCloudDangerPermission('编辑套餐')) return;
   createMode.value = false;
   editingPlan.value = record;
   selectedRegionCode.value = record.region_code;
@@ -354,6 +359,7 @@ watch(
 );
 
 async function saveEdit() {
+  if (!requireCloudDangerPermission('保存套餐')) return;
   saving.value = true;
   try {
     const payload = {
@@ -380,6 +386,7 @@ async function saveEdit() {
 }
 
 async function removePlan(planId: number) {
+  if (!requireCloudDangerPermission('删除套餐')) return;
   deletingId.value = planId;
   try {
     await deleteDashboardCloudPlanApi(planId);
@@ -435,6 +442,7 @@ onMounted(loadData);
             v-if="activeTab === 'plans'"
             size="small"
             type="primary"
+            :disabled="!canRunCloudDanger"
             @click="openCreate"
           >
             新增套餐
@@ -485,6 +493,7 @@ onMounted(loadData);
               <Button
                 type="link"
                 size="small"
+                :disabled="!canRunCloudDanger"
                 @click="openEdit(asDashboardCloudPlanItem(record))"
               >
                 编辑
@@ -497,6 +506,7 @@ onMounted(loadData);
                   type="link"
                   danger
                   size="small"
+                  :disabled="!canRunCloudDanger"
                   :loading="deletingId === record.id"
                 >
                   删除
@@ -512,6 +522,7 @@ onMounted(loadData);
       v-model:open="editOpen"
       :title="createMode ? '新增套餐' : '编辑套餐'"
       :confirm-loading="saving"
+      :ok-button-props="{ disabled: !canRunCloudDanger }"
       @ok="saveEdit"
     >
       <Space direction="vertical" style="width: 100%">

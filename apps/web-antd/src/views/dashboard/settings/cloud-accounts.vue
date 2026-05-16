@@ -38,7 +38,10 @@ import {
   updateDashboardCloudAccountApi,
   verifyDashboardCloudAccountApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 const loading = ref(false);
 const saving = ref(false);
 const open = ref(false);
@@ -163,12 +166,14 @@ async function loadData() {
 }
 
 function openCreate() {
+  if (!requireCloudDangerPermission('添加云账号')) return;
   current.value = null;
   resetForm();
   open.value = true;
 }
 
 function openEdit(record: DashboardCloudAccountConfigItem) {
+  if (!requireCloudDangerPermission('编辑云账号')) return;
   current.value = record;
   form.access_key = '';
   form.external_account_id = record.external_account_id || '';
@@ -192,6 +197,7 @@ watch(
 );
 
 async function save() {
+  if (!requireCloudDangerPermission('保存云账号')) return;
   saving.value = true;
   try {
     const payload: Partial<DashboardCloudAccountCreatePayload> = {
@@ -232,6 +238,7 @@ async function openDetail(record: DashboardCloudAccountConfigItem) {
 }
 
 async function verify(record: DashboardCloudAccountConfigItem) {
+  if (!requireCloudDangerPermission('验证云账号')) return;
   try {
     const result = await verifyDashboardCloudAccountApi(record.id, {
       region: record.effective_region || record.region_hint || undefined,
@@ -249,6 +256,7 @@ async function toggleActive(
   record: DashboardCloudAccountConfigItem,
   checked: boolean,
 ) {
+  if (!requireCloudDangerPermission('切换云账号启用状态')) return;
   togglingMap[record.id] = true;
   try {
     await updateDashboardCloudAccountApi(record.id, { is_active: checked });
@@ -266,6 +274,7 @@ async function toggleShutdown(
   record: DashboardCloudAccountConfigItem,
   checked: boolean,
 ) {
+  if (!requireCloudDangerPermission('切换云账号关机计划')) return;
   shutdownTogglingMap[record.id] = true;
   try {
     await updateDashboardCloudAccountApi(record.id, {
@@ -286,6 +295,7 @@ async function toggleShutdown(
 }
 
 async function remove(record: DashboardCloudAccountConfigItem) {
+  if (!requireCloudDangerPermission('删除云账号')) return;
   try {
     await deleteDashboardCloudAccountApi(record.id);
     message.success('云账号已删除');
@@ -301,7 +311,9 @@ onMounted(loadData);
 <template>
   <Page description="支持多平台、多账户并行管理" title="云账号设置">
     <Space class="mb-3">
-      <Button type="primary" @click="openCreate">添加账号</Button>
+      <Button type="primary" :disabled="!canRunCloudDanger" @click="openCreate">
+        添加账号
+      </Button>
       <Button :loading="loading" @click="loadData">刷新</Button>
     </Space>
 
@@ -318,6 +330,7 @@ onMounted(loadData);
           <Switch
             :checked="(record as DashboardCloudAccountConfigItem).is_active"
             checked-children="启用"
+            :disabled="!canRunCloudDanger"
             :loading="
               togglingMap[(record as DashboardCloudAccountConfigItem).id]
             "
@@ -337,6 +350,7 @@ onMounted(loadData);
               (record as DashboardCloudAccountConfigItem).shutdown_enabled
             "
             checked-children="执行关机"
+            :disabled="!canRunCloudDanger"
             :loading="
               shutdownTogglingMap[
                 (record as DashboardCloudAccountConfigItem).id
@@ -377,6 +391,7 @@ onMounted(loadData);
             <Button
               type="link"
               size="small"
+              :disabled="!canRunCloudDanger"
               @click="verify(record as DashboardCloudAccountConfigItem)"
             >
               验证
@@ -384,6 +399,7 @@ onMounted(loadData);
             <Button
               type="link"
               size="small"
+              :disabled="!canRunCloudDanger"
               @click="openEdit(record as DashboardCloudAccountConfigItem)"
             >
               编辑
@@ -392,7 +408,14 @@ onMounted(loadData);
               title="确认删除该云账号吗？"
               @confirm="remove(record as DashboardCloudAccountConfigItem)"
             >
-              <Button danger type="link" size="small">删除</Button>
+              <Button
+                danger
+                type="link"
+                size="small"
+                :disabled="!canRunCloudDanger"
+              >
+                删除
+              </Button>
             </Popconfirm>
           </Space>
         </template>
@@ -544,6 +567,7 @@ onMounted(loadData);
     <Modal
       v-model:open="open"
       :confirm-loading="saving"
+      :ok-button-props="{ disabled: !canRunCloudDanger }"
       :title="current ? '编辑云账号' : '添加云账号'"
       @ok="save"
     >

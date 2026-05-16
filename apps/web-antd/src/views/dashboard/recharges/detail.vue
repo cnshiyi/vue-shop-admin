@@ -22,9 +22,12 @@ import {
   getDashboardRechargeDetailApi,
   updateDashboardRechargeStatusApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const route = useRoute();
 const router = useRouter();
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 const loading = ref(false);
 const saving = ref(false);
 const detail = ref<DashboardRechargeDetail | null>(null);
@@ -77,6 +80,7 @@ async function loadData() {
 }
 
 async function saveStatus() {
+  if (!requireCloudDangerPermission('保存充值订单状态')) return;
   if (!detail.value || !selectedStatus.value) {
     return;
   }
@@ -112,10 +116,12 @@ onMounted(loadData);
             v-if="detail"
             v-model:value="selectedStatus"
             :options="statusOptions"
+            :disabled="!canRunCloudDanger"
             style="width: 160px"
           />
           <Button
             v-if="detail"
+            :disabled="!canRunCloudDanger"
             :loading="saving"
             size="small"
             type="primary"

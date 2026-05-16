@@ -31,14 +31,19 @@ import dayjs from 'dayjs';
 
 import {
   getDashboardLifecyclePlansApi,
+  refreshDashboardLifecyclePlansApi,
   runDashboardOrphanAssetDeletePlanApi,
   runDashboardShutdownPlanOrderApi,
   runDashboardUnattachedIpDeletePlanApi,
   updateDashboardLifecyclePlanNoteApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const router = useRouter();
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 const loading = ref(false);
+const refreshingPlanTable = ref(false);
 const planLimit = ref(50);
 const runningOrderIds = reactive<Record<number, boolean>>({});
 const runningIpAssetIds = reactive<Record<number, boolean>>({});
@@ -53,6 +58,9 @@ const noteValue = ref('');
 const noteTarget = ref<
   DashboardShutdownPlanItem | DashboardUnattachedIpDeletePlan | null
 >(null);
+const notePreviewOpen = ref(false);
+const notePreviewTitle = ref('备注详情');
+const notePreviewValue = ref('');
 
 const dueColumns = [
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
@@ -77,6 +85,18 @@ const dueColumns = [
   },
   { title: '关机时间', dataIndex: 'suspend_at', key: 'suspend_at', width: 180 },
   { title: '删机时间', dataIndex: 'delete_at', key: 'delete_at', width: 180 },
+  {
+    title: '真实状态',
+    dataIndex: 'resource_state_label',
+    key: 'resource_state_label',
+    width: 240,
+  },
+  {
+    title: '计划状态',
+    dataIndex: 'plan_state_label',
+    key: 'plan_state_label',
+    width: 160,
+  },
   { title: '备注', dataIndex: 'note', key: 'note', width: 260 },
   {
     title: '执行状态',
@@ -162,6 +182,18 @@ const ipDeleteColumns = [
     dataIndex: 'provider_status',
     key: 'provider_status',
     width: 150,
+  },
+  {
+    title: '真实状态',
+    dataIndex: 'resource_state_label',
+    key: 'resource_state_label',
+    width: 240,
+  },
+  {
+    title: '计划状态',
+    dataIndex: 'plan_state_label',
+    key: 'plan_state_label',
+    width: 160,
   },
   {
     title: '删除来源',
@@ -288,6 +320,30 @@ function resultColor(item: DashboardShutdownPlanHistoryItem) {
   return item.is_success ? 'success' : 'error';
 }
 
+function resourceStateColor(state?: string) {
+  if (
+    [
+      'cloud_missing',
+      'instance_deleted',
+      'instance_deleted_ip_retained',
+    ].includes(String(state || ''))
+  )
+    return 'success';
+  if (String(state || '') === 'missing_confirming') return 'warning';
+  if (String(state || '') === 'fixed_ip_unattached') return 'processing';
+  if (String(state || '') === 'instance_present') return 'error';
+  return 'default';
+}
+
+function planStateColor(state?: string) {
+  if (String(state || '') === 'completed') return 'success';
+  if (['blocked', 'shutdown_disabled'].includes(String(state || '')))
+    return 'warning';
+  if (String(state || '') === 'scheduled') return 'processing';
+  if (String(state || '') === 'pending') return 'error';
+  return 'default';
+}
+
 function orderId(record: DashboardShutdownPlanItem) {
   return Number(record.order_id || 0) || 0;
 }
@@ -318,11 +374,25 @@ function planNote(record: {
   return record.display_note || record.note || '-';
 }
 
+function compactCellText(text?: null | string) {
+  return String(text || '-')
+    .replaceAll(/\s*\n+\s*/g, ' / ')
+    .replaceAll(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function noteExpandedKey(record: {
   id: number | string;
   order_id?: null | number;
 }) {
   return `note-${rowKey(record)}`;
+}
+
+function expandedCellKey(
+  prefix: string,
+  record: { id: number | string; order_id?: null | number },
+) {
+  return `${prefix}-${rowKey(record)}`;
 }
 
 function noteEllipsis(record: {
@@ -334,6 +404,36 @@ function noteEllipsis(record: {
   return isExpanded(noteExpandedKey(record))
     ? false
     : { rows: 1, tooltip: planNote(record) };
+}
+
+function cellEllipsis(
+  prefix: string,
+  record: { id: number | string; order_id?: null | number },
+  text?: null | string,
+  rows = 2,
+) {
+  return isExpanded(expandedCellKey(prefix, record))
+    ? false
+    : { rows, tooltip: text || '-' };
+}
+
+function shouldShowCellExpand(
+  text?: null | string,
+  extraText?: null | string,
+  threshold = 48,
+) {
+  return shouldShowExpand(`${text || ''}${extraText || ''}`, threshold);
+}
+
+function openNotePreview(
+  record: DashboardShutdownPlanItem | DashboardUnattachedIpDeletePlan,
+) {
+  const targetIp = String(
+    (record as any).ip || (record as any).public_ip || '',
+  ).trim();
+  notePreviewTitle.value = `备注详情${targetIp ? ` · ${targetIp}` : ''}`;
+  notePreviewValue.value = planNote(record);
+  notePreviewOpen.value = true;
 }
 
 function openNoteEditor(
@@ -372,6 +472,7 @@ async function savePlanNote() {
   try {
     const result = await updateDashboardLifecyclePlanNoteApi(payload);
     target.note = result.note || '';
+    target.display_note = result.display_note || '';
     message.success('备注已保存');
     noteModalOpen.value = false;
     await loadData({ silent: true });
@@ -410,6 +511,23 @@ async function loadMorePlans() {
   await loadData();
 }
 
+async function refreshPlanTable() {
+  refreshingPlanTable.value = true;
+  try {
+    const result = await refreshDashboardLifecyclePlansApi({
+      limit: planLimit.value,
+    });
+    message.success(
+      `删机计划已刷新：待执行 ${result.due_count} / 未来 ${result.future_count}`,
+    );
+    await loadData({ silent: true });
+  } catch (error: any) {
+    message.error(error?.message || '刷新删机计划失败');
+  } finally {
+    refreshingPlanTable.value = false;
+  }
+}
+
 function assetId(record: DashboardUnattachedIpDeletePlan) {
   return Number(record.id || 0) || 0;
 }
@@ -420,6 +538,7 @@ function isRunningIp(record: DashboardUnattachedIpDeletePlan) {
 }
 
 async function runSingleIpDelete(record: DashboardUnattachedIpDeletePlan) {
+  if (!requireCloudDangerPermission('精准删除 IP')) return;
   const id = assetId(record);
   if (!id || runningIpAssetIds[id]) return;
   runningIpAssetIds[id] = true;
@@ -452,6 +571,7 @@ async function runSingleIpDelete(record: DashboardUnattachedIpDeletePlan) {
 }
 
 async function runSingleShutdown(record: DashboardShutdownPlanItem) {
+  if (!requireCloudDangerPermission('精准删除服务器')) return;
   const id = shutdownTargetId(record);
   if (!id || runningOrderIds[id]) return;
   runningOrderIds[id] = true;
@@ -491,6 +611,7 @@ onMounted(loadData);
 
 <template>
   <Page
+    class="plans-page"
     description="按删除 IP、删除服务器、删除计划和历史记录分区查看"
     title="删除计划"
   >
@@ -502,12 +623,26 @@ onMounted(loadData);
             <Button size="small" :loading="loading" @click="loadData()">
               刷新
             </Button>
+            <Button
+              size="small"
+              :loading="refreshingPlanTable"
+              @click="refreshPlanTable"
+            >
+              刷新计划表
+            </Button>
             <Button size="small" :loading="loading" @click="loadMorePlans">
               加载更多
             </Button>
             <span>{{ summary?.task_label || '服务器删除计划' }}</span>
             <Tag color="processing">
               {{ summary?.status_label || '独立计划页' }}
+            </Tag>
+            <Tag :color="refreshingPlanTable ? 'warning' : 'default'">
+              {{
+                refreshingPlanTable
+                  ? '计划表刷新中'
+                  : `最后刷新：${fmtTime(summary?.last_refresh_at)}`
+              }}
             </Tag>
           </Space>
         </template>
@@ -523,6 +658,14 @@ onMounted(loadData);
           </Descriptions.Item>
           <Descriptions.Item label="上次执行">
             {{ fmtTime(summary?.last_run_at) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="计划表最后刷新">
+            {{ fmtTime(summary?.last_refresh_at) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="刷新状态">
+            <Tag :color="refreshingPlanTable ? 'warning' : 'success'">
+              {{ refreshingPlanTable ? '刷新中' : '空闲' }}
+            </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="7天内待删未附加IP">
             <Tag
@@ -594,6 +737,8 @@ onMounted(loadData);
 
       <Card title="待执行删除IP（7天内）">
         <Table
+          class="plans-compact-table"
+          size="small"
           :columns="ipDeleteColumns"
           :data-source="pendingIpDeleteItems"
           :loading="loading"
@@ -628,6 +773,86 @@ onMounted(loadData);
                 </div>
               </div>
             </template>
+            <template v-else-if="column.key === 'resource_state_label'">
+              <Tag
+                :color="
+                  resourceStateColor(
+                    (record as DashboardUnattachedIpDeletePlan).resource_state,
+                  )
+                "
+              >
+                {{
+                  (record as DashboardUnattachedIpDeletePlan)
+                    .resource_state_label || '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'plan_state_label'">
+              <div>
+                <Tag
+                  :color="
+                    planStateColor(
+                      (record as DashboardUnattachedIpDeletePlan).plan_state,
+                    )
+                  "
+                >
+                  {{
+                    (record as DashboardUnattachedIpDeletePlan)
+                      .plan_state_label || '-'
+                  }}
+                </Tag>
+                <TypographyParagraph
+                  v-if="
+                    (record as DashboardUnattachedIpDeletePlan).blocked_reason
+                  "
+                  class="mb-0 mt-1 break-all text-xs leading-5"
+                  style="color: var(--color-text-secondary)"
+                  :ellipsis="
+                    cellEllipsis(
+                      'ip-plan-state',
+                      record as DashboardUnattachedIpDeletePlan,
+                      (record as DashboardUnattachedIpDeletePlan)
+                        .blocked_reason,
+                      2,
+                    )
+                  "
+                >
+                  {{
+                    (record as DashboardUnattachedIpDeletePlan).blocked_reason
+                  }}
+                </TypographyParagraph>
+                <Button
+                  v-if="
+                    shouldShowCellExpand(
+                      (record as DashboardUnattachedIpDeletePlan)
+                        .blocked_reason,
+                    )
+                  "
+                  type="link"
+                  size="small"
+                  class="mt-1 h-auto px-0 py-0"
+                  @click="
+                    toggleExpanded(
+                      expandedCellKey(
+                        'ip-plan-state',
+                        record as DashboardUnattachedIpDeletePlan,
+                      ),
+                    )
+                  "
+                >
+                  {{
+                    isExpanded(
+                      expandedCellKey(
+                        'ip-plan-state',
+                        record as DashboardUnattachedIpDeletePlan,
+                      ),
+                    )
+                      ? '收起'
+                      : '展开'
+                  }}
+                </Button>
+              </div>
+            </template>
             <template v-else-if="column.key === 'deletion_source_label'">
               <Tag color="blue">
                 {{
@@ -656,22 +881,54 @@ onMounted(loadData);
               }}
             </template>
             <template v-else-if="column.key === 'execution_status'">
-              <TypographyParagraph
-                class="mb-0 break-all text-xs leading-5"
-                :ellipsis="{
-                  rows: 2,
-                  tooltip: executionText(
-                    record as DashboardUnattachedIpDeletePlan,
-                  ),
-                }"
-              >
-                {{ executionText(record as DashboardUnattachedIpDeletePlan) }}
-              </TypographyParagraph>
+              <div>
+                <TypographyParagraph
+                  class="mb-0 break-all text-xs leading-5"
+                  :ellipsis="
+                    cellEllipsis(
+                      'ip-delete-exec',
+                      record as DashboardUnattachedIpDeletePlan,
+                      executionText(record as DashboardUnattachedIpDeletePlan),
+                    )
+                  "
+                >
+                  {{ executionText(record as DashboardUnattachedIpDeletePlan) }}
+                </TypographyParagraph>
+                <Button
+                  v-if="
+                    shouldShowCellExpand(
+                      executionText(record as DashboardUnattachedIpDeletePlan),
+                    )
+                  "
+                  type="link"
+                  size="small"
+                  class="mt-1 h-auto px-0 py-0"
+                  @click="
+                    toggleExpanded(
+                      expandedCellKey(
+                        'ip-delete-exec',
+                        record as DashboardUnattachedIpDeletePlan,
+                      ),
+                    )
+                  "
+                >
+                  {{
+                    isExpanded(
+                      expandedCellKey(
+                        'ip-delete-exec',
+                        record as DashboardUnattachedIpDeletePlan,
+                      ),
+                    )
+                      ? '收起'
+                      : '展开'
+                  }}
+                </Button>
+              </div>
             </template>
             <template v-else-if="column.key === 'note'">
               <div>
                 <TypographyParagraph
-                  class="mb-0 whitespace-pre-wrap break-all text-xs leading-5"
+                  class="note-cell-text mb-0 whitespace-pre-wrap break-all text-xs leading-5"
                   :ellipsis="noteEllipsis(record as any)"
                 >
                   {{ planNote(record as any) }}
@@ -680,12 +937,10 @@ onMounted(loadData);
                   v-if="shouldShowExpand(planNote(record as any), 24)"
                   type="link"
                   size="small"
-                  class="mt-1 h-auto px-0 py-0"
-                  @click="toggleExpanded(noteExpandedKey(record as any))"
+                  class="note-expand-btn mt-1 h-auto px-0 py-0"
+                  @click="openNotePreview(record as any)"
                 >
-                  {{
-                    isExpanded(noteExpandedKey(record as any)) ? '收起' : '展开'
-                  }}
+                  查看
                 </Button>
               </div>
             </template>
@@ -708,6 +963,7 @@ onMounted(loadData);
                     isRunningIp(record as DashboardUnattachedIpDeletePlan)
                   "
                   :disabled="
+                    !canRunCloudDanger ||
                     !assetId(record as DashboardUnattachedIpDeletePlan)
                   "
                   @click="
@@ -741,6 +997,8 @@ onMounted(loadData);
 
       <Card title="待执行删除服务器（含失败待重试 / 过期兜底重试）">
         <Table
+          class="plans-compact-table"
+          size="small"
           :columns="dueColumns"
           :data-source="dueItems"
           :loading="loading"
@@ -803,33 +1061,156 @@ onMounted(loadData);
                 {{ fmtRecordTime(record, column.key) }}
               </Tag>
             </template>
+            <template v-else-if="column.key === 'resource_state_label'">
+              <Tag
+                :color="
+                  resourceStateColor(
+                    (record as DashboardShutdownPlanItem).resource_state,
+                  )
+                "
+              >
+                {{
+                  (record as DashboardShutdownPlanItem).resource_state_label ||
+                  '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'plan_state_label'">
+              <div>
+                <Tag
+                  :color="
+                    planStateColor(
+                      (record as DashboardShutdownPlanItem).plan_state,
+                    )
+                  "
+                >
+                  {{
+                    (record as DashboardShutdownPlanItem).plan_state_label ||
+                    '-'
+                  }}
+                </Tag>
+                <TypographyParagraph
+                  v-if="(record as DashboardShutdownPlanItem).blocked_reason"
+                  class="mb-0 mt-1 break-all text-xs leading-5"
+                  style="color: var(--color-text-secondary)"
+                  :ellipsis="
+                    cellEllipsis(
+                      'shutdown-plan-state',
+                      record as DashboardShutdownPlanItem,
+                      (record as DashboardShutdownPlanItem).blocked_reason,
+                      2,
+                    )
+                  "
+                >
+                  {{ (record as DashboardShutdownPlanItem).blocked_reason }}
+                </TypographyParagraph>
+                <Button
+                  v-if="
+                    shouldShowCellExpand(
+                      (record as DashboardShutdownPlanItem).blocked_reason,
+                    )
+                  "
+                  type="link"
+                  size="small"
+                  class="mt-1 h-auto px-0 py-0"
+                  @click="
+                    toggleExpanded(
+                      expandedCellKey(
+                        'shutdown-plan-state',
+                        record as DashboardShutdownPlanItem,
+                      ),
+                    )
+                  "
+                >
+                  {{
+                    isExpanded(
+                      expandedCellKey(
+                        'shutdown-plan-state',
+                        record as DashboardShutdownPlanItem,
+                      ),
+                    )
+                      ? '收起'
+                      : '展开'
+                  }}
+                </Button>
+              </div>
+            </template>
             <template v-else-if="column.key === 'execution_status'">
               <div>
                 <TypographyParagraph
                   class="mb-0 break-all text-xs leading-5"
-                  :ellipsis="{
-                    rows: 2,
-                    tooltip:
+                  :ellipsis="
+                    cellEllipsis(
+                      'shutdown-exec',
+                      record as DashboardShutdownPlanItem,
                       (record as DashboardShutdownPlanItem).execution_status ||
-                      '-',
-                  }"
+                        '-',
+                    )
+                  "
                 >
                   {{
                     (record as DashboardShutdownPlanItem).execution_status ||
                     '-'
                   }}
                 </TypographyParagraph>
-                <div style="color: var(--color-text-secondary)" class="text-xs">
+                <TypographyParagraph
+                  class="mb-0 text-xs"
+                  style="color: var(--color-text-secondary)"
+                  :ellipsis="
+                    cellEllipsis(
+                      'shutdown-exec-plan',
+                      record as DashboardShutdownPlanItem,
+                      `执行计划：${(record as DashboardShutdownPlanItem).execution_plan || '-'}`,
+                      1,
+                    )
+                  "
+                >
                   执行计划：{{
                     (record as DashboardShutdownPlanItem).execution_plan || '-'
                   }}
-                </div>
+                </TypographyParagraph>
+                <Button
+                  v-if="
+                    shouldShowCellExpand(
+                      (record as DashboardShutdownPlanItem).execution_status,
+                      (record as DashboardShutdownPlanItem).execution_plan,
+                    )
+                  "
+                  type="link"
+                  size="small"
+                  class="mt-1 h-auto px-0 py-0"
+                  @click="
+                    toggleExpanded(
+                      expandedCellKey(
+                        'shutdown-exec',
+                        record as DashboardShutdownPlanItem,
+                      ),
+                    );
+                    toggleExpanded(
+                      expandedCellKey(
+                        'shutdown-exec-plan',
+                        record as DashboardShutdownPlanItem,
+                      ),
+                    );
+                  "
+                >
+                  {{
+                    isExpanded(
+                      expandedCellKey(
+                        'shutdown-exec',
+                        record as DashboardShutdownPlanItem,
+                      ),
+                    )
+                      ? '收起'
+                      : '展开'
+                  }}
+                </Button>
               </div>
             </template>
             <template v-else-if="column.key === 'note'">
               <div>
                 <TypographyParagraph
-                  class="mb-0 whitespace-pre-wrap break-all text-xs leading-5"
+                  class="note-cell-text mb-0 whitespace-pre-wrap break-all text-xs leading-5"
                   :ellipsis="noteEllipsis(record as any)"
                 >
                   {{ planNote(record as any) }}
@@ -838,12 +1219,10 @@ onMounted(loadData);
                   v-if="shouldShowExpand(planNote(record as any), 24)"
                   type="link"
                   size="small"
-                  class="mt-1 h-auto px-0 py-0"
-                  @click="toggleExpanded(noteExpandedKey(record as any))"
+                  class="note-expand-btn mt-1 h-auto px-0 py-0"
+                  @click="openNotePreview(record as any)"
                 >
-                  {{
-                    isExpanded(noteExpandedKey(record as any)) ? '收起' : '展开'
-                  }}
+                  查看
                 </Button>
               </div>
             </template>
@@ -862,6 +1241,7 @@ onMounted(loadData);
                   danger
                   :loading="isRunning(record as DashboardShutdownPlanItem)"
                   :disabled="
+                    !canRunCloudDanger ||
                     !shutdownTargetId(record as DashboardShutdownPlanItem)
                   "
                   @click="
@@ -891,6 +1271,8 @@ onMounted(loadData);
 
       <Card title="IP未来执行计划">
         <Table
+          class="plans-compact-table"
+          size="small"
           :columns="ipDeleteColumns"
           :data-source="futureIpDeleteItems"
           :loading="loading"
@@ -917,6 +1299,55 @@ onMounted(loadData);
                 >
                   {{ (record as any).username_label }}
                 </div>
+              </div>
+            </template>
+            <template v-else-if="column.key === 'resource_state_label'">
+              <Tag
+                :color="
+                  resourceStateColor(
+                    (record as DashboardUnattachedIpDeletePlan).resource_state,
+                  )
+                "
+              >
+                {{
+                  (record as DashboardUnattachedIpDeletePlan)
+                    .resource_state_label || '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'plan_state_label'">
+              <div>
+                <Tag
+                  :color="
+                    planStateColor(
+                      (record as DashboardUnattachedIpDeletePlan).plan_state,
+                    )
+                  "
+                >
+                  {{
+                    (record as DashboardUnattachedIpDeletePlan)
+                      .plan_state_label || '-'
+                  }}
+                </Tag>
+                <TypographyParagraph
+                  v-if="
+                    (record as DashboardUnattachedIpDeletePlan).blocked_reason
+                  "
+                  class="mb-0 break-all text-xs leading-5"
+                  style="color: var(--color-text-secondary)"
+                  :ellipsis="{
+                    rows: 1,
+                    tooltip: (record as DashboardUnattachedIpDeletePlan)
+                      .blocked_reason,
+                  }"
+                >
+                  {{
+                    compactCellText(
+                      (record as DashboardUnattachedIpDeletePlan)
+                        .blocked_reason,
+                    )
+                  }}
+                </TypographyParagraph>
               </div>
             </template>
             <template v-else-if="column.key === 'deletion_source_label'">
@@ -947,29 +1378,24 @@ onMounted(loadData);
               }}
             </template>
             <template v-else-if="column.key === 'execution_status'">
-              <div>
-                <TypographyParagraph
-                  class="mb-0 break-all text-xs leading-5"
-                  :ellipsis="{
-                    rows: 2,
-                    tooltip: executionText(
-                      record as DashboardUnattachedIpDeletePlan,
-                    ),
-                  }"
-                >
-                  {{ executionText(record as DashboardUnattachedIpDeletePlan) }}
-                </TypographyParagraph>
-                <div style="color: var(--color-text-secondary)" class="text-xs">
-                  执行计划：{{
-                    executionPlan(record as DashboardUnattachedIpDeletePlan)
-                  }}
-                </div>
-              </div>
+              <TypographyParagraph
+                class="mb-0 break-all text-xs leading-5"
+                :ellipsis="{
+                  rows: 1,
+                  tooltip: `${executionText(record as DashboardUnattachedIpDeletePlan)}${executionPlan(record as DashboardUnattachedIpDeletePlan) !== '-' ? ` / 执行计划：${executionPlan(record as DashboardUnattachedIpDeletePlan)}` : ''}`,
+                }"
+              >
+                {{
+                  compactCellText(
+                    `${executionText(record as DashboardUnattachedIpDeletePlan)}${executionPlan(record as DashboardUnattachedIpDeletePlan) !== '-' ? ` / 执行计划：${executionPlan(record as DashboardUnattachedIpDeletePlan)}` : ''}`,
+                  )
+                }}
+              </TypographyParagraph>
             </template>
             <template v-else-if="column.key === 'note'">
               <div>
                 <TypographyParagraph
-                  class="mb-0 whitespace-pre-wrap break-all text-xs leading-5"
+                  class="note-cell-text mb-0 whitespace-pre-wrap break-all text-xs leading-5"
                   :ellipsis="noteEllipsis(record as any)"
                 >
                   {{ planNote(record as any) }}
@@ -978,12 +1404,10 @@ onMounted(loadData);
                   v-if="shouldShowExpand(planNote(record as any), 24)"
                   type="link"
                   size="small"
-                  class="mt-1 h-auto px-0 py-0"
-                  @click="toggleExpanded(noteExpandedKey(record as any))"
+                  class="note-expand-btn mt-1 h-auto px-0 py-0"
+                  @click="openNotePreview(record as any)"
                 >
-                  {{
-                    isExpanded(noteExpandedKey(record as any)) ? '收起' : '展开'
-                  }}
+                  查看
                 </Button>
               </div>
             </template>
@@ -1021,8 +1445,10 @@ onMounted(loadData);
         />
       </Card>
 
-      <Card title="服务器未来执行计划">
+      <Card :title="`服务器未来执行计划（${futurePlanItems.length}）`">
         <Table
+          class="plans-compact-table"
+          size="small"
           :columns="dueColumns"
           :data-source="futurePlanItems"
           :loading="loading"
@@ -1066,33 +1492,156 @@ onMounted(loadData);
                 {{ fmtRecordTime(record, column.key) }}
               </Tag>
             </template>
+            <template v-else-if="column.key === 'resource_state_label'">
+              <Tag
+                :color="
+                  resourceStateColor(
+                    (record as DashboardShutdownPlanItem).resource_state,
+                  )
+                "
+              >
+                {{
+                  (record as DashboardShutdownPlanItem).resource_state_label ||
+                  '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'plan_state_label'">
+              <div>
+                <Tag
+                  :color="
+                    planStateColor(
+                      (record as DashboardShutdownPlanItem).plan_state,
+                    )
+                  "
+                >
+                  {{
+                    (record as DashboardShutdownPlanItem).plan_state_label ||
+                    '-'
+                  }}
+                </Tag>
+                <TypographyParagraph
+                  v-if="(record as DashboardShutdownPlanItem).blocked_reason"
+                  class="mb-0 mt-1 break-all text-xs leading-5"
+                  style="color: var(--color-text-secondary)"
+                  :ellipsis="
+                    cellEllipsis(
+                      'shutdown-plan-state',
+                      record as DashboardShutdownPlanItem,
+                      (record as DashboardShutdownPlanItem).blocked_reason,
+                      2,
+                    )
+                  "
+                >
+                  {{ (record as DashboardShutdownPlanItem).blocked_reason }}
+                </TypographyParagraph>
+                <Button
+                  v-if="
+                    shouldShowCellExpand(
+                      (record as DashboardShutdownPlanItem).blocked_reason,
+                    )
+                  "
+                  type="link"
+                  size="small"
+                  class="mt-1 h-auto px-0 py-0"
+                  @click="
+                    toggleExpanded(
+                      expandedCellKey(
+                        'shutdown-plan-state',
+                        record as DashboardShutdownPlanItem,
+                      ),
+                    )
+                  "
+                >
+                  {{
+                    isExpanded(
+                      expandedCellKey(
+                        'shutdown-plan-state',
+                        record as DashboardShutdownPlanItem,
+                      ),
+                    )
+                      ? '收起'
+                      : '展开'
+                  }}
+                </Button>
+              </div>
+            </template>
             <template v-else-if="column.key === 'execution_status'">
               <div>
                 <TypographyParagraph
                   class="mb-0 break-all text-xs leading-5"
-                  :ellipsis="{
-                    rows: 2,
-                    tooltip:
+                  :ellipsis="
+                    cellEllipsis(
+                      'shutdown-exec',
+                      record as DashboardShutdownPlanItem,
                       (record as DashboardShutdownPlanItem).execution_status ||
-                      '-',
-                  }"
+                        '-',
+                    )
+                  "
                 >
                   {{
                     (record as DashboardShutdownPlanItem).execution_status ||
                     '-'
                   }}
                 </TypographyParagraph>
-                <div style="color: var(--color-text-secondary)" class="text-xs">
+                <TypographyParagraph
+                  class="mb-0 text-xs"
+                  style="color: var(--color-text-secondary)"
+                  :ellipsis="
+                    cellEllipsis(
+                      'shutdown-exec-plan',
+                      record as DashboardShutdownPlanItem,
+                      `执行计划：${(record as DashboardShutdownPlanItem).execution_plan || '-'}`,
+                      1,
+                    )
+                  "
+                >
                   执行计划：{{
                     (record as DashboardShutdownPlanItem).execution_plan || '-'
                   }}
-                </div>
+                </TypographyParagraph>
+                <Button
+                  v-if="
+                    shouldShowCellExpand(
+                      (record as DashboardShutdownPlanItem).execution_status,
+                      (record as DashboardShutdownPlanItem).execution_plan,
+                    )
+                  "
+                  type="link"
+                  size="small"
+                  class="mt-1 h-auto px-0 py-0"
+                  @click="
+                    toggleExpanded(
+                      expandedCellKey(
+                        'shutdown-exec',
+                        record as DashboardShutdownPlanItem,
+                      ),
+                    );
+                    toggleExpanded(
+                      expandedCellKey(
+                        'shutdown-exec-plan',
+                        record as DashboardShutdownPlanItem,
+                      ),
+                    );
+                  "
+                >
+                  {{
+                    isExpanded(
+                      expandedCellKey(
+                        'shutdown-exec',
+                        record as DashboardShutdownPlanItem,
+                      ),
+                    )
+                      ? '收起'
+                      : '展开'
+                  }}
+                </Button>
               </div>
             </template>
             <template v-else-if="column.key === 'note'">
               <div>
                 <TypographyParagraph
-                  class="mb-0 whitespace-pre-wrap break-all text-xs leading-5"
+                  class="note-cell-text mb-0 whitespace-pre-wrap break-all text-xs leading-5"
                   :ellipsis="noteEllipsis(record as any)"
                 >
                   {{ planNote(record as any) }}
@@ -1101,12 +1650,10 @@ onMounted(loadData);
                   v-if="shouldShowExpand(planNote(record as any), 24)"
                   type="link"
                   size="small"
-                  class="mt-1 h-auto px-0 py-0"
-                  @click="toggleExpanded(noteExpandedKey(record as any))"
+                  class="note-expand-btn mt-1 h-auto px-0 py-0"
+                  @click="openNotePreview(record as any)"
                 >
-                  {{
-                    isExpanded(noteExpandedKey(record as any)) ? '收起' : '展开'
-                  }}
+                  查看
                 </Button>
               </div>
             </template>
@@ -1136,6 +1683,8 @@ onMounted(loadData);
 
       <Card title="服务器删除历史记录">
         <Table
+          class="plans-compact-table"
+          size="small"
           :columns="historyColumns"
           :data-source="historyItems"
           :loading="loading"
@@ -1219,8 +1768,10 @@ onMounted(loadData);
         </Table>
       </Card>
 
-      <Card title="IP删除历史记录">
+      <Card :title="`IP删除历史记录（${ipDeleteHistoryItems.length}）`">
         <Table
+          class="plans-compact-table"
+          size="small"
           :columns="ipDeleteColumns"
           :data-source="ipDeleteHistoryItems"
           :loading="loading"
@@ -1255,6 +1806,55 @@ onMounted(loadData);
                 </div>
               </div>
             </template>
+            <template v-else-if="column.key === 'resource_state_label'">
+              <Tag
+                :color="
+                  resourceStateColor(
+                    (record as DashboardUnattachedIpDeletePlan).resource_state,
+                  )
+                "
+              >
+                {{
+                  (record as DashboardUnattachedIpDeletePlan)
+                    .resource_state_label || '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'plan_state_label'">
+              <div>
+                <Tag
+                  :color="
+                    planStateColor(
+                      (record as DashboardUnattachedIpDeletePlan).plan_state,
+                    )
+                  "
+                >
+                  {{
+                    (record as DashboardUnattachedIpDeletePlan)
+                      .plan_state_label || '-'
+                  }}
+                </Tag>
+                <TypographyParagraph
+                  v-if="
+                    (record as DashboardUnattachedIpDeletePlan).blocked_reason
+                  "
+                  class="mb-0 break-all text-xs leading-5"
+                  style="color: var(--color-text-secondary)"
+                  :ellipsis="{
+                    rows: 1,
+                    tooltip: (record as DashboardUnattachedIpDeletePlan)
+                      .blocked_reason,
+                  }"
+                >
+                  {{
+                    compactCellText(
+                      (record as DashboardUnattachedIpDeletePlan)
+                        .blocked_reason,
+                    )
+                  }}
+                </TypographyParagraph>
+              </div>
+            </template>
             <template v-else-if="column.key === 'deletion_source_label'">
               <Tag color="blue">
                 {{
@@ -1286,48 +1886,96 @@ onMounted(loadData);
               <div>
                 <TypographyParagraph
                   :ellipsis="
-                    isExpanded(
-                      `ip-delete-${(record as DashboardUnattachedIpDeletePlan).id}`,
+                    cellEllipsis(
+                      'ip-history-exec',
+                      record as DashboardUnattachedIpDeletePlan,
+                      executionText(record as DashboardUnattachedIpDeletePlan),
                     )
-                      ? false
-                      : {
-                          rows: 2,
-                          tooltip: executionText(
-                            record as DashboardUnattachedIpDeletePlan,
-                          ),
-                        }
                   "
                   class="mb-0 break-all text-xs leading-5"
                 >
                   {{ executionText(record as DashboardUnattachedIpDeletePlan) }}
                 </TypographyParagraph>
-                <div style="color: var(--color-text-secondary)" class="text-xs">
+                <TypographyParagraph
+                  v-if="
+                    executionPlan(record as DashboardUnattachedIpDeletePlan) !==
+                    '-'
+                  "
+                  class="mb-0 text-xs"
+                  style="color: var(--color-text-secondary)"
+                  :ellipsis="
+                    cellEllipsis(
+                      'ip-history-exec-plan',
+                      record as DashboardUnattachedIpDeletePlan,
+                      `执行计划：${executionPlan(record as DashboardUnattachedIpDeletePlan)}`,
+                      1,
+                    )
+                  "
+                >
                   执行计划：{{
                     executionPlan(record as DashboardUnattachedIpDeletePlan)
                   }}
-                </div>
+                </TypographyParagraph>
                 <Button
                   v-if="
-                    shouldShowExpand(
+                    shouldShowCellExpand(
                       executionText(record as DashboardUnattachedIpDeletePlan),
+                      executionPlan(
+                        record as DashboardUnattachedIpDeletePlan,
+                      ) === '-'
+                        ? ''
+                        : executionPlan(
+                            record as DashboardUnattachedIpDeletePlan,
+                          ),
                     )
                   "
                   type="link"
                   size="small"
-                  class="mt-1 h-auto px-0 py-0"
+                  class="h-auto px-0 py-0"
                   @click="
                     toggleExpanded(
-                      `ip-delete-${(record as DashboardUnattachedIpDeletePlan).id}`,
-                    )
+                      expandedCellKey(
+                        'ip-history-exec',
+                        record as DashboardUnattachedIpDeletePlan,
+                      ),
+                    );
+                    toggleExpanded(
+                      expandedCellKey(
+                        'ip-history-exec-plan',
+                        record as DashboardUnattachedIpDeletePlan,
+                      ),
+                    );
                   "
                 >
                   {{
                     isExpanded(
-                      `ip-delete-${(record as DashboardUnattachedIpDeletePlan).id}`,
+                      expandedCellKey(
+                        'ip-history-exec',
+                        record as DashboardUnattachedIpDeletePlan,
+                      ),
                     )
                       ? '收起'
                       : '展开'
                   }}
+                </Button>
+              </div>
+            </template>
+            <template v-else-if="column.key === 'note'">
+              <div>
+                <TypographyParagraph
+                  class="note-cell-text mb-0 whitespace-pre-wrap break-all text-xs leading-5"
+                  :ellipsis="noteEllipsis(record as any)"
+                >
+                  {{ planNote(record as any) }}
+                </TypographyParagraph>
+                <Button
+                  v-if="shouldShowExpand(planNote(record as any), 24)"
+                  type="link"
+                  size="small"
+                  class="note-expand-btn mt-1 h-auto px-0 py-0"
+                  @click="openNotePreview(record as any)"
+                >
+                  查看
                 </Button>
               </div>
             </template>
@@ -1391,6 +2039,18 @@ onMounted(loadData);
       </Table>
     </Modal>
     <Modal
+      v-model:open="notePreviewOpen"
+      :title="notePreviewTitle"
+      width="720px"
+      :footer="null"
+    >
+      <TypographyParagraph
+        class="mb-0 whitespace-pre-wrap break-all text-sm leading-6"
+      >
+        {{ notePreviewValue || '-' }}
+      </TypographyParagraph>
+    </Modal>
+    <Modal
       v-model:open="noteModalOpen"
       title="编辑备注"
       :confirm-loading="noteSaving"
@@ -1404,3 +2064,54 @@ onMounted(loadData);
     </Modal>
   </Page>
 </template>
+
+<style scoped>
+.plans-page :deep(.plans-compact-table .ant-table-thead > tr > th) {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.plans-page :deep(.plans-compact-table .ant-table-tbody > tr > td) {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  vertical-align: middle;
+}
+
+.plans-page :deep(.plans-compact-table .ant-table-cell > div) {
+  min-height: 20px;
+}
+
+.plans-page :deep(.plans-compact-table .ant-table-cell > div > div.text-xs) {
+  display: none;
+}
+
+.plans-page :deep(.plans-compact-table .ant-typography) {
+  max-width: 100%;
+  margin-bottom: 0 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap !important;
+}
+
+.plans-page :deep(.plans-compact-table .ant-typography + .ant-typography) {
+  display: none;
+}
+
+.plans-page :deep(.plans-compact-table .mt-1.h-auto.px-0.py-0),
+.plans-page :deep(.plans-compact-table .h-auto.px-0.py-0) {
+  display: none;
+}
+
+.plans-page :deep(.plans-compact-table .note-cell-text) {
+  white-space: pre-wrap !important;
+}
+
+.plans-page :deep(.plans-compact-table .note-expand-btn) {
+  display: inline-flex !important;
+  margin-top: 2px;
+}
+
+.plans-page :deep(.plans-compact-table .ant-btn-link.ant-btn-sm) {
+  min-height: 20px;
+}
+</style>
