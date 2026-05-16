@@ -2,7 +2,7 @@ import type { UserInfo } from '@vben/types';
 
 import { computed } from 'vue';
 
-import { useUserStore } from '@vben/stores';
+import { useAccessStore, useUserStore } from '@vben/stores';
 
 import { message } from 'ant-design-vue';
 
@@ -21,6 +21,7 @@ function flagEnabled(value: unknown) {
 }
 
 export function useDashboardPermissions() {
+  const accessStore = useAccessStore();
   const userStore = useUserStore();
 
   const userInfo = computed(
@@ -31,11 +32,13 @@ export function useDashboardPermissions() {
     ...(userStore.userRoles || []),
   ]);
   const permissions = computed(() => userInfo.value?.permissions || []);
+  const accessCodes = computed(() => accessStore.accessCodes || []);
   const isSuperuser = computed(
     () =>
       flagEnabled(userInfo.value?.is_superuser) ||
       roles.value.includes('superuser') ||
-      permissions.value.includes('superuser'),
+      permissions.value.includes('superuser') ||
+      accessCodes.value.includes('superuser'),
   );
   const canRunDangerousCloudAction = computed(() => isSuperuser.value);
   const canWriteFinance = computed(() => isSuperuser.value);

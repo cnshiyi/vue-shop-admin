@@ -437,42 +437,6 @@ function assetPriceLabel(record: DashboardCloudAssetItem) {
   return `${record.price} ${record.currency || 'USDT'}`;
 }
 
-function riskTagColor(record: DashboardCloudAssetItem) {
-  switch (record.risk_status) {
-    case 'abnormal': {
-      return 'error';
-    }
-    case 'auto_renew_off': {
-      return 'orange';
-    }
-    case 'deleted': {
-      return 'default';
-    }
-    case 'due_soon': {
-      return 'gold';
-    }
-    case 'expired': {
-      return 'error';
-    }
-    case 'normal': {
-      return 'success';
-    }
-    case 'shutdown_disabled': {
-      return 'warning';
-    }
-    case 'unattached_ip': {
-      return 'warning';
-    }
-    case 'unbound_group':
-    case 'unbound_user': {
-      return 'default';
-    }
-    default: {
-      return 'default';
-    }
-  }
-}
-
 function riskCountLabel(status: string) {
   return Number(riskCounts.value[status] || 0);
 }
@@ -531,7 +495,6 @@ function exportSelectedAssetsCsv() {
     'username',
     'asset_name',
     'public_ip',
-    'risk',
     'expires_at',
     'link',
   ];
@@ -544,7 +507,6 @@ function exportSelectedAssetsCsv() {
         JSON.stringify(item.username_label || ''),
         JSON.stringify(item.asset_name || ''),
         JSON.stringify(item.public_ip || ''),
-        JSON.stringify(item.risk_label || ''),
         JSON.stringify(item.actual_expires_at || ''),
         JSON.stringify(buildProxyLinkText(item)),
       ].join(','),
@@ -652,12 +614,6 @@ const columns = [
     key: 'mtproxy_link',
     width: 320,
   },
-  {
-    title: '风险',
-    dataIndex: 'risk_label',
-    key: 'risk_label',
-    width: 160,
-  },
   { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
   {
     title: '剩余天数',
@@ -728,7 +684,6 @@ const assetTableColumns = computed<TableColumnsType<DashboardCloudAssetItem>>(
           'asset_name',
           'mtproxy_link',
           'public_ip',
-          'risk_label',
           'status_countdown',
         ].includes(column.key);
       }
@@ -740,7 +695,6 @@ const assetTableColumns = computed<TableColumnsType<DashboardCloudAssetItem>>(
           'auto_renew_enabled',
           'price',
           'public_ip',
-          'risk_label',
           'user_display_name',
           'username_label',
         ].includes(column.key);
@@ -1872,23 +1826,6 @@ onBeforeUnmount(() => {
                 </div>
                 <span v-else>-</span>
               </template>
-              <template v-else-if="column.key === 'risk_label'">
-                <Space direction="vertical" :size="2">
-                  <Tag :color="riskTagColor(asDashboardCloudAssetItem(record))">
-                    {{ record.risk_label || '正常' }}
-                  </Tag>
-                  <TypographyParagraph
-                    v-if="record.risk_reasons?.length"
-                    :ellipsis="{
-                      rows: 1,
-                      tooltip: record.risk_reasons.join('；'),
-                    }"
-                    class="mb-0 break-all text-xs leading-5"
-                  >
-                    {{ record.risk_reasons.join('；') }}
-                  </TypographyParagraph>
-                </Space>
-              </template>
               <template v-else-if="column.key === 'status'">
                 <Tag
                   :color="
@@ -2177,20 +2114,6 @@ onBeforeUnmount(() => {
             </div>
             <span v-else>-</span>
           </template>
-          <template v-else-if="column.key === 'risk_label'">
-            <Space direction="vertical" :size="2">
-              <Tag :color="riskTagColor(record as DashboardCloudAssetItem)">
-                {{ record.risk_label || '正常' }}
-              </Tag>
-              <TypographyParagraph
-                v-if="record.risk_reasons?.length"
-                :ellipsis="{ rows: 1, tooltip: record.risk_reasons.join('；') }"
-                class="mb-0 break-all text-xs leading-5"
-              >
-                {{ record.risk_reasons.join('；') }}
-              </TypographyParagraph>
-            </Space>
-          </template>
           <template v-else-if="column.key === 'status'">
             <Tag
               :color="
@@ -2280,9 +2203,6 @@ onBeforeUnmount(() => {
       <Empty v-else-if="!detailRow" description="暂无详情" />
       <template v-else>
         <Space class="mb-3" wrap>
-          <Tag :color="riskTagColor(detailRow)">
-            {{ detailRow.risk_label || '正常' }}
-          </Tag>
           <Button size="small" @click="copyProxyLinks(detailRow)">
             复制全部链接
           </Button>
@@ -2344,15 +2264,6 @@ onBeforeUnmount(() => {
           >
             {{ buildProxyLinkText(detailRow) }}
           </TypographyParagraph>
-        </div>
-        <div v-if="detailRow.risk_reasons?.length" class="mt-3">
-          <Tag
-            v-for="reason in detailRow.risk_reasons"
-            :key="reason"
-            color="warning"
-          >
-            {{ reason }}
-          </Tag>
         </div>
         <div v-if="detailRow.note" class="mt-3">
           <TypographyParagraph
