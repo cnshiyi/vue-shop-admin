@@ -16,6 +16,7 @@ import {
   sendDashboardTelegramMessageApi,
   updateDashboardTelegramChatArchiveApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const loading = ref(false);
 const sending = ref(false);
@@ -26,6 +27,8 @@ const chats = ref<DashboardTelegramChatItem[]>([]);
 const messages = ref<DashboardTelegramMessageItem[]>([]);
 const selectedChat = ref<DashboardTelegramChatItem | null>(null);
 const messageScrollRef = ref<HTMLElement | null>(null);
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 
 const orderedMessages = computed(() => [...messages.value].toReversed());
 
@@ -71,6 +74,7 @@ async function selectChat(chat: DashboardTelegramChatItem) {
 }
 
 async function sendMessage() {
+  if (!requireCloudDangerPermission('发送 Telegram 消息')) return;
   const text = draftMessage.value.trim();
   if (!selectedChat.value || !text) return;
   const chat = selectedChat.value;
@@ -99,6 +103,7 @@ async function toggleArchive(
   chat: DashboardTelegramChatItem,
   archived: boolean,
 ) {
+  if (!requireCloudDangerPermission(archived ? '归档 Telegram 会话' : '取消归档 Telegram 会话')) return;
   try {
     await updateDashboardTelegramChatArchiveApi({
       archived,
@@ -183,6 +188,7 @@ onMounted(() => loadData());
                 v-if="chat.is_group"
                 size="small"
                 type="link"
+                :disabled="!canRunCloudDanger"
                 @click.stop="toggleArchive(chat, !chat.archived)"
               >
                 {{ chat.archived ? '取消' : '归档' }}
@@ -254,13 +260,13 @@ onMounted(() => loadData());
           <Input.TextArea
             v-model:value="draftMessage"
             :auto-size="{ minRows: 2, maxRows: 5 }"
-            :disabled="!selectedChat"
+            :disabled="!selectedChat || !canRunCloudDanger"
             placeholder="输入消息，Enter 发送，Shift+Enter 换行"
             @press-enter.exact.prevent="sendMessage"
           />
           <Button
             type="primary"
-            :disabled="!selectedChat || !draftMessage.trim()"
+            :disabled="!selectedChat || !draftMessage.trim() || !canRunCloudDanger"
             :loading="sending"
             @click="sendMessage"
           >

@@ -1,10 +1,18 @@
+import type { UserInfo } from '@vben/types';
+
 import { computed } from 'vue';
 
 import { useUserStore } from '@vben/stores';
 
 import { message } from 'ant-design-vue';
 
-function userInfoFlag(value: unknown) {
+type DashboardUserInfo = UserInfo & {
+  is_superuser?: boolean | string;
+  permissions?: string[];
+  roles?: string[];
+};
+
+function flagEnabled(value: unknown) {
   if (value === true) return true;
   if (typeof value === 'string') {
     return ['1', 'on', 'true', 'yes'].includes(value.toLowerCase());
@@ -15,30 +23,32 @@ function userInfoFlag(value: unknown) {
 export function useDashboardPermissions() {
   const userStore = useUserStore();
 
-  const canRunCloudDanger = computed(() => {
-    const info = (userStore.userInfo || {}) as Record<string, any>;
-    const roles = new Set(userStore.userRoles || []);
-    const permissions = new Set(
-      Array.isArray(info.permissions) ? info.permissions : [],
-    );
-    return (
-      roles.has('superuser') ||
-      userInfoFlag(info.is_superuser) ||
-      permissions.has('superuser') ||
-      permissions.has('cloud:danger')
-    );
-  });
+  const userInfo = computed(() => userStore.userInfo as DashboardUserInfo | null);
+  const roles = computed(() => [
+    ...(userInfo.value?.roles || []),
+    ...(userStore.userRoles || []),
+  ]);
+  const permissions = computed(() => userInfo.value?.permissions || []);
+  const isSuperuser = computed(
+    () =>
+      flagEnabled(userInfo.value?.is_superuser) ||
+      roles.value.includes('superuser') ||
+      permissions.value.includes('superuser'),
+  );
+  const canRunDangerousCloudAction = computed(() => isSuperuser.value);
+  const canWriteFinance = computed(() => isSuperuser.value);
 
-  function requireCloudDangerPermission(action = '该操作') {
-    if (canRunCloudDanger.value) {
-      return true;
-    }
-    message.warning(`${action}需要超级管理员权限`);
+  function requireCloudDangerPermission(action = '执行高危云操作') {
+    if (canRunDangerousCloudAction.value) return true;
+    message.error(`${action}需要超级管理员权限`);
     return false;
   }
 
   return {
-    canRunCloudDanger,
+    canRunCloudDanger: canRunDangerousCloudAction,
+    canRunDangerousCloudAction,
+    canWriteFinance,
+    isSuperuser,
     requireCloudDangerPermission,
   };
 }

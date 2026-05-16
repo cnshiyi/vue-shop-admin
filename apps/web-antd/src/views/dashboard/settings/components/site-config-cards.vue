@@ -15,6 +15,7 @@ import {
 
 import { getDashboardSiteConfigGroupsApi, getDashboardSiteConfigsApi, initDashboardSiteConfigsApi, updateDashboardSiteConfigApi } from '#/api/admin';
 import type { DashboardSiteConfigGroup, DashboardSiteConfigGroupItem, DashboardSiteConfigItem } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const props = defineProps<{
   description?: string;
@@ -29,6 +30,8 @@ const configGroups = ref<DashboardSiteConfigGroup[]>([]);
 const savingMap = reactive<Record<string, boolean>>({});
 const draftMap = reactive<Record<string, string>>({});
 const sensitiveMap = reactive<Record<string, boolean>>({});
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 
 const activeGroup = computed(
   () =>
@@ -63,6 +66,7 @@ function currentConfig(item: DashboardSiteConfigGroupItem) {
 }
 
 async function initConfigs() {
+  if (!requireCloudDangerPermission('初始化配置')) return;
   initLoading.value = true;
   try {
     await initDashboardSiteConfigsApi({ scope: 'configs' });
@@ -76,6 +80,7 @@ async function initConfigs() {
 }
 
 async function saveItem(item: DashboardSiteConfigGroupItem) {
+  if (!requireCloudDangerPermission('保存系统配置')) return;
   const current = currentConfig(item);
   if (!current?.id) {
     message.error('该配置尚未初始化，请先点击顶部“初始化配置”');
@@ -103,7 +108,11 @@ onMounted(loadData);
 <template>
   <Page :description="description || ''" :title="title">
     <Space class="mb-3">
-      <Button type="primary" :loading="initLoading" @click="initConfigs"
+      <Button
+        type="primary"
+        :disabled="!canRunCloudDanger"
+        :loading="initLoading"
+        @click="initConfigs"
         >初始化配置</Button
       >
       <Button :loading="loading" @click="loadData">刷新</Button>
@@ -133,10 +142,11 @@ onMounted(loadData);
         <div class="mt-3 flex items-center justify-between">
           <Space>
             <span class="text-sm text-gray-500">敏感配置</span>
-            <Switch v-model:checked="sensitiveMap[item.key]" />
+            <Switch v-model:checked="sensitiveMap[item.key]" :disabled="!canRunCloudDanger" />
           </Space>
           <Button
             type="primary"
+            :disabled="!canRunCloudDanger"
             :loading="savingMap[item.key]"
             @click="saveItem(item)"
             >保存</Button

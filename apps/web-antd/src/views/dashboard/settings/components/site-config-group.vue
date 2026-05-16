@@ -32,6 +32,7 @@ import {
   testDashboardDailyExpirySummaryApi,
   updateDashboardSiteConfigApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const props = defineProps<{
   description?: string;
@@ -77,6 +78,12 @@ const passwordForm = reactive({
   new_password: '',
   confirm_password: '',
 });
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
+
+function requireSettingsWrite(action: string) {
+  return requireCloudDangerPermission(action);
+}
 
 function syncDrafts() {
   for (const item of items.value) {
@@ -115,6 +122,7 @@ function currentConfig(item: DashboardSiteConfigGroupItem) {
 }
 
 async function initConfigs() {
+  if (!requireSettingsWrite('初始化配置')) return;
   initLoading.value = true;
   try {
     await initDashboardSiteConfigsApi({ scope: 'configs' });
@@ -136,6 +144,7 @@ function activateSensitiveEdit(item: DashboardSiteConfigGroupItem) {
 }
 
 async function generateTotpQrCode() {
+  if (!requireSettingsWrite('绑定后台二级验证')) return;
   if (totpItem.value?.value_preview && !totpOldToken.value.trim()) {
     message.error(
       '更换 TOTP 密钥前，请先输入当前 Google Authenticator 的 6 位动态码',
@@ -184,6 +193,7 @@ async function savePassword() {
 }
 
 async function bindTotp() {
+  if (!requireSettingsWrite('保存后台二级验证')) return;
   if (!totpToken.value.trim()) {
     message.error('请输入 Google Authenticator 中显示的 6 位动态码');
     return;
@@ -248,11 +258,13 @@ async function saveSwitchItem(
   item: DashboardSiteConfigGroupItem,
   checked: boolean,
 ) {
+  if (!requireSettingsWrite('保存系统开关')) return;
   draftMap[item.key] = checked ? '1' : '0';
   await saveItem(item);
 }
 
 async function testDailyExpirySummary() {
+  if (!requireSettingsWrite('测试每日到期汇总通知')) return;
   testSendingMap.cloud_daily_expiry_summary_enabled = true;
   try {
     const result = await testDashboardDailyExpirySummaryApi();
@@ -267,6 +279,7 @@ async function testDailyExpirySummary() {
 }
 
 async function saveItem(item: DashboardSiteConfigGroupItem) {
+  if (!requireSettingsWrite('保存系统配置')) return;
   const current = currentConfig(item);
   if (!current?.id) {
     message.error('该配置尚未初始化，请先点击顶部“初始化配置”');
@@ -304,7 +317,12 @@ onMounted(loadData);
 <template>
   <Page :description="description || ''" :title="title">
     <Space class="mb-4">
-      <Button type="primary" :loading="initLoading" @click="initConfigs">
+      <Button
+        type="primary"
+        :disabled="!canRunCloudDanger"
+        :loading="initLoading"
+        @click="initConfigs"
+      >
         初始化配置
       </Button>
       <Button :loading="loading" @click="loadData">刷新</Button>
@@ -380,6 +398,7 @@ onMounted(loadData);
         />
         <Button
           type="primary"
+          :disabled="!canRunCloudDanger"
           :loading="totpGenerating"
           @click="generateTotpQrCode"
         >
@@ -402,7 +421,12 @@ onMounted(loadData);
             :maxlength="6"
             placeholder="输入新 Google Authenticator 6 位动态码"
           />
-          <Button type="primary" :loading="totpBinding" @click="bindTotp">
+          <Button
+            type="primary"
+            :disabled="!canRunCloudDanger"
+            :loading="totpBinding"
+            @click="bindTotp"
+          >
             校验新码并保存
           </Button>
         </div>
@@ -418,6 +442,7 @@ onMounted(loadData);
           <Space>
             <Button
               type="primary"
+              :disabled="!canRunCloudDanger"
               :loading="savingMap[item.key]"
               @click="saveItem(item)"
             >
@@ -435,6 +460,7 @@ onMounted(loadData);
           <Switch
             :checked="switchChecked(item)"
             checked-children="开启"
+            :disabled="!canRunCloudDanger"
             un-checked-children="关闭"
             :loading="savingMap[item.key]"
             @change="(checked) => saveSwitchItem(item, Boolean(checked))"
@@ -444,7 +470,7 @@ onMounted(loadData);
           </span>
           <Button
             v-if="item.key === 'cloud_daily_expiry_summary_enabled'"
-            :disabled="!switchChecked(item)"
+            :disabled="!canRunCloudDanger || !switchChecked(item)"
             :loading="testSendingMap[item.key]"
             @click="testDailyExpirySummary"
           >

@@ -32,6 +32,7 @@ import {
   getDashboardTelegramGroupsApi,
   updateDashboardTelegramGroupApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -42,6 +43,8 @@ const groups = ref<DashboardTelegramGroupFilterItem[]>([]);
 const showArchived = ref(false);
 const details = ref<Record<number, DashboardTelegramGroupDetail>>({});
 const detailLoading = ref<Record<number, boolean>>({});
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 
 const form = reactive<DashboardTelegramGroupFilterPayload>({
   archived: false,
@@ -126,11 +129,13 @@ async function loadData() {
 }
 
 function openCreate() {
+  if (!requireCloudDangerPermission('保存 Telegram 群组')) return;
   resetForm();
   modalOpen.value = true;
 }
 
 function openEdit(item: DashboardTelegramGroupFilterItem) {
+  if (!requireCloudDangerPermission('编辑 Telegram 群组')) return;
   current.value = item;
   form.archived = item.archived;
   form.chat_id = item.chat_id;
@@ -143,6 +148,7 @@ function openEdit(item: DashboardTelegramGroupFilterItem) {
 }
 
 async function submitForm() {
+  if (!requireCloudDangerPermission(current.value ? '保存 Telegram 群组' : '新增 Telegram 群组')) return;
   if (!form.chat_id || !form.title) {
     message.warning('请填写群组 Chat ID 和群组名称');
     return;
@@ -169,6 +175,7 @@ async function toggleEnabled(
   item: DashboardTelegramGroupFilterItem,
   enabled: boolean,
 ) {
+  if (!requireCloudDangerPermission('修改群组转发开关')) return;
   const previous = item.enabled;
   item.enabled = enabled;
   try {
@@ -185,6 +192,7 @@ async function togglePushEnabled(
   item: DashboardTelegramGroupFilterItem,
   pushEnabled: boolean,
 ) {
+  if (!requireCloudDangerPermission('修改群组推送开关')) return;
   const previous = item.push_enabled;
   item.push_enabled = pushEnabled;
   try {
@@ -223,6 +231,7 @@ async function toggleCollapsed(
   item: DashboardTelegramGroupFilterItem,
   collapsed: boolean,
 ) {
+  if (!requireCloudDangerPermission('修改群组绑定页显示')) return;
   const previous = item.collapsed;
   item.collapsed = collapsed;
   try {
@@ -241,6 +250,7 @@ async function toggleArchived(
   item: DashboardTelegramGroupFilterItem,
   archived: boolean,
 ) {
+  if (!requireCloudDangerPermission('修改群组归档状态')) return;
   const previous = item.archived;
   item.archived = archived;
   try {
@@ -282,7 +292,7 @@ onMounted(() => loadData());
             @search="loadData"
           />
           <Button @click="loadData">刷新</Button>
-          <Button type="primary" @click="openCreate">保存群组</Button>
+          <Button type="primary" :disabled="!canRunCloudDanger" @click="openCreate">保存群组</Button>
         </Space>
       </template>
 
@@ -427,6 +437,7 @@ onMounted(() => loadData());
             <Switch
               :checked="(record as DashboardTelegramGroupFilterItem).enabled"
               checked-children="开启"
+              :disabled="!canRunCloudDanger"
               un-checked-children="关闭"
               @change="
                 (checked) =>
@@ -443,6 +454,7 @@ onMounted(() => loadData());
                 (record as DashboardTelegramGroupFilterItem).push_enabled
               "
               checked-children="开启"
+              :disabled="!canRunCloudDanger"
               un-checked-children="关闭"
               @change="
                 (checked) =>
@@ -457,6 +469,7 @@ onMounted(() => loadData());
             <Switch
               :checked="!(record as DashboardTelegramGroupFilterItem).collapsed"
               checked-children="显示"
+              :disabled="!canRunCloudDanger"
               un-checked-children="隐藏"
               @change="
                 (checked) =>
@@ -471,6 +484,7 @@ onMounted(() => loadData());
             <Switch
               :checked="(record as DashboardTelegramGroupFilterItem).archived"
               checked-children="归档"
+              :disabled="!canRunCloudDanger"
               un-checked-children="正常"
               @change="
                 (checked) =>
@@ -491,6 +505,7 @@ onMounted(() => loadData());
           <template v-else-if="column.key === 'action'">
             <Button
               type="link"
+              :disabled="!canRunCloudDanger"
               @click="openEdit(record as DashboardTelegramGroupFilterItem)"
             >
               编辑
@@ -503,6 +518,7 @@ onMounted(() => loadData());
     <Modal
       v-model:open="modalOpen"
       :confirm-loading="saving"
+      :ok-button-props="{ disabled: !canRunCloudDanger }"
       :title="current ? '编辑群组' : '保存群组'"
       @ok="submitForm"
     >
@@ -527,6 +543,7 @@ onMounted(() => loadData());
           <Switch
             v-model:checked="form.enabled"
             checked-children="开启"
+            :disabled="!canRunCloudDanger"
             un-checked-children="关闭"
           />
         </Form.Item>
@@ -534,6 +551,7 @@ onMounted(() => loadData());
           <Switch
             v-model:checked="form.push_enabled"
             checked-children="开启"
+            :disabled="!canRunCloudDanger"
             un-checked-children="关闭"
           />
         </Form.Item>
@@ -541,6 +559,7 @@ onMounted(() => loadData());
           <Switch
             :checked="!form.collapsed"
             checked-children="显示"
+            :disabled="!canRunCloudDanger"
             un-checked-children="隐藏"
             @change="(checked) => (form.collapsed = !Boolean(checked))"
           />
@@ -549,6 +568,7 @@ onMounted(() => loadData());
           <Switch
             v-model:checked="form.archived"
             checked-children="归档"
+            :disabled="!canRunCloudDanger"
             un-checked-children="正常"
           />
         </Form.Item>

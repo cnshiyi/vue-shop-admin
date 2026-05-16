@@ -35,8 +35,11 @@ import {
   updateDashboardNoticePlanTextApi,
   updateDashboardNoticeSwitchesApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const router = useRouter();
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 const loading = ref(false);
 const refreshingNoticePlan = ref(false);
 const detail = ref<DashboardNoticePlanDetail | null>(null);
@@ -313,6 +316,7 @@ function noticeTextStyle(record: {
 }
 
 function openTextEditor(record: DashboardNoticeUserSummaryItem) {
+  if (!requireCloudDangerPermission('编辑通知文案')) return;
   textTarget.value = record;
   textValue.value = record.notice_text_preview || '';
   textModalOpen.value = true;
@@ -320,6 +324,7 @@ function openTextEditor(record: DashboardNoticeUserSummaryItem) {
 
 async function saveNoticeText() {
   if (!textTarget.value) return;
+  if (!requireCloudDangerPermission('保存通知文案')) return;
   textSaving.value = true;
   try {
     await updateDashboardNoticePlanTextApi({
@@ -339,6 +344,10 @@ async function saveNoticeText() {
 }
 
 async function updateNoticeSwitch(key: string, enabled: boolean) {
+  if (!requireCloudDangerPermission('修改通知开关')) {
+    await loadData();
+    return;
+  }
   const switches = detail.value?.notice_switches || [];
   switchSaving.value = { ...switchSaving.value, [key]: true };
   try {
@@ -361,6 +370,7 @@ async function updateNoticeSwitch(key: string, enabled: boolean) {
 }
 
 async function deleteHistory(record: DashboardNoticePlanHistoryItem) {
+  if (!requireCloudDangerPermission('删除通知历史')) return;
   const id = String(record.id || '');
   if (!id || deletingHistoryIds.value[id]) return;
   deletingHistoryIds.value = { ...deletingHistoryIds.value, [id]: true };
@@ -490,6 +500,7 @@ onMounted(loadData);
               <Switch
                 size="small"
                 :checked="item.enabled"
+                :disabled="!canRunCloudDanger"
                 :loading="switchSaving[item.key]"
                 @change="
                   (checked) => updateNoticeSwitch(item.key, checked as boolean)
@@ -609,6 +620,7 @@ onMounted(loadData);
                   <Button
                     type="link"
                     size="small"
+                    :disabled="!canRunCloudDanger"
                     class="h-auto px-0 py-0"
                     @click="
                       toggleNoticeText(record as DashboardNoticeUserSummaryItem)
@@ -625,6 +637,7 @@ onMounted(loadData);
                   <Button
                     type="link"
                     size="small"
+                    :disabled="!canRunCloudDanger"
                     class="h-auto px-0 py-0"
                     @click="
                       openTextEditor(record as DashboardNoticeUserSummaryItem)
@@ -993,6 +1006,7 @@ onMounted(loadData);
                   danger
                   type="link"
                   size="small"
+                  :disabled="!canRunCloudDanger"
                   :loading="
                     deletingHistoryIds[
                       String((record as DashboardNoticePlanHistoryItem).id)
@@ -1014,6 +1028,7 @@ onMounted(loadData);
       v-model:open="textModalOpen"
       title="人工干预通知文案"
       :confirm-loading="textSaving"
+      :ok-button-props="{ disabled: !canRunCloudDanger }"
       width="760px"
       ok-text="保存"
       @ok="saveNoticeText"

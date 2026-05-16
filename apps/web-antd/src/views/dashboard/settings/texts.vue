@@ -26,6 +26,7 @@ import {
   initDashboardTextConfigsApi,
   updateDashboardSiteConfigApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const loading = ref(false);
 const initLoading = ref(false);
@@ -36,6 +37,8 @@ const configGroups = ref<DashboardSiteConfigGroup[]>([]);
 const savingMap = reactive<Record<string, boolean>>({});
 const draftMap = reactive<Record<string, string>>({});
 const sortOrderMap = reactive<Record<string, number>>({});
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 
 const textItems = computed(() => {
   const group = configGroups.value.find((item) => item.group === 'custom_text');
@@ -69,6 +72,7 @@ function currentConfig(item: DashboardSiteConfigGroupItem) {
 }
 
 async function saveItem(item: DashboardSiteConfigGroupItem) {
+  if (!requireCloudDangerPermission('保存文案配置')) return;
   const current = currentConfig(item);
   if (!current?.id) {
     message.error('该文案尚未初始化，请先点击顶部“初始化文案”');
@@ -92,10 +96,12 @@ async function saveItem(item: DashboardSiteConfigGroupItem) {
 }
 
 function resetItem(item: DashboardSiteConfigGroupItem) {
+  if (!requireCloudDangerPermission('恢复默认文案')) return;
   draftMap[item.key] = item.default_value || '';
 }
 
 async function initTexts() {
+  if (!requireCloudDangerPermission('初始化文案配置')) return;
   initLoading.value = true;
   try {
     const result = await initDashboardTextConfigsApi({ mode: initMode.value });
@@ -120,7 +126,12 @@ onMounted(loadData);
     title="文案设置"
   >
     <Space class="mb-3">
-      <Button type="primary" :loading="initLoading" @click="initOpen = true">
+      <Button
+        type="primary"
+        :disabled="!canRunCloudDanger"
+        :loading="initLoading"
+        @click="initOpen = true"
+      >
         初始化文案
       </Button>
       <Button :loading="loading" @click="loadData">刷新</Button>
@@ -158,12 +169,13 @@ onMounted(loadData);
         <Space class="mt-3">
           <Button
             :loading="savingMap[item.key]"
+            :disabled="!canRunCloudDanger"
             type="primary"
             @click="saveItem(item)"
           >
             保存
           </Button>
-          <Button @click="resetItem(item)">恢复默认</Button>
+          <Button :disabled="!canRunCloudDanger" @click="resetItem(item)">恢复默认</Button>
         </Space>
       </Card>
     </div>
@@ -176,6 +188,7 @@ onMounted(loadData);
       v-model:open="initOpen"
       title="初始化文案"
       :confirm-loading="initLoading"
+      :ok-button-props="{ disabled: !canRunCloudDanger }"
       @ok="initTexts"
     >
       <div class="mb-3 text-sm text-gray-500">

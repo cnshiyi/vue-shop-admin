@@ -22,6 +22,7 @@ import {
   updateDashboardUserBalanceApi,
   updateDashboardUserDiscountApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -30,6 +31,8 @@ const items = ref<DashboardUserItem[]>([]);
 const editOpen = ref(false);
 const currentRow = ref<DashboardUserItem | null>(null);
 const router = useRouter();
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 const formState = reactive({
   balance: '0',
   balance_trx: '0',
@@ -89,6 +92,7 @@ function resetSearch() {
 }
 
 function openEdit(record: DashboardUserItem) {
+  if (!requireCloudDangerPermission('编辑用户余额和折扣')) return;
   currentRow.value = record;
   formState.balance = record.balance;
   formState.balance_trx = record.balance_trx;
@@ -102,6 +106,7 @@ function openBalanceDetail(record: DashboardUserItem) {
 
 async function submitEdit() {
   if (!currentRow.value) return;
+  if (!requireCloudDangerPermission('保存用户余额和折扣')) return;
   saving.value = true;
   try {
     await updateDashboardUserBalanceApi(currentRow.value.id, {
@@ -176,6 +181,7 @@ onMounted(loadData);
               </Button>
               <Button
                 type="link"
+                :disabled="!canRunCloudDanger"
                 @click="openEdit(record as DashboardUserItem)"
               >
                 编辑
@@ -189,6 +195,7 @@ onMounted(loadData);
     <Modal
       v-model:open="editOpen"
       :confirm-loading="saving"
+      :ok-button-props="{ disabled: !canRunCloudDanger }"
       title="编辑余额/折扣"
       @ok="submitEdit"
     >

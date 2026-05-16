@@ -31,6 +31,7 @@ import {
   submitDashboardTelegramLoginPasswordApi,
   updateDashboardTelegramAccountNotifyApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -52,6 +53,8 @@ const form = reactive({
 });
 
 const stepTitle = ['输入手机号', '输入验证码', '输入二级密码'];
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 
 const statusTextMap: Record<string, string> = {
   code_sent: '验证码已发送',
@@ -78,6 +81,7 @@ async function loadData() {
 }
 
 function openCreate() {
+  if (!requireCloudDangerPermission('登录 Telegram 账号')) return;
   form.phone = '';
   form.code = '';
   form.password = '';
@@ -93,6 +97,7 @@ function needsRelogin(account: DashboardTelegramLoginAccountItem) {
 }
 
 function openRelogin(account: DashboardTelegramLoginAccountItem) {
+  if (!requireCloudDangerPermission('重新登录 Telegram 账号')) return;
   form.phone = account.phone || '';
   form.code = '';
   form.password = '';
@@ -102,6 +107,7 @@ function openRelogin(account: DashboardTelegramLoginAccountItem) {
 }
 
 async function checkAccountStatus(account: DashboardTelegramLoginAccountItem) {
+  if (!requireCloudDangerPermission('检查 Telegram 账号状态')) return;
   checkingAccountIds.value = [...checkingAccountIds.value, account.id];
   try {
     const updated = await checkDashboardTelegramAccountStatusApi(account.id);
@@ -128,6 +134,7 @@ async function checkAccountStatus(account: DashboardTelegramLoginAccountItem) {
 }
 
 async function handleLoginStep() {
+  if (!requireCloudDangerPermission('登录 Telegram 账号')) return;
   if (loginStep.value === 0) {
     if (!String(form.phone || '').trim()) {
       message.error('请输入手机号');
@@ -200,6 +207,10 @@ async function handleLoginStep() {
 }
 
 async function toggleNotify(accountId: number, notifyEnabled: boolean) {
+  if (!requireCloudDangerPermission('修改 Telegram 账号通知')) {
+    await loadData();
+    return;
+  }
   try {
     await updateDashboardTelegramAccountNotifyApi(accountId, {
       notify_enabled: notifyEnabled,
@@ -216,6 +227,10 @@ async function toggleListenerPush(
   accountId: number,
   listenerPushEnabled: boolean,
 ) {
+  if (!requireCloudDangerPermission('修改 Telegram 监听推送')) {
+    await loadData();
+    return;
+  }
   try {
     await updateDashboardTelegramAccountNotifyApi(accountId, {
       listener_push_enabled: listenerPushEnabled,
@@ -239,7 +254,7 @@ onMounted(loadData);
   <Page title="账号列表" description="管理 Telegram 登录账号">
     <Card class="mb-4">
       <Space wrap>
-        <Button type="primary" @click="openCreate">登录</Button>
+        <Button type="primary" :disabled="!canRunCloudDanger" @click="openCreate">登录</Button>
         <Button :loading="loading" @click="loadData">刷新</Button>
       </Space>
       <div class="mt-2 text-xs text-[var(--ant-color-text-description)]">
@@ -263,12 +278,14 @@ onMounted(loadData);
               <span class="text-xs text-[var(--ant-color-text-description)]">通知</span>
               <Switch
                 size="small"
+                :disabled="!canRunCloudDanger"
                 :checked="item.notify_enabled"
                 @change="(checked) => toggleNotify(item.id, !!checked)"
               />
               <span class="text-xs text-[var(--ant-color-text-description)]">监听推送</span>
               <Switch
                 size="small"
+                :disabled="!canRunCloudDanger"
                 :checked="item.listener_push_enabled"
                 @change="(checked) => toggleListenerPush(item.id, !!checked)"
               />
@@ -280,6 +297,7 @@ onMounted(loadData);
                 size="small"
                 type="primary"
                 danger
+                :disabled="!canRunCloudDanger"
                 @click="openRelogin(item)"
               >
                 重新登录
@@ -287,6 +305,7 @@ onMounted(loadData);
               <Button
                 v-else
                 size="small"
+                :disabled="!canRunCloudDanger"
                 :loading="checkingAccountIds.includes(item.id)"
                 @click="checkAccountStatus(item)"
               >
@@ -302,6 +321,7 @@ onMounted(loadData);
     <Modal
       v-model:open="open"
       :confirm-loading="saving"
+      :ok-button-props="{ disabled: !canRunCloudDanger }"
       :ok-text="loginStep < 2 ? '下一步' : '确定'"
       title="登录 Telegram 账号"
       @ok="handleLoginStep"
@@ -340,7 +360,12 @@ onMounted(loadData);
         <Space>
           <Button v-if="loginStep > 0" @click="prevLoginStep">上一步</Button>
           <Button @click="open = false">取消</Button>
-          <Button type="primary" :loading="saving" @click="handleLoginStep">
+          <Button
+            type="primary"
+            :disabled="!canRunCloudDanger"
+            :loading="saving"
+            @click="handleLoginStep"
+          >
             {{ loginStep < 2 ? '下一步' : '确定' }}
           </Button>
         </Space>

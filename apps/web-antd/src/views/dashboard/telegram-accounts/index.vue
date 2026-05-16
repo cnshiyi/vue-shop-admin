@@ -30,6 +30,7 @@ import {
   getDashboardTelegramAccountsApi,
   getDashboardTelegramMessagesApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -43,6 +44,8 @@ const overview = ref<DashboardTelegramAccountsOverview>({
   messages: [],
   users: [],
 });
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 
 const form = reactive<DashboardTelegramLoginAccountCreatePayload>({
   label: '',
@@ -71,6 +74,7 @@ async function selectUser(user: DashboardTelegramChatUserItem) {
 }
 
 function openCreate() {
+  if (!requireCloudDangerPermission('添加 Telegram 登录账号')) return;
   form.label = '';
   form.phone = '';
   form.tg_user_id = '';
@@ -80,6 +84,7 @@ function openCreate() {
 }
 
 async function saveAccount() {
+  if (!requireCloudDangerPermission('保存 Telegram 登录账号')) return;
   saving.value = true;
   try {
     await createDashboardTelegramAccountApi(form);
@@ -117,7 +122,7 @@ onMounted(loadData);
           style="width: 420px"
           @search="loadData"
         />
-        <Button type="primary" @click="openCreate">
+        <Button type="primary" :disabled="!canRunCloudDanger" @click="openCreate">
           添加 Telegram 登录账号
         </Button>
         <Button :loading="loading" @click="loadData">刷新</Button>
@@ -218,6 +223,7 @@ onMounted(loadData);
     <Modal
       v-model:open="open"
       :confirm-loading="saving"
+      :ok-button-props="{ disabled: !canRunCloudDanger }"
       title="添加 Telegram 登录账号"
       @ok="saveAccount"
     >

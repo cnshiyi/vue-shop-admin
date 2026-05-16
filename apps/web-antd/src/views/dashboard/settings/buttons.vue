@@ -27,10 +27,13 @@ import {
   initDashboardButtonConfigApi,
   updateDashboardButtonConfigApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const loading = ref(false);
 const saving = ref(false);
 const config = ref<DashboardButtonConfig>({ items: [], row_size: 2 });
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 
 const columns = [
   { title: '类型', dataIndex: 'type', key: 'type', width: 110 },
@@ -69,6 +72,7 @@ async function loadData() {
 }
 
 async function initConfig() {
+  if (!requireCloudDangerPermission('初始化按钮配置')) return;
   loading.value = true;
   try {
     const data = await initDashboardButtonConfigApi();
@@ -82,6 +86,7 @@ async function initConfig() {
 }
 
 function addLinkButton() {
+  if (!requireCloudDangerPermission('添加自定义键盘')) return;
   config.value.items.push({
     enabled: true,
     key: `link_${Date.now()}`,
@@ -96,12 +101,14 @@ function addLinkButton() {
 }
 
 function removeItem(record: Record<string, any>) {
+  if (!requireCloudDangerPermission('删除自定义键盘')) return;
   config.value.items = config.value.items.filter(
     (item) => item.key !== record.key,
   );
 }
 
 async function saveConfig() {
+  if (!requireCloudDangerPermission('保存按钮配置')) return;
   saving.value = true;
   try {
     const data = await updateDashboardButtonConfigApi({
@@ -133,12 +140,17 @@ onMounted(loadData);
       </Form>
 
       <Space class="mb-3">
-        <Button type="primary" :loading="saving" @click="saveConfig">
+        <Button
+          type="primary"
+          :disabled="!canRunCloudDanger"
+          :loading="saving"
+          @click="saveConfig"
+        >
           保存设置
         </Button>
-        <Button @click="addLinkButton">添加自定义键盘</Button>
+        <Button :disabled="!canRunCloudDanger" @click="addLinkButton">添加自定义键盘</Button>
         <Button :loading="loading" @click="loadData">刷新</Button>
-        <Button :loading="loading" @click="initConfig">初始化默认按钮</Button>
+        <Button :disabled="!canRunCloudDanger" :loading="loading" @click="initConfig">初始化默认按钮</Button>
       </Space>
 
       <Table
@@ -195,7 +207,7 @@ onMounted(loadData);
           <template v-else-if="column.key === 'enabled'">
             <Switch
               v-model:checked="record.enabled"
-              :disabled="record.locked"
+              :disabled="record.locked || !canRunCloudDanger"
             />
           </template>
 
@@ -205,7 +217,7 @@ onMounted(loadData);
               title="确认删除这个链接按钮？"
               @confirm="removeItem(record)"
             >
-              <Button danger size="small">删除</Button>
+              <Button danger size="small" :disabled="!canRunCloudDanger">删除</Button>
             </Popconfirm>
             <span v-else class="text-gray-400">仅排序</span>
           </template>
