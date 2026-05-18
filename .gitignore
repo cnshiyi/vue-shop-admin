@@ -12,6 +12,8 @@ dist.war
 *-dist.war
 coverage
 *.local
+*.patch
+recent-changes*.txt
 **/.vitepress/cache
 .cache
 .turbo
