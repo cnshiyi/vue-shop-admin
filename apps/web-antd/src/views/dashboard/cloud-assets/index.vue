@@ -123,7 +123,7 @@ const currentRow = ref<DashboardCloudAssetItem | null>(null);
 const detailOpen = ref(false);
 const detailLoading = ref(false);
 const detailRow = ref<DashboardCloudAssetDetail | null>(null);
-const columnView = ref<'compact' | 'finance' | 'ops'>('ops');
+const columnView = ref<'all' | 'billing' | 'cloud' | 'proxy'>('proxy');
 const formState = reactive({
   actual_expires_at: null as any,
   is_active: true,
@@ -277,6 +277,20 @@ function activeAssetCount(records: DashboardCloudAssetItem[]) {
   ).length;
 }
 
+function groupVisibleCount(group: DashboardCloudAssetGroup) {
+  return group.visible_count ?? group.items.length;
+}
+
+function groupTotalCount(group: DashboardCloudAssetGroup) {
+  return group.total_count ?? group.items.length;
+}
+
+function groupTableItems(group: DashboardCloudAssetGroup) {
+  return showDeletedAssets.value
+    ? group.items
+    : group.items.filter((item) => !isDeletedAsset(item));
+}
+
 function userGroupTitle(item: DashboardCloudAssetItem) {
   return item.user_display_name || '未绑定用户';
 }
@@ -354,17 +368,22 @@ function buildAssetGroups(records: DashboardCloudAssetItem[]) {
   });
 }
 
-function refreshGroupedItems(
-  records: DashboardCloudAssetItem[],
-  resetExpanded = false,
-) {
+function refreshGroupedItems(resetExpanded = false) {
   const previousGroupKeys = new Set(
     groups.value.map((group) => group.user_key),
   );
   const previousExpandedKeys = new Set(expandedGroupKeys.value);
-  const nextGroups = buildAssetGroups(records);
+  const nextGroups = buildAssetGroups(items.value);
 
-  groups.value = nextGroups;
+  groups.value = nextGroups.map((group) => {
+    const visibleItems = groupTableItems(group);
+    return {
+      ...group,
+      items: visibleItems,
+      total_count: group.items.length,
+      visible_count: visibleItems.length,
+    };
+  });
   expandedGroupKeys.value = nextGroups
     .filter((group) => {
       if (group.default_expanded === false) return false;
@@ -403,7 +422,7 @@ function handleGroupedChange(enabled: boolean | number | string) {
 
 function handleDeletedAssetsVisibleChange() {
   if (grouped.value) {
-    refreshGroupedItems(displayedItems.value, true);
+    refreshGroupedItems(true);
   }
 }
 
@@ -599,6 +618,13 @@ const columns = [
     width: 180,
   },
   { title: '资产名称', dataIndex: 'asset_name', key: 'asset_name', width: 150 },
+  { title: '云厂商', dataIndex: 'provider_label', key: 'provider_label', width: 120 },
+  {
+    title: '实例ID',
+    dataIndex: 'instance_id',
+    key: 'instance_id',
+    width: 220,
+  },
   {
     title: '排序',
     dataIndex: 'sort_order',
@@ -617,6 +643,12 @@ const columns = [
     width: 320,
   },
   { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
+  {
+    title: '云上状态',
+    dataIndex: 'provider_status',
+    key: 'provider_status',
+    width: 150,
+  },
   {
     title: '剩余天数',
     dataIndex: 'status_countdown',
@@ -642,9 +674,10 @@ const columns = [
 ];
 
 const columnViewOptions = [
-  { label: '操作视图', value: 'ops' },
-  { label: '紧凑视图', value: 'compact' },
-  { label: '财务视图', value: 'finance' },
+  { label: '代理使用', value: 'proxy' },
+  { label: '云资源', value: 'cloud' },
+  { label: '到期续费', value: 'billing' },
+  { label: '全部字段', value: 'all' },
 ];
 
 const syncScopeOptions = [
@@ -680,16 +713,31 @@ const assetTableColumns = computed<TableColumnsType<DashboardCloudAssetItem>>(
       ) {
         return false;
       }
-      if (columnView.value === 'compact') {
+      if (columnView.value === 'proxy') {
         return [
           'actions',
           'asset_name',
           'mtproxy_link',
           'public_ip',
+          'status',
           'status_countdown',
+          'user_display_name',
+          'username_label',
         ].includes(column.key);
       }
-      if (columnView.value === 'finance') {
+      if (columnView.value === 'cloud') {
+        return [
+          'actions',
+          'asset_name',
+          'instance_id',
+          'provider_label',
+          'provider_status',
+          'public_ip',
+          'region_label',
+          'status',
+        ].includes(column.key);
+      }
+      if (columnView.value === 'billing') {
         return [
           'actions',
           'actual_expires_at',
@@ -821,6 +869,9 @@ function setRiskStatus(status: string) {
     return;
   }
   riskStatus.value = status;
+  if (['abnormal', 'expired'].includes(status)) {
+    showDeletedAssets.value = true;
+  }
   handleRiskStatusChange();
 }
 
@@ -897,7 +948,7 @@ async function loadData() {
       groupPagination.total =
         groupedPage.total || groupedPage.groups?.length || 0;
       loadProgress.total = groupPagination.total;
-      refreshGroupedItems(displayedItems.value, true);
+      refreshGroupedItems(true);
       return;
     }
 
@@ -1068,7 +1119,7 @@ async function batchSyncSelectedAssets() {
       asset_ids: assetIds,
       selected_count: selectedAssets.value.length,
     });
-    const result = await syncDashboardCloudAssetsApi('cn-hongkong', 'all', {
+    const result = await syncDashboardCloudAssetsApi('cn-hongkong', 'ap-southeast-1', {
       asset_ids: assetIds,
     });
     logCloudSyncConsole('batch-result', result, result?.ok === false);
@@ -1114,7 +1165,7 @@ async function syncAssets() {
       providers,
       asset_ids: assetIds,
     });
-    const result = await syncDashboardCloudAssetsApi('cn-hongkong', 'all', {
+    const result = await syncDashboardCloudAssetsApi('cn-hongkong', 'ap-southeast-1', {
       providers,
       asset_ids: assetIds,
     });
@@ -1140,6 +1191,7 @@ async function syncAssets() {
 
 function openEdit(record: DashboardCloudAssetItem) {
   if (!requireCloudDangerPermission('编辑代理')) return;
+  detailOpen.value = false;
   currentRow.value = record;
   formState.actual_expires_at = record.actual_expires_at
     ? dayjs(record.actual_expires_at)
@@ -1289,9 +1341,23 @@ async function toggleAutoRenew(
 
 async function deleteAsset(record: DashboardCloudAssetItem) {
   if (!requireCloudDangerPermission('删除代理本地状态')) return;
+  Modal.confirm({
+    title: '确认清除本地代理记录？',
+    content: `资产：${record.asset_name || record.instance_id || '-'}\n公网 IP：${record.public_ip || '-'}\n\n该操作只清除本地数据库状态，不会删除云端服务器或释放云端 IP。`,
+    okText: '确认清除',
+    okType: 'danger',
+    cancelText: '取消',
+    async onOk() {
+      await deleteAssetConfirmed(record);
+    },
+  });
+}
+
+async function deleteAssetConfirmed(record: DashboardCloudAssetItem) {
   try {
     await deleteDashboardCloudAssetApi(record.id);
     removeAssetFromList(record.id);
+    await loadData();
     message.success('代理本地状态已清除；后续同步会按全新资源重新拉回');
   } catch (error: any) {
     message.error(error?.message || '删除代理失败');
@@ -1355,7 +1421,7 @@ function replaceAssetInList(asset: DashboardCloudAssetItem) {
     ...items.value.slice(index + 1),
   ]);
   if (grouped.value) {
-    refreshGroupedItems(displayedItems.value);
+    refreshGroupedItems();
   }
   currentRow.value = asset;
 }
@@ -1365,7 +1431,7 @@ function removeAssetFromList(assetId: number) {
   loadProgress.loaded = items.value.length;
   loadProgress.total = Math.max(0, loadProgress.total - 1);
   if (grouped.value) {
-    refreshGroupedItems(displayedItems.value);
+    refreshGroupedItems();
   }
   if (currentRow.value?.id === assetId) {
     currentRow.value = null;
@@ -1439,6 +1505,12 @@ async function submitEdit() {
       payload,
     );
     replaceAssetInList(updatedAsset);
+    if (detailRow.value?.id === updatedAsset.id) {
+      detailRow.value = {
+        ...detailRow.value,
+        ...updatedAsset,
+      };
+    }
     message.success('代理已更新');
     editOpen.value = false;
   } catch (error: any) {
@@ -1478,7 +1550,7 @@ onBeforeUnmount(() => {
           />
           <Select
             v-model:value="columnView"
-            style="width: 120px"
+            style="width: 132px"
             :options="columnViewOptions"
             @change="handleColumnViewChange"
           />
@@ -1625,7 +1697,13 @@ onBeforeUnmount(() => {
               <Tag v-if="group.telegram_group_id" color="green">
                 用户：{{ groupUserSummary(group) }}
               </Tag>
-              <Tag>{{ activeAssetCount(group.items) }} 条</Tag>
+              <Tag>
+                可见 {{ groupVisibleCount(group) }} / 总数
+                {{ groupTotalCount(group) }} 条
+              </Tag>
+              <Tag v-if="activeAssetCount(group.items) > 0" color="success">
+                有效 {{ activeAssetCount(group.items) }} 条
+              </Tag>
             </Space>
           </template>
           <Table
@@ -1696,6 +1774,29 @@ onBeforeUnmount(() => {
                 <Tag :color="sortOrderTagColor(record.sort_order)">
                   {{ record.sort_order || 99 }}
                 </Tag>
+              </template>
+              <template v-else-if="column.key === 'provider_label'">
+                <Space direction="vertical" :size="2">
+                  <Tag :color="record.provider === 'aws_lightsail' ? 'orange' : 'blue'">
+                    {{ record.provider_label || record.provider || '-' }}
+                  </Tag>
+                </Space>
+              </template>
+              <template v-else-if="column.key === 'instance_id'">
+                <TypographyParagraph
+                  v-if="record.instance_id || record.provider_resource_id"
+                  :copyable="{
+                    text: record.instance_id || record.provider_resource_id,
+                  }"
+                  :ellipsis="{
+                    rows: 2,
+                    tooltip: record.instance_id || record.provider_resource_id,
+                  }"
+                  class="mb-0 break-all font-mono text-xs leading-5"
+                >
+                  {{ record.instance_id || record.provider_resource_id }}
+                </TypographyParagraph>
+                <span v-else>-</span>
               </template>
               <template v-else-if="column.key === 'account_label'">
                 <TypographyParagraph
@@ -1849,6 +1950,11 @@ onBeforeUnmount(() => {
                   }}
                 </Tag>
               </template>
+              <template v-else-if="column.key === 'provider_status'">
+                <Tag :color="record.provider_status === 'running' ? 'success' : 'default'">
+                  {{ record.provider_status || '-' }}
+                </Tag>
+              </template>
               <template v-else-if="column.key === 'status_countdown'">
                 <Tag
                   :color="
@@ -1986,6 +2092,29 @@ onBeforeUnmount(() => {
             <Tag :color="sortOrderTagColor(record.sort_order)">
               {{ record.sort_order || 99 }}
             </Tag>
+          </template>
+          <template v-else-if="column.key === 'provider_label'">
+            <Space direction="vertical" :size="2">
+              <Tag :color="record.provider === 'aws_lightsail' ? 'orange' : 'blue'">
+                {{ record.provider_label || record.provider || '-' }}
+              </Tag>
+            </Space>
+          </template>
+          <template v-else-if="column.key === 'instance_id'">
+            <TypographyParagraph
+              v-if="record.instance_id || record.provider_resource_id"
+              :copyable="{
+                text: record.instance_id || record.provider_resource_id,
+              }"
+              :ellipsis="{
+                rows: 2,
+                tooltip: record.instance_id || record.provider_resource_id,
+              }"
+              class="mb-0 break-all font-mono text-xs leading-5"
+            >
+              {{ record.instance_id || record.provider_resource_id }}
+            </TypographyParagraph>
+            <span v-else>-</span>
           </template>
           <template v-else-if="column.key === 'account_label'">
             <TypographyParagraph
@@ -2135,6 +2264,11 @@ onBeforeUnmount(() => {
                   ? '未附加IP'
                   : record.status_label || record.status || '-'
               }}
+            </Tag>
+          </template>
+          <template v-else-if="column.key === 'provider_status'">
+            <Tag :color="record.provider_status === 'running' ? 'success' : 'default'">
+              {{ record.provider_status || '-' }}
             </Tag>
           </template>
           <template v-else-if="column.key === 'status_countdown'">

@@ -537,8 +537,45 @@ function isRunningIp(record: DashboardUnattachedIpDeletePlan) {
   return id > 0 && Boolean(runningIpAssetIds[id]);
 }
 
+function dangerTargetLines(
+  record: DashboardShutdownPlanItem | DashboardUnattachedIpDeletePlan,
+) {
+  return [
+    `云厂商：${(record as any).provider_label || (record as any).provider || '-'}`,
+    `地区：${(record as any).region_label || (record as any).region_name || (record as any).region_code || '-'}`,
+    `实例/资产：${(record as any).asset_name || (record as any).server_name || '-'}`,
+    `订单号：${(record as any).order_no || '-'}`,
+    `公网 IP：${(record as any).ip || (record as any).public_ip || '-'}`,
+  ].join('\n');
+}
+
+function confirmDangerAction(
+  title: string,
+  content: string,
+  onOk: () => Promise<void>,
+) {
+  Modal.confirm({
+    title,
+    content,
+    okText: '确认执行',
+    okType: 'danger',
+    cancelText: '取消',
+    onOk,
+  });
+}
+
 async function runSingleIpDelete(record: DashboardUnattachedIpDeletePlan) {
   if (!requireCloudDangerPermission('精准删除 IP')) return;
+  const id = assetId(record);
+  if (!id || runningIpAssetIds[id]) return;
+  confirmDangerAction(
+    '确认释放未附加固定 IP？',
+    `${dangerTargetLines(record)}\n\n该操作会调用云厂商释放固定 IP，释放后通常不可恢复。`,
+    async () => runSingleIpDeleteConfirmed(record),
+  );
+}
+
+async function runSingleIpDeleteConfirmed(record: DashboardUnattachedIpDeletePlan) {
   const id = assetId(record);
   if (!id || runningIpAssetIds[id]) return;
   runningIpAssetIds[id] = true;
@@ -572,6 +609,16 @@ async function runSingleIpDelete(record: DashboardUnattachedIpDeletePlan) {
 
 async function runSingleShutdown(record: DashboardShutdownPlanItem) {
   if (!requireCloudDangerPermission('精准删除服务器')) return;
+  const id = shutdownTargetId(record);
+  if (!id || runningOrderIds[id]) return;
+  confirmDangerAction(
+    '确认删除云服务器？',
+    `${dangerTargetLines(record)}\n\n该操作会调用云厂商删除实例，固定 IP 按保留策略另行处理。`,
+    async () => runSingleShutdownConfirmed(record),
+  );
+}
+
+async function runSingleShutdownConfirmed(record: DashboardShutdownPlanItem) {
   const id = shutdownTargetId(record);
   if (!id || runningOrderIds[id]) return;
   runningOrderIds[id] = true;
@@ -670,12 +717,12 @@ onMounted(loadData);
           <Descriptions.Item label="7天内待删未附加IP">
             <Tag
               :color="
-                (summary?.pending_ip_delete_count || 0) > 0
+                pendingIpDeleteItems.length > 0
                   ? 'warning'
                   : 'success'
               "
             >
-              {{ summary?.pending_ip_delete_count ?? 0 }} 条
+              {{ pendingIpDeleteItems.length }} 条
             </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="待执行删除服务器">

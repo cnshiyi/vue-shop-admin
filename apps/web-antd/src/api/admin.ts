@@ -381,6 +381,8 @@ export interface DashboardCloudAssetDetail extends DashboardCloudAssetItem {
 export interface DashboardCloudAssetGroup {
   default_expanded: boolean;
   items: DashboardCloudAssetItem[];
+  total_count?: number;
+  visible_count?: number;
   telegram_group_chat_id?: null | number;
   telegram_group_id?: null | number;
   telegram_group_title?: string;
@@ -1012,6 +1014,7 @@ export type DashboardCloudAccountUpdatePayload =
 
 export interface DashboardTelegramLoginAccountItem {
   created_at: null | string;
+  first_name?: string;
   has_session?: boolean;
   id: number;
   label: string;
@@ -1024,6 +1027,7 @@ export interface DashboardTelegramLoginAccountItem {
   tg_user_id?: null | number;
   updated_at: null | string;
   username: string;
+  usernames?: string[];
 }
 
 export interface DashboardTelegramChatUserItem {
@@ -1524,7 +1528,7 @@ export interface DashboardCloudAssetSyncTask {
 
 export async function syncDashboardCloudAssetsApi(
   region = 'cn-hongkong',
-  awsRegion = 'all',
+  awsRegion = 'ap-southeast-1',
   options: {
     account_ids?: number[];
     asset_ids?: number[];
@@ -1687,6 +1691,7 @@ export async function getDashboardCloudOrderDetailApi(orderId: number) {
 
 export interface DashboardCloudOrderUpdatePayload {
   delete_at?: null | string;
+  ip_recycle_at?: null | string;
   mtproxy_host?: null | string;
   mtproxy_link?: null | string;
   mtproxy_port?: null | number | string;
@@ -2002,9 +2007,10 @@ export async function sendDashboardTelegramMessageApi(payload: {
 export async function updateDashboardTelegramChatArchiveApi(payload: {
   archived: boolean;
   chat_id: number;
+  login_account_id?: null | number;
   title?: string;
 }) {
-  return requestClient.post<{ archived: boolean; chat_id: number }>(
+  return requestClient.post<DashboardTelegramChatItem>(
     '/admin/telegram/chats/archive/',
     payload,
   );

@@ -42,6 +42,7 @@ const editSaving = ref(false);
 const currentRow = ref<DashboardCloudOrderItem | null>(null);
 const editForm = reactive({
   delete_at: null as any,
+  ip_recycle_at: null as any,
   pay_amount: '',
   provision_note: '',
   public_ip: '',
@@ -221,6 +222,9 @@ function openEdit(record: DashboardCloudOrderItem) {
   editForm.delete_at = (record as any).delete_at
     ? dayjs((record as any).delete_at)
     : null;
+  editForm.ip_recycle_at = (record as any).ip_recycle_at
+    ? dayjs((record as any).ip_recycle_at)
+    : null;
   editForm.provision_note = record.provision_note || '';
   editOpen.value = true;
 }
@@ -232,6 +236,9 @@ async function saveEdit() {
   try {
     await updateDashboardCloudOrderApi(currentRow.value.id, {
       delete_at: editForm.delete_at ? editForm.delete_at.toISOString() : null,
+      ip_recycle_at: editForm.ip_recycle_at
+        ? editForm.ip_recycle_at.toISOString()
+        : null,
       pay_amount: editForm.pay_amount || null,
       provision_note: editForm.provision_note || null,
       public_ip: editForm.public_ip || null,
@@ -429,6 +436,13 @@ async function deleteOrder(record: DashboardCloudOrderItem) {
         <Form.Item label="计划删机时间">
           <DatePicker
             v-model:value="editForm.delete_at"
+            show-time
+            class="w-full"
+          />
+        </Form.Item>
+        <Form.Item label="IP 保留到期">
+          <DatePicker
+            v-model:value="editForm.ip_recycle_at"
             show-time
             class="w-full"
           />
