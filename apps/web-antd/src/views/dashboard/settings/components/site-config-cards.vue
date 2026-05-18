@@ -40,6 +40,7 @@ const configGroups = ref<DashboardSiteConfigGroup[]>([]);
 const savingMap = reactive<Record<string, boolean>>({});
 const draftMap = reactive<Record<string, string>>({});
 const sensitiveMap = reactive<Record<string, boolean>>({});
+const maskedMap = reactive<Record<string, boolean>>({});
 const { canRunCloudDanger, requireCloudDangerPermission } =
   useDashboardPermissions();
 
@@ -51,8 +52,15 @@ const items = computed(() => activeGroup.value?.items || []);
 
 function syncDrafts() {
   for (const item of items.value) {
-    draftMap[item.key] = item.value || '';
     sensitiveMap[item.key] = !!item.is_sensitive;
+    if (item.is_sensitive) {
+      const preview = item.value_preview || '';
+      draftMap[item.key] = preview;
+      maskedMap[item.key] = !!preview;
+    } else {
+      draftMap[item.key] = item.value || '';
+      maskedMap[item.key] = false;
+    }
   }
 }
 
@@ -73,6 +81,10 @@ async function loadData() {
 
 function currentConfig(item: DashboardSiteConfigGroupItem) {
   return siteConfigs.value.find((config) => config.key === item.key) || null;
+}
+
+function configTitle(item: DashboardSiteConfigGroupItem) {
+  return item.description?.trim() || '未命名配置';
 }
 
 async function initConfigs() {
@@ -96,14 +108,22 @@ async function saveItem(item: DashboardSiteConfigGroupItem) {
     message.error('该配置尚未初始化，请先点击顶部“初始化配置”');
     return;
   }
+  const value = draftMap[item.key] ?? '';
+  const preserveExisting =
+    !!item.is_sensitive && (maskedMap[item.key] || !value.trim());
   savingMap[item.key] = true;
   try {
     await updateDashboardSiteConfigApi(current.id, {
       is_sensitive: !!sensitiveMap[item.key],
       key: item.key,
-      value: draftMap[item.key] ?? '',
+      preserve_existing: preserveExisting,
+      value: preserveExisting ? '' : value,
     });
-    message.success(`已保存：${item.description || item.key}`);
+    message.success(
+      preserveExisting
+        ? `已保留原密钥：${configTitle(item)}`
+        : `已保存：${configTitle(item)}`,
+    );
     await loadData();
   } catch (error: any) {
     message.error(error?.message || '保存失败');
@@ -137,19 +157,26 @@ onMounted(loadData);
         class="config-card"
       >
         <template #title>
-          <div class="card-title">{{ item.description || item.key }}</div>
+          <div class="card-title">{{ configTitle(item) }}</div>
         </template>
         <div class="mb-2 flex items-center gap-2 text-xs text-gray-500">
-          <span>键名：{{ item.key }}</span>
           <Tag :color="sensitiveMap[item.key] ? 'orange' : 'default'">
             {{ sensitiveMap[item.key] ? '敏感' : '普通' }}
           </Tag>
         </div>
-        <Input.TextArea
-          v-model:value="draftMap[item.key]"
-          :auto-size="{ minRows: 4, maxRows: 10 }"
-          :placeholder="item.value || '请输入配置内容'"
-        />
+          <Input.TextArea
+            v-model:value="draftMap[item.key]"
+            :auto-size="{ minRows: 4, maxRows: 10 }"
+            :placeholder="item.value || '请输入配置内容'"
+            @focus="
+              () => {
+                if (item.is_sensitive && maskedMap[item.key]) {
+                  draftMap[item.key] = '';
+                  maskedMap[item.key] = false;
+                }
+              }
+            "
+          />
         <div class="mt-3 flex items-center justify-between">
           <Space>
             <span class="text-sm text-gray-500">敏感配置</span>

@@ -113,6 +113,7 @@ async function toggleArchive(
     await updateDashboardTelegramChatArchiveApi({
       archived,
       chat_id: chat.chat_id,
+      login_account_id: chat.login_account_id,
       title: chat.title,
     });
     message.success(archived ? '已归档' : '已取消归档');

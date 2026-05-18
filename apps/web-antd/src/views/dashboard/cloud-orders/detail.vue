@@ -298,7 +298,7 @@ onMounted(loadData);
             {{ empty(detail.login_user) }}
           </Descriptions.Item>
           <Descriptions.Item label="登录密码">
-            {{ empty(detail.login_password) }}
+            {{ empty(detail.login_password || detail.login_password_preview) }}
           </Descriptions.Item>
         </Descriptions>
 

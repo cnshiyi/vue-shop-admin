@@ -1472,7 +1472,11 @@ function buildAssetEditPayload(record: DashboardCloudAssetItem) {
       : '');
   const nextUserQuery = formState.user_query.trim();
   if (nextUserQuery !== previousUserQuery) {
-    payload.user_query = nextUserQuery || null;
+    if (nextUserQuery) {
+      payload.user_query = nextUserQuery;
+    } else {
+      payload.clear_user = true;
+    }
   }
   const previousTelegramGroupQuery = record.telegram_group_chat_id
     ? String(record.telegram_group_chat_id)

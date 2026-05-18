@@ -5,6 +5,7 @@ import type {
 } from '#/api/admin';
 
 import { onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 
@@ -44,6 +45,7 @@ const overview = ref<DashboardTelegramAccountsOverview>({
   messages: [],
   users: [],
 });
+const router = useRouter();
 
 const accountId = ref<null | number>(null);
 const form = reactive({
@@ -90,10 +92,25 @@ function openCreate() {
   open.value = true;
 }
 
+function openLoginSettings() {
+  router.push('/admin/settings/telegram');
+}
+
 function needsRelogin(account: DashboardTelegramLoginAccountItem) {
   return ['error', 'listener_error', 'session_expired'].includes(
     account.status,
   );
+}
+
+function accountUsernameText(account: DashboardTelegramLoginAccountItem) {
+  const usernames = account.usernames?.length
+    ? account.usernames
+    : account.username
+      ? account.username.split(',').filter(Boolean)
+      : [];
+  return usernames.length > 0
+    ? usernames.map((item) => `@${item}`).join(' / ')
+    : '-';
 }
 
 function openRelogin(account: DashboardTelegramLoginAccountItem) {
@@ -121,9 +138,13 @@ async function checkAccountStatus(account: DashboardTelegramLoginAccountItem) {
         ...overview.value.accounts.slice(index + 1),
       ];
     }
-    message.success(
-      needsRelogin(updated) ? '账号状态异常，请重新登录' : '账号状态正常',
-    );
+    if (updated.status === 'logged_in') {
+      message.success('账号状态正常');
+    } else if (needsRelogin(updated)) {
+      message.warning('账号状态异常，请重新登录');
+    } else {
+      message.warning('账号尚未完成登录');
+    }
   } catch (error: any) {
     message.error(error?.message || '状态检查失败');
   } finally {
@@ -262,6 +283,7 @@ onMounted(loadData);
           登录
         </Button>
         <Button :loading="loading" @click="loadData">刷新</Button>
+        <Button @click="openLoginSettings">登录设置</Button>
       </Space>
       <div class="mt-2 text-xs text-[var(--ant-color-text-description)]">
         自动识别范围：用户主动与 bot 产生的资料。个人 Telegram
@@ -277,7 +299,7 @@ onMounted(loadData);
         <template #renderItem="{ item }">
           <List.Item>
             <List.Item.Meta
-              :description="`${item.phone || '-'} · ${item.tg_user_id ? `ID ${item.tg_user_id}` : '未填ID'} · ${item.username ? `@${item.username}` : '-'} · ${item.note || ''}`"
+              :description="`${item.phone || '-'} · ${item.tg_user_id ? `ID ${item.tg_user_id}` : '未填ID'} · ${accountUsernameText(item)} · ${item.note || ''}`"
               :title="item.label"
             />
             <Space>

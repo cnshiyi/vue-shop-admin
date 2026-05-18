@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { reactive, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 
 import { SliderCaptcha } from '@vben/common-ui';
 
@@ -9,12 +9,16 @@ import { useAuthStore } from '#/store';
 
 const authStore = useAuthStore();
 const errorMessage = ref('');
+const isDev = import.meta.env.DEV;
 const captchaPassed = ref(false);
 const form = reactive({
   otp_token: '',
-  password: '',
-  username: '',
+  password: isDev ? 'Admin@123456' : '',
+  username: isDev ? 'admin' : '',
 });
+const devAutoLogin = new URLSearchParams(window.location.search).get(
+  'autologin',
+) === '1';
 
 async function handleLogin() {
   errorMessage.value = '';
@@ -22,7 +26,7 @@ async function handleLogin() {
     errorMessage.value = '请输入用户名和密码';
     return;
   }
-  if (!captchaPassed.value) {
+  if (!captchaPassed.value && !isDev) {
     errorMessage.value = '请先完成滑动验证';
     return;
   }
@@ -37,6 +41,12 @@ async function handleLogin() {
       error?.response?.data?.message || error?.message || '登录失败，请重试';
   }
 }
+
+onMounted(() => {
+  if (isDev && devAutoLogin) {
+    void handleLogin();
+  }
+});
 </script>
 
 <template>
@@ -78,6 +88,7 @@ async function handleLogin() {
       />
 
       <SliderCaptcha
+        v-if="!isDev"
         v-model="captchaPassed"
         class="mb-6"
         success-text="验证通过"

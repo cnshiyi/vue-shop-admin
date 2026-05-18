@@ -88,10 +88,7 @@ function requireSettingsWrite(action: string) {
 function syncDrafts() {
   for (const item of items.value) {
     sensitiveMap[item.key] = !!item.is_sensitive;
-    if (item.key === 'trongrid_api_key') {
-      draftMap[item.key] = item.value || '';
-      maskedMap[item.key] = false;
-    } else if (item.is_sensitive) {
+    if (item.is_sensitive) {
       const preview = item.value_preview || '';
       draftMap[item.key] = preview;
       maskedMap[item.key] = !!preview;
@@ -121,6 +118,10 @@ function currentConfig(item: DashboardSiteConfigGroupItem) {
   return siteConfigs.value.find((config) => config.key === item.key) || null;
 }
 
+function configTitle(item: DashboardSiteConfigGroupItem) {
+  return item.description?.trim() || '未命名配置';
+}
+
 async function initConfigs() {
   if (!requireSettingsWrite('初始化配置')) return;
   initLoading.value = true;
@@ -147,7 +148,7 @@ async function generateTotpQrCode() {
   if (!requireSettingsWrite('绑定后台二级验证')) return;
   if (totpItem.value?.value_preview && !totpOldToken.value.trim()) {
     message.error(
-      '更换 TOTP 密钥前，请先输入当前 Google Authenticator 的 6 位动态码',
+      '更换二级验证密钥前，请先输入当前 Google Authenticator 的 6 位动态码',
     );
     return;
   }
@@ -167,7 +168,7 @@ async function generateTotpQrCode() {
     });
     message.success(
       totpItem.value?.value_preview
-        ? '已生成新的绑定二维码；完成校验后将更换旧 TOTP 密钥'
+        ? '已生成新的绑定二维码；完成校验后将更换旧二级验证密钥'
         : '二维码已生成，请用 Google Authenticator 扫码',
     );
   } catch (error: any) {
@@ -240,6 +241,7 @@ const textInputConfigKeys = new Set([
   'fsm_state_ttl',
   'redis_db',
   'redis_port',
+  'telegram_api_id',
 ]);
 
 function isSwitchConfig(item: DashboardSiteConfigGroupItem) {
@@ -269,7 +271,7 @@ async function testDailyExpirySummary() {
   try {
     const result = await testDashboardDailyExpirySummaryApi();
     message.success(
-      `测试通知已发送：今日到期 ${result.today} 台，已到期 ${result.expired} 台`,
+      `测试通知已发送 ${result.sent} 个群组：今日到期 ${result.today} 台，已到期 ${result.expired} 台`,
     );
   } catch (error: any) {
     message.error(error?.message || '测试发送失败');
@@ -287,7 +289,6 @@ async function saveItem(item: DashboardSiteConfigGroupItem) {
   }
   const value = draftMap[item.key] ?? '';
   const preserveExisting =
-    item.key !== 'trongrid_api_key' &&
     !!item.is_sensitive &&
     (maskedMap[item.key] || !value.trim());
   savingMap[item.key] = true;
@@ -300,8 +301,8 @@ async function saveItem(item: DashboardSiteConfigGroupItem) {
     });
     message.success(
       preserveExisting
-        ? `已保留原密钥：${item.description || item.key}`
-        : `已保存：${item.description || item.key}`,
+        ? `已保留原密钥：${configTitle(item)}`
+        : `已保存：${configTitle(item)}`,
     );
     await loadData();
   } catch (error: any) {
@@ -408,7 +409,7 @@ onMounted(loadData);
         </Button>
       </Space>
       <div v-if="totpQrCode" class="totp-bind-box">
-        <img class="totp-qrcode" :src="totpQrCode" alt="TOTP QR Code" />
+        <img class="totp-qrcode" :src="totpQrCode" alt="二级验证二维码" />
         <div class="totp-bind-form">
           <div class="config-desc mb-2">
             不能扫码时，可手动输入新密钥：{{ totpSecret }}
@@ -437,7 +438,7 @@ onMounted(loadData);
       <div v-for="item in items" :key="item.key" class="config-row">
         <div class="config-head">
           <div>
-            <div class="config-title">{{ item.description || item.key }}</div>
+            <div class="config-title">{{ configTitle(item) }}</div>
           </div>
           <Space>
             <Button
@@ -454,7 +455,10 @@ onMounted(loadData);
           v-if="item.key === 'trongrid_api_key'"
           v-model:value="draftMap[item.key]"
           :auto-size="{ minRows: 3, maxRows: 8 }"
-          placeholder="多个 Key 请每行一个，或用逗号/分号分隔"
+          :placeholder="
+            item.value_preview || '多个 Key 请每行一个，或用逗号/分号分隔'
+          "
+          @focus="activateSensitiveEdit(item)"
         />
         <div v-else-if="isSwitchConfig(item)" class="switch-row">
           <Switch

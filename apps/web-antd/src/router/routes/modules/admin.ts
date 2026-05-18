@@ -14,6 +14,15 @@ const routes: RouteRecordRaw[] = [
     redirect: '/admin/cloud-assets',
     children: [
       {
+        name: 'DashboardWorkspace',
+        path: 'workspace',
+        redirect: '/admin/cloud-assets',
+        meta: {
+          hideInMenu: true,
+          title: '工作台',
+        },
+      },
+      {
         name: 'DashboardAnalytics',
         path: 'analytics',
         component: () => import('#/views/dashboard/analytics/index.vue'),
@@ -215,6 +224,12 @@ const routes: RouteRecordRaw[] = [
             meta: { title: '通知设置' },
           },
           {
+            name: 'DashboardSettingsTelegram',
+            path: 'telegram',
+            component: () => import('#/views/dashboard/settings/telegram.vue'),
+            meta: { title: 'Telegram 登录设置' },
+          },
+          {
             name: 'DashboardSettingsLifecycle',
             path: 'lifecycle',
             component: () => import('#/views/dashboard/settings/lifecycle.vue'),
@@ -237,6 +252,18 @@ const routes: RouteRecordRaw[] = [
             path: 'buttons',
             component: () => import('#/views/dashboard/settings/buttons.vue'),
             meta: { title: '按钮设置' },
+          },
+          {
+            name: 'DashboardSettingsAdmins',
+            path: 'admins',
+            component: () => import('#/views/dashboard/settings/admins.vue'),
+            meta: { title: '管理员设置' },
+          },
+          {
+            name: 'DashboardSettingsPassword',
+            path: 'password',
+            component: () => import('#/views/dashboard/settings/password.vue'),
+            meta: { title: '密码修改' },
           },
           {
             name: 'DashboardSettingsCloudAccounts',
@@ -348,6 +375,15 @@ const routes: RouteRecordRaw[] = [
               title: '操作日志',
             },
           },
+          {
+            name: 'DashboardCloudIpLogs',
+            path: 'cloud-ips',
+            component: () =>
+              import('#/views/dashboard/cloud-ip-logs/index.vue'),
+            meta: {
+              title: 'IP变化日志',
+            },
+          },
         ],
       },
       {
@@ -357,6 +393,15 @@ const routes: RouteRecordRaw[] = [
         meta: {
           icon: 'lucide:monitor-smartphone',
           title: '监控列表',
+        },
+      },
+      {
+        name: 'DashboardDjangoAdmin',
+        path: 'django-admin',
+        component: () => import('#/views/dashboard/django-admin/index.vue'),
+        meta: {
+          icon: 'lucide:external-link',
+          title: 'Django Admin',
         },
       },
     ],

@@ -51,7 +51,6 @@ const current = ref<DashboardCloudAccountConfigItem | null>(null);
 const items = ref<DashboardCloudAccountConfigItem[]>([]);
 const detail = ref<DashboardCloudAccountDetail | null>(null);
 const togglingMap = reactive<Record<number, boolean>>({});
-const shutdownTogglingMap = reactive<Record<number, boolean>>({});
 
 const DEFAULT_REGION_MAP: Record<string, string> = {
   aliyun: 'cn-hongkong',
@@ -66,7 +65,6 @@ const form = reactive<DashboardCloudAccountCreatePayload>({
   provider: 'aws',
   region_hint: '',
   secret_key: '',
-  shutdown_enabled: true,
 });
 
 const regionHintTouched = ref(false);
@@ -128,10 +126,10 @@ const columns: TableColumnsType<DashboardCloudAccountConfigItem> = [
   },
   { title: '启用', dataIndex: 'is_active', key: 'is_active', width: 80 },
   {
-    title: '关机计划',
+    title: '生命周期',
     dataIndex: 'shutdown_enabled',
     key: 'shutdown_enabled',
-    width: 120,
+    width: 160,
   },
   { title: '操作', key: 'actions', width: 280, fixed: 'right' as const },
 ];
@@ -152,7 +150,6 @@ function resetForm() {
   form.provider = 'aws';
   form.region_hint = '';
   form.secret_key = '';
-  form.shutdown_enabled = true;
   regionHintTouched.value = false;
 }
 
@@ -182,7 +179,6 @@ function openEdit(record: DashboardCloudAccountConfigItem) {
   form.provider = record.provider || 'aws';
   form.region_hint = record.region_hint || '';
   form.secret_key = '';
-  form.shutdown_enabled = record.shutdown_enabled !== false;
   regionHintTouched.value = !!record.region_hint;
   open.value = true;
 }
@@ -270,28 +266,17 @@ async function toggleActive(
   }
 }
 
-async function toggleShutdown(
-  record: DashboardCloudAccountConfigItem,
-  checked: boolean,
-) {
-  if (!requireCloudDangerPermission('切换云账号关机计划')) return;
-  shutdownTogglingMap[record.id] = true;
-  try {
-    await updateDashboardCloudAccountApi(record.id, {
-      shutdown_enabled: checked,
-    });
-    record.shutdown_enabled = checked;
-    message.success(
-      checked
-        ? '该账号关机计划已开启，将按后台设定时间执行'
-        : '该账号关机计划已关闭，当前只同步不关机',
-    );
-  } catch (error: any) {
-    record.shutdown_enabled = !checked;
-    message.error(error?.message || '切换失败');
-  } finally {
-    shutdownTogglingMap[record.id] = false;
-  }
+function isAliyunProvider(provider?: null | string) {
+  return String(provider || '').includes('aliyun');
+}
+
+function lifecyclePolicyText(record?: null | Pick<DashboardCloudAccountConfigItem, 'provider'>) {
+  if (!record) return '-';
+  return isAliyunProvider(record.provider) ? '只同步/自然释放' : 'AWS 生命周期';
+}
+
+function lifecyclePolicyColor(record?: null | Pick<DashboardCloudAccountConfigItem, 'provider'>) {
+  return isAliyunProvider(record?.provider) ? 'processing' : 'warning';
 }
 
 async function remove(record: DashboardCloudAccountConfigItem) {
@@ -345,26 +330,9 @@ onMounted(loadData);
           />
         </template>
         <template v-else-if="column.key === 'shutdown_enabled'">
-          <Switch
-            :checked="
-              (record as DashboardCloudAccountConfigItem).shutdown_enabled
-            "
-            checked-children="执行关机"
-            :disabled="!canRunCloudDanger"
-            :loading="
-              shutdownTogglingMap[
-                (record as DashboardCloudAccountConfigItem).id
-              ]
-            "
-            un-checked-children="只同步"
-            @change="
-              (checked) =>
-                toggleShutdown(
-                  record as DashboardCloudAccountConfigItem,
-                  Boolean(checked),
-                )
-            "
-          />
+          <Tag :color="lifecyclePolicyColor(record as DashboardCloudAccountConfigItem)">
+            {{ lifecyclePolicyText(record as DashboardCloudAccountConfigItem) }}
+          </Tag>
         </template>
         <template v-else-if="column.key === 'status'">
           <Tag
@@ -460,8 +428,10 @@ onMounted(loadData);
           <Descriptions.Item label="启用">
             {{ detail.is_active ? '是' : '否' }}
           </Descriptions.Item>
-          <Descriptions.Item label="关机计划">
-            {{ detail.shutdown_enabled ? '执行关机' : '只同步' }}
+          <Descriptions.Item label="生命周期">
+            <Tag :color="lifecyclePolicyColor(detail)">
+              {{ lifecyclePolicyText(detail) }}
+            </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="创建时间">
             {{ detail.created_at || '-' }}
@@ -618,14 +588,9 @@ onMounted(loadData);
         <Form.Item label="启用状态">
           <Switch v-model:checked="form.is_active" />
         </Form.Item>
-        <Form.Item label="关机计划">
-          <Switch
-            v-model:checked="form.shutdown_enabled"
-            checked-children="执行关机"
-            un-checked-children="只同步"
-          />
+        <Form.Item label="生命周期策略">
           <div class="text-xs text-[var(--ant-color-text-description)] mt-1">
-            关闭后当前账号仅保留同步，不执行停机；重新打开后会在后台设定的关机时间窗口执行。
+            AWS 账号仍由服务器任务计划执行到期生命周期；阿里云账号仅同步资产状态，不执行关机或删除，等待云端自然释放。
           </div>
         </Form.Item>
       </Form>

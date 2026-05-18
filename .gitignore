@@ -17,6 +17,7 @@ coverage
 .turbo
 .temp
 dev-dist
+output/
 .stylelintcache
 yarn.lock
 package-lock.json

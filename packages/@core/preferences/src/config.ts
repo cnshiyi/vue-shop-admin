@@ -17,7 +17,7 @@ const defaultPreferences: Preferences = {
     contentPaddingTop: 0,
     defaultAvatar:
       'https://unpkg.com/@vbenjs/static-source@0.1.7/source/avatar-v1.webp',
-    defaultHomePath: '/admin/analytics',
+    defaultHomePath: '/admin/cloud-assets',
     dynamicTitle: true,
     enableCheckUpdates: true,
     enableCopyPreferences: true,
@@ -28,7 +28,7 @@ const defaultPreferences: Preferences = {
     layout: 'sidebar-nav',
     locale: 'zh-CN',
     loginExpiredMode: 'page',
-    name: 'Vben Admin',
+    name: 'Shop Admin',
     preferencesButtonPosition: 'auto',
     watermark: false,
     watermarkContent: '',
@@ -42,7 +42,7 @@ const defaultPreferences: Preferences = {
     styleType: 'normal',
   },
   copyright: {
-    companyName: 'Vben',
+    companyName: 'Shop',
     companySiteLink: 'https://www.vben.pro',
     date: '2024',
     enable: true,

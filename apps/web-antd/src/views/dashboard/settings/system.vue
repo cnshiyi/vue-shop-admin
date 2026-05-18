@@ -6,7 +6,7 @@ import SiteConfigGroup from './components/site-config-group.vue';
   <SiteConfigGroup
     group-key="system"
     title="系统设置"
-    description="后台密码、Google 验证器、机器人基础配置与 Telegram API。"
+    description="后台密码、Google 验证器与系统基础开关。"
     :show-password-card="true"
   />
 </template>

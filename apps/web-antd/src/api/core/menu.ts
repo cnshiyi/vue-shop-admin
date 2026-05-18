@@ -31,6 +31,7 @@ const routeComponentMap: Record<string, string> = {
   DashboardSettingsNotifications: '/views/dashboard/settings/notifications.vue',
   DashboardSettingsPayment: '/views/dashboard/settings/payment.vue',
   DashboardSettingsSystem: '/views/dashboard/settings/system.vue',
+  DashboardSettingsTelegram: '/views/dashboard/settings/telegram.vue',
   DashboardSettingsTexts: '/views/dashboard/settings/texts.vue',
   DashboardTasks: '/views/dashboard/tasks/index.vue',
   DashboardTelegramAccountList:
@@ -40,6 +41,7 @@ const routeComponentMap: Record<string, string> = {
   DashboardAutoRenewTaskDetail: '/views/dashboard/tasks/auto-renew-detail.vue',
   DashboardUserBalanceDetails: '/views/dashboard/users/balance-details.vue',
   DashboardUsers: '/views/dashboard/users/index.vue',
+  DashboardWorkspace: '/views/dashboard/cloud-assets/index.vue',
 };
 
 function toMenuRoutes(routes: any[]): RouteRecordStringComponent[] {

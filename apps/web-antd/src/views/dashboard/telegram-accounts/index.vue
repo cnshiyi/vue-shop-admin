@@ -132,8 +132,7 @@ onMounted(loadData);
         <Button :loading="loading" @click="loadData">刷新</Button>
       </Space>
       <div class="mt-2 text-xs text-[var(--ant-color-text-description)]">
-        当前自动收集范围：用户主动与 bot 产生的资料和聊天记录。个人 Telegram
-        账号登录采集需要单独接 Telethon/GramJS 授权流程，未在后台静默抓取。
+        当前自动收集范围：用户主动与 bot 产生的资料，以及已登录个人号开启监听后收到的聊天记录。
       </div>
     </Card>
 

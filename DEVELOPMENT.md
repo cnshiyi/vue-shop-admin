@@ -4,7 +4,7 @@
 
 `vue-shop-admin` 是 `shop` 项目的管理后台前端，基于 `vue-vben-admin` 二次改造。
 
-当前只把 `apps/web-antd` 当作活跃业务前端；其他示例、mock、playground 已归档，不作为主线开发入口。
+当前只把 `apps/web-antd` 当作活跃业务前端；其他示例、mock、playground 与官方 docs 包已移除，不作为主线开发入口。
 
 ## 技术栈
 
@@ -30,7 +30,7 @@ pnpm dev:antd
 后端仓库：
 
 ```text
-/Users/aaaa/Desktop/shop
+/Users/a399/Desktop/shop/shop
 ```
 
 常用验证：

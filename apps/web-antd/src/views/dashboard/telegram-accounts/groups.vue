@@ -275,7 +275,7 @@ onMounted(() => loadData());
 
 <template>
   <Page
-    description="控制哪些 Telegram 群组消息允许转发给管理员，以及哪些群组允许监听推送"
+    description="控制哪些 Telegram 群组消息允许监听推送，以及通知转发到哪些管理群组"
     title="群组通知"
   >
     <Card :loading="loading" title="群组通知开关">
@@ -558,7 +558,7 @@ onMounted(() => loadData());
             un-checked-children="关闭"
           />
         </Form.Item>
-        <Form.Item label="Bark 推送">
+        <Form.Item label="监听推送">
           <Switch
             v-model:checked="form.push_enabled"
             checked-children="开启"

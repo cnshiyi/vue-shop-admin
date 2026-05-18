@@ -199,6 +199,7 @@ export interface DashboardCloudOrderDetail extends DashboardCloudOrderItem {
   last_user_id: null | number;
   lifecycle_days: number;
   login_password: null | string;
+  login_password_preview?: null | string;
   login_user: null | string;
   mtproxy_host: null | string;
   mtproxy_link: null | string;
@@ -976,7 +977,7 @@ export interface DashboardCloudAccountCreatePayload {
   access_key: string;
   external_account_id?: string;
   is_active: boolean;
-  shutdown_enabled: boolean;
+  shutdown_enabled?: boolean;
   name: string;
   provider: string;
   region_hint?: null | string;
@@ -1618,6 +1619,7 @@ export async function getDashboardBotOperationLogsApi(
 
 export interface DashboardCloudAssetUpdatePayload {
   actual_expires_at?: null | string;
+  clear_user?: boolean;
   is_active?: boolean;
   note?: null | string;
   price?: null | string;
@@ -1821,7 +1823,10 @@ export async function initDashboardSiteConfigsApi(
 
 export async function testDashboardDailyExpirySummaryApi() {
   return requestClient.post<{
+    delete_due?: number;
     expired: number;
+    errors?: string[];
+    ip_due?: number;
     sent: number;
     today: number;
   }>('/admin/settings/site-configs/daily-expiry-summary/test/');

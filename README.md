@@ -7,7 +7,7 @@ This repository is the **custom frontend for the Shop admin project**, not the o
 - Business repo: `origin`
 - Official upstream: `upstream`
 - Codebase started from `vue-vben-admin`, but is now maintained for the `shop` Django backend
-- Project docs and metadata now describe this repo itself instead of pretending to be the upstream project
+- Project README and metadata now describe this repo itself instead of pretending to be the upstream project
 
 ## Git Remotes
 
@@ -72,10 +72,10 @@ pnpm dev:antd
 
 后台管理前端和 Django 后端是前后端分离部署：
 
-- 前端仓库：`/Users/aaaa/Desktop/vue-shop-admin`
-- 前端应用：`/Users/aaaa/Desktop/vue-shop-admin/apps/web-antd`
-- 后端仓库：`/Users/aaaa/Desktop/shop`
-- 前端构建产物：`/Users/aaaa/Desktop/vue-shop-admin/apps/web-antd/dist`
+- 前端仓库：`/Users/a399/Desktop/shop/vue-shop-admin`
+- 前端应用：`/Users/a399/Desktop/shop/vue-shop-admin/apps/web-antd`
+- 后端仓库：`/Users/a399/Desktop/shop/shop`
+- 前端构建产物：`/Users/a399/Desktop/shop/vue-shop-admin/apps/web-antd/dist`
 - 服务器前端目录：`/www/wwwroot/shop-admin`
 - 服务器后端目录：`/www/wwwroot/shop`
 - Django 后端只监听内网：`127.0.0.1:8000`
@@ -108,14 +108,14 @@ VITE_ROUTER_HISTORY=hash
 首次拉取或依赖损坏时执行：
 
 ```bash
-cd /Users/aaaa/Desktop/vue-shop-admin
+cd /Users/a399/Desktop/shop/vue-shop-admin
 pnpm install
 ```
 
 如果依赖出现异常，可以重新安装：
 
 ```bash
-cd /Users/aaaa/Desktop/vue-shop-admin
+cd /Users/a399/Desktop/shop/vue-shop-admin
 pnpm install --force
 ```
 
@@ -124,7 +124,7 @@ pnpm install --force
 启动前端开发服务器：
 
 ```bash
-cd /Users/aaaa/Desktop/vue-shop-admin
+cd /Users/a399/Desktop/shop/vue-shop-admin
 pnpm dev:antd
 ```
 
@@ -136,8 +136,8 @@ pnpm dev:antd
 本地开发时，浏览器仍然请求 `/api/...`，由 Vite dev server 代理到本地 Django。后端需要另行启动：
 
 ```bash
-cd /Users/aaaa/Desktop/shop
-python run.py web
+cd /Users/a399/Desktop/shop/shop
+uv run python manage.py runserver 127.0.0.1:8000
 ```
 
 如果要同时启动 bot/scanner 等后台任务，使用后端项目自己的启动方式，不在前端仓库启动。
@@ -147,14 +147,14 @@ python run.py web
 每次修改前端页面、路由、接口封装、菜单、样式后，都需要重新构建：
 
 ```bash
-cd /Users/aaaa/Desktop/vue-shop-admin
+cd /Users/a399/Desktop/shop/vue-shop-admin
 pnpm -F @vben/web-antd run build
 ```
 
 构建成功后会生成：
 
-- 目录：`/Users/aaaa/Desktop/vue-shop-admin/apps/web-antd/dist`
-- 压缩包：`/Users/aaaa/Desktop/vue-shop-admin/apps/web-antd/dist.zip`
+- 目录：`/Users/a399/Desktop/shop/vue-shop-admin/apps/web-antd/dist`
+- 压缩包：`/Users/a399/Desktop/shop/vue-shop-admin/apps/web-antd/dist.zip`
 
 实际部署使用 `dist/` 目录内容，不直接部署源码。
 
@@ -165,7 +165,7 @@ pnpm -F @vben/web-antd run build
 - 域名：`web.1213.cc`
 - 服务器：`51.44.61.44`
 - SSH 用户：`admin`
-- SSH 密钥：`/Users/aaaa/Desktop/shop/.shop-secrets/lightsail/LightsailDefaultKey-ap-southeast-1.pem`
+- SSH 密钥：`/Users/a399/Desktop/shop/shop/.shop-secrets/lightsail/LightsailDefaultKey-ap-southeast-1.pem`
 - 前端目录：`/www/wwwroot/shop-admin`
 - 后端目录：`/www/wwwroot/shop`
 - 后端服务：`shop-web.service`
@@ -174,18 +174,18 @@ pnpm -F @vben/web-antd run build
 部署流程：先本地构建，再打包 `dist/`，上传到服务器，覆盖 `/www/wwwroot/shop-admin`，最后 reload Nginx。
 
 ```bash
-cd /Users/aaaa/Desktop/vue-shop-admin
+cd /Users/a399/Desktop/shop/vue-shop-admin
 pnpm -F @vben/web-antd run build
 
-cd /Users/aaaa/Desktop/vue-shop-admin/apps/web-antd/dist
+cd /Users/a399/Desktop/shop/vue-shop-admin/apps/web-antd/dist
 tar -czf /tmp/shop-admin-dist.tgz .
 
-scp -i /Users/aaaa/Desktop/shop/.shop-secrets/lightsail/LightsailDefaultKey-ap-southeast-1.pem \
+scp -i /Users/a399/Desktop/shop/shop/.shop-secrets/lightsail/LightsailDefaultKey-ap-southeast-1.pem \
   -o StrictHostKeyChecking=no \
   -o UserKnownHostsFile=/tmp/openclaw_known_hosts \
   /tmp/shop-admin-dist.tgz admin@51.44.61.44:/tmp/
 
-ssh -i /Users/aaaa/Desktop/shop/.shop-secrets/lightsail/LightsailDefaultKey-ap-southeast-1.pem \
+ssh -i /Users/a399/Desktop/shop/shop/.shop-secrets/lightsail/LightsailDefaultKey-ap-southeast-1.pem \
   -o StrictHostKeyChecking=no \
   -o UserKnownHostsFile=/tmp/openclaw_known_hosts \
   admin@51.44.61.44 \
@@ -202,7 +202,7 @@ ssh -i /Users/aaaa/Desktop/shop/.shop-secrets/lightsail/LightsailDefaultKey-ap-s
 如果本次同时修改了 Django 后端代码，前端部署完成后还需要单独同步后端代码、跑迁移并重启：
 
 ```bash
-ssh -i /Users/aaaa/Desktop/shop/.shop-secrets/lightsail/LightsailDefaultKey-ap-southeast-1.pem \
+ssh -i /Users/a399/Desktop/shop/shop/.shop-secrets/lightsail/LightsailDefaultKey-ap-southeast-1.pem \
   -o StrictHostKeyChecking=no \
   -o UserKnownHostsFile=/tmp/openclaw_known_hosts \
   admin@51.44.61.44 \
@@ -260,10 +260,10 @@ server {
 部署流程同样是先构建，再把 `dist/` 内容解压到宝塔站点目录：
 
 ```bash
-cd /Users/aaaa/Desktop/vue-shop-admin
+cd /Users/a399/Desktop/shop/vue-shop-admin
 pnpm -F @vben/web-antd run build
 
-cd /Users/aaaa/Desktop/vue-shop-admin/apps/web-antd/dist
+cd /Users/a399/Desktop/shop/vue-shop-admin/apps/web-antd/dist
 tar -czf /tmp/shop-admin-dist.tgz .
 
 orbctl -m shop-bt sudo bash -lc 'rm -rf /www/wwwroot/shop-admin/*'
@@ -312,7 +312,7 @@ curl -sS http://192.168.139.235/api/csrf/
 - 修改 `.env.production`：必须重新 build 前端才会生效
 - 修改 Nginx：执行 `nginx -t` 通过后再 `systemctl reload nginx`
 
-当前活跃工作区只保留 `apps/web-antd`。其它演示前端、mock、playground 项目保存在 `archive/frontend-extras/`，不再作为当前业务应用维护。
+当前活跃工作区只保留 `apps/web-antd`。其它演示前端、mock、playground 与官方 docs 包已经移除，不再作为当前业务应用维护。
 
 ## 业务范围
 
@@ -336,13 +336,13 @@ curl -sS http://192.168.139.235/api/csrf/
 - `apps/web-antd/src/router/routes/modules/admin.ts`
 - `apps/web-antd/.env.development`
 - `apps/web-antd/vite.config.ts`
-- `archive/frontend-extras/`：仅保留归档的非主应用作参考
+- 已移除非主线演示前端、mock、playground 与官方 docs 包，当前只维护业务后台
 
 ## 后端配套
 
 后端仓库：
 
-- `/Users/aaaa/Desktop/shop`
+- `/Users/a399/Desktop/shop/shop`
 
 常规联调检查：
 

@@ -71,6 +71,10 @@ function currentConfig(item: DashboardSiteConfigGroupItem) {
   return siteConfigs.value.find((config) => config.key === item.key) || null;
 }
 
+function configTitle(item: DashboardSiteConfigGroupItem) {
+  return item.description?.trim() || '未命名文案';
+}
+
 async function saveItem(item: DashboardSiteConfigGroupItem) {
   if (!requireCloudDangerPermission('保存文案配置')) return;
   const current = currentConfig(item);
@@ -86,7 +90,7 @@ async function saveItem(item: DashboardSiteConfigGroupItem) {
       value: draftMap[item.key] ?? '',
       sort_order: Number(sortOrderMap[item.key] || 0),
     });
-    message.success(`已保存：${item.description || item.key}`);
+    message.success(`已保存：${configTitle(item)}`);
     await loadData();
   } catch (error: any) {
     message.error(error?.message || '保存失败');
@@ -145,7 +149,7 @@ onMounted(loadData);
         class="text-card"
       >
         <template #title>
-          <div class="card-title">{{ item.description || item.key }}</div>
+          <div class="card-title">{{ configTitle(item) }}</div>
         </template>
         <Input.TextArea
           v-model:value="draftMap[item.key]"
