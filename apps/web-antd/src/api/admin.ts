@@ -1,5 +1,9 @@
 import { requestClient } from '#/api/request';
 
+const DEFAULT_LIST_TIMEOUT = 120_000;
+const LONG_OPERATION_TIMEOUT = 300_000;
+const VERY_LONG_OPERATION_TIMEOUT = 600_000;
+
 interface DashboardListQuery {
   archived?: 0 | 1;
   group_by?: 'telegram_group' | 'user';
@@ -1234,7 +1238,7 @@ export async function getDashboardNoticePlanApi(
 ) {
   return requestClient.get<DashboardNoticePlanDetail>('/admin/tasks/notices/', {
     params,
-    timeout: 600_000,
+    timeout: VERY_LONG_OPERATION_TIMEOUT,
   });
 }
 
@@ -1250,7 +1254,9 @@ export async function refreshDashboardNoticePlanApi(
     future_count: number;
     history_count: number;
     refreshed: boolean;
-  }>('/admin/tasks/notices/refresh/', payload);
+  }>('/admin/tasks/notices/refresh/', payload, {
+    timeout: LONG_OPERATION_TIMEOUT,
+  });
 }
 
 export async function deleteDashboardNoticeHistoryApi(logId: number | string) {
@@ -1295,7 +1301,7 @@ export async function getDashboardLifecyclePlansApi(
 ) {
   return requestClient.get<DashboardLifecyclePlansDetail>(
     '/admin/tasks/plans/',
-    { params, timeout: 600_000 },
+    { params, timeout: VERY_LONG_OPERATION_TIMEOUT },
   );
 }
 
@@ -1311,7 +1317,9 @@ export async function refreshDashboardLifecyclePlansApi(
     ip_delete_count: number;
     last_refresh_at?: null | string;
     refreshed: boolean;
-  }>('/admin/tasks/plans/refresh/', payload);
+  }>('/admin/tasks/plans/refresh/', payload, {
+    timeout: LONG_OPERATION_TIMEOUT,
+  });
 }
 
 export interface DashboardShutdownPlanRunResultItem {
@@ -1348,18 +1356,24 @@ export async function updateDashboardLifecyclePlanNoteApi(payload: {
 export async function runDashboardShutdownPlanOrderApi(orderId: number) {
   return requestClient.post<DashboardShutdownPlanRunResult>(
     `/admin/tasks/plans/orders/${orderId}/run/`,
+    undefined,
+    { timeout: LONG_OPERATION_TIMEOUT },
   );
 }
 
 export async function runDashboardOrphanAssetDeletePlanApi(assetId: number) {
   return requestClient.post<DashboardShutdownPlanRunResult>(
     `/admin/tasks/plans/orphan-assets/${assetId}/run/`,
+    undefined,
+    { timeout: LONG_OPERATION_TIMEOUT },
   );
 }
 
 export async function runDashboardUnattachedIpDeletePlanApi(assetId: number) {
   return requestClient.post<DashboardShutdownPlanRunResult>(
     `/admin/tasks/plans/unattached-ips/${assetId}/run/`,
+    undefined,
+    { timeout: LONG_OPERATION_TIMEOUT },
   );
 }
 
@@ -1385,12 +1399,16 @@ export interface DashboardAutoRenewRunResult {
 export async function runDashboardAutoRenewTasksApi() {
   return requestClient.post<DashboardAutoRenewRunResult>(
     '/admin/tasks/auto-renew/run/',
+    undefined,
+    { timeout: LONG_OPERATION_TIMEOUT },
   );
 }
 
 export async function runDashboardAutoRenewOrderApi(orderId: number) {
   return requestClient.post<DashboardAutoRenewRunResult>(
     `/admin/tasks/auto-renew/orders/${orderId}/run/`,
+    undefined,
+    { timeout: LONG_OPERATION_TIMEOUT },
   );
 }
 
@@ -1434,6 +1452,7 @@ export interface DashboardUserBalanceDetailsResponse {
 export async function getDashboardUserBalanceDetailsApi(userId: number) {
   return requestClient.get<DashboardUserBalanceDetailsResponse>(
     `/admin/users/${userId}/balance-details/`,
+    { timeout: DEFAULT_LIST_TIMEOUT },
   );
 }
 
@@ -1442,6 +1461,7 @@ export async function getDashboardCloudAssetsApi(
 ) {
   return requestClient.get<DashboardCloudAssetItem[]>('/admin/cloud-assets/', {
     params,
+    timeout: DEFAULT_LIST_TIMEOUT,
   });
 }
 
@@ -1452,6 +1472,7 @@ export async function getDashboardCloudAssetsPageApi(
     '/admin/cloud-assets/',
     {
       params: { ...params, paginated: 1 },
+      timeout: DEFAULT_LIST_TIMEOUT,
     },
   );
 }
@@ -1463,6 +1484,7 @@ export async function getDashboardCloudAssetsGroupedApi(
     '/admin/cloud-assets/',
     {
       params: { ...params, grouped: 1 },
+      timeout: DEFAULT_LIST_TIMEOUT,
     },
   );
 }
@@ -1474,6 +1496,7 @@ export async function getDashboardCloudAssetsGroupedPageApi(
     '/admin/cloud-assets/',
     {
       params: { ...params, grouped: 1, paginated: 1 },
+      timeout: DEFAULT_LIST_TIMEOUT,
     },
   );
 }
@@ -1481,6 +1504,7 @@ export async function getDashboardCloudAssetsGroupedPageApi(
 export async function getDashboardCloudAssetDetailApi(assetId: number) {
   return requestClient.get<DashboardCloudAssetDetail>(
     `/admin/cloud-assets/${assetId}/`,
+    { timeout: DEFAULT_LIST_TIMEOUT },
   );
 }
 
@@ -1585,6 +1609,7 @@ export interface DashboardCloudAssetSyncResult {
 export async function getDashboardCloudAssetsSyncStatusApi() {
   return requestClient.get<DashboardCloudAssetsSyncStatus>(
     '/admin/cloud-assets/sync-status/',
+    { timeout: DEFAULT_LIST_TIMEOUT },
   );
 }
 
@@ -1593,7 +1618,7 @@ export async function getDashboardCloudAssetRiskSummaryApi(
 ) {
   return requestClient.get<DashboardCloudAssetRiskSummary>(
     '/admin/cloud-assets/risk-summary/',
-    { params },
+    { params, timeout: DEFAULT_LIST_TIMEOUT },
   );
 }
 
@@ -1604,7 +1629,7 @@ export async function getDashboardCloudIpLogsApi(
 ) {
   return requestClient.get<DashboardCloudIpLogItem[]>(
     '/admin/cloud-assets/ip-logs/',
-    { params },
+    { params, timeout: DEFAULT_LIST_TIMEOUT },
   );
 }
 
@@ -1613,7 +1638,7 @@ export async function getDashboardBotOperationLogsApi(
 ) {
   return requestClient.get<DashboardBotOperationLogItem[]>(
     '/admin/bot/operation-logs/',
-    { params },
+    { params, timeout: DEFAULT_LIST_TIMEOUT },
   );
 }
 
@@ -1637,7 +1662,7 @@ export async function updateDashboardCloudAssetApi(
   return requestClient.post<DashboardCloudAssetItem>(
     `/admin/cloud-assets/${assetId}/`,
     payload,
-    { timeout: 120_000 },
+    { timeout: LONG_OPERATION_TIMEOUT },
   );
 }
 
@@ -1658,6 +1683,8 @@ export async function deleteDashboardServerApi(serverId: number) {
 export async function syncDashboardCloudAssetStatusApi(assetId: number) {
   return requestClient.post<DashboardCloudAssetSyncResult>(
     `/admin/cloud-assets/${assetId}/sync/`,
+    undefined,
+    { timeout: LONG_OPERATION_TIMEOUT },
   );
 }
 
@@ -1673,7 +1700,7 @@ export async function rebuildDashboardServerPreserveLinkApi(serverId: number) {
     order_no: string;
     replacement_for_id: number;
   }>(`/admin/servers/${serverId}/rebuild-preserve-link/`, undefined, {
-    timeout: 120_000,
+    timeout: LONG_OPERATION_TIMEOUT,
   });
 }
 
@@ -1682,12 +1709,14 @@ export async function getDashboardCloudOrdersApi(
 ) {
   return requestClient.get<DashboardCloudOrderItem[]>('/admin/cloud-orders/', {
     params,
+    timeout: DEFAULT_LIST_TIMEOUT,
   });
 }
 
 export async function getDashboardCloudOrderDetailApi(orderId: number) {
   return requestClient.get<DashboardCloudOrderDetail>(
     `/admin/cloud-orders/${orderId}/`,
+    { timeout: DEFAULT_LIST_TIMEOUT },
   );
 }
 
@@ -1716,6 +1745,7 @@ export async function updateDashboardCloudOrderApi(
   return requestClient.post<DashboardCloudOrderDetail>(
     `/admin/cloud-orders/${orderId}/`,
     payload,
+    { timeout: LONG_OPERATION_TIMEOUT },
   );
 }
 
@@ -1726,6 +1756,7 @@ export async function updateDashboardCloudOrderStatusApi(
   return requestClient.post<DashboardCloudOrderDetail>(
     `/admin/cloud-orders/${orderId}/status/`,
     payload,
+    { timeout: LONG_OPERATION_TIMEOUT },
   );
 }
 
@@ -1736,6 +1767,7 @@ export async function deleteDashboardCloudOrderApi(orderId: number) {
 export async function getDashboardServersApi(params: DashboardListQuery = {}) {
   return requestClient.get<DashboardServerItem[]>('/admin/servers/', {
     params,
+    timeout: DEFAULT_LIST_TIMEOUT,
   });
 }
 
@@ -1744,6 +1776,7 @@ export async function getDashboardCloudPlansApi(
 ) {
   return requestClient.get<DashboardCloudPlanItem[]>('/admin/cloud-plans/', {
     params,
+    timeout: DEFAULT_LIST_TIMEOUT,
   });
 }
 
@@ -1752,7 +1785,7 @@ export async function getDashboardCloudPricingApi(
 ) {
   return requestClient.get<DashboardCloudPricingItem[]>(
     '/admin/cloud-pricing/',
-    { params },
+    { params, timeout: DEFAULT_LIST_TIMEOUT },
   );
 }
 
@@ -1760,7 +1793,7 @@ export async function syncDashboardCloudPlansApi() {
   return requestClient.post<DashboardCloudPlanSyncResult>(
     '/admin/cloud-plans/sync/',
     undefined,
-    { timeout: 120_000 },
+    { timeout: LONG_OPERATION_TIMEOUT },
   );
 }
 
@@ -1792,7 +1825,7 @@ export async function getDashboardSiteConfigsApi(
 ) {
   return requestClient.get<DashboardSiteConfigItem[]>(
     '/admin/settings/site-configs/',
-    { params, timeout: 600_000 },
+    { params, timeout: VERY_LONG_OPERATION_TIMEOUT },
   );
 }
 
@@ -1801,7 +1834,7 @@ export async function getDashboardSiteConfigGroupsApi(
 ) {
   return requestClient.get<DashboardSiteConfigGroup[]>(
     '/admin/settings/site-configs/groups/',
-    { params, timeout: 600_000 },
+    { params, timeout: VERY_LONG_OPERATION_TIMEOUT },
   );
 }
 
@@ -1818,7 +1851,9 @@ export async function updateDashboardSiteConfigApi(
 export async function initDashboardSiteConfigsApi(
   payload: { scope?: 'all' | 'configs' } = {},
 ) {
-  return requestClient.post('/admin/settings/site-configs/init/', payload);
+  return requestClient.post('/admin/settings/site-configs/init/', payload, {
+    timeout: LONG_OPERATION_TIMEOUT,
+  });
 }
 
 export async function testDashboardDailyExpirySummaryApi() {
@@ -1829,7 +1864,9 @@ export async function testDashboardDailyExpirySummaryApi() {
     ip_due?: number;
     sent: number;
     today: number;
-  }>('/admin/settings/site-configs/daily-expiry-summary/test/');
+  }>('/admin/settings/site-configs/daily-expiry-summary/test/', undefined, {
+    timeout: LONG_OPERATION_TIMEOUT,
+  });
 }
 
 export async function startDashboardTotpBindApi(
@@ -1854,6 +1891,7 @@ export async function initDashboardTextConfigsApi(
   return requestClient.post<{ created: number; mode: string; updated: number }>(
     '/admin/settings/site-configs/init-texts/',
     payload,
+    { timeout: LONG_OPERATION_TIMEOUT },
   );
 }
 
@@ -1879,6 +1917,7 @@ export async function initDashboardButtonConfigApi() {
 export async function getDashboardCloudAccountsApi() {
   return requestClient.get<DashboardCloudAccountConfigItem[]>(
     '/admin/settings/cloud-accounts/',
+    { timeout: DEFAULT_LIST_TIMEOUT },
   );
 }
 
@@ -1923,7 +1962,9 @@ export async function verifyDashboardCloudAccountApi(
     provider: string;
     region: string;
     valid: boolean;
-  }>(`/admin/settings/cloud-accounts/${accountId}/verify/`, payload);
+  }>(`/admin/settings/cloud-accounts/${accountId}/verify/`, payload, {
+    timeout: LONG_OPERATION_TIMEOUT,
+  });
 }
 
 export async function getDashboardTelegramAccountsApi(
@@ -1931,7 +1972,7 @@ export async function getDashboardTelegramAccountsApi(
 ) {
   return requestClient.get<DashboardTelegramAccountsOverview>(
     '/admin/telegram/accounts/',
-    { params },
+    { params, timeout: DEFAULT_LIST_TIMEOUT },
   );
 }
 
@@ -1949,6 +1990,8 @@ export async function checkDashboardTelegramAccountStatusApi(
 ) {
   return requestClient.post<DashboardTelegramLoginAccountItem>(
     `/admin/telegram/accounts/${accountId}/status/`,
+    undefined,
+    { timeout: LONG_OPERATION_TIMEOUT },
   );
 }
 
@@ -1972,7 +2015,9 @@ export async function startDashboardTelegramLoginApi(payload: {
     account: DashboardTelegramLoginAccountItem;
     account_id: number;
     next_step: string;
-  }>('/admin/telegram/login/start/', payload);
+  }>('/admin/telegram/login/start/', payload, {
+    timeout: LONG_OPERATION_TIMEOUT,
+  });
 }
 
 export async function submitDashboardTelegramLoginCodeApi(payload: {
@@ -1984,7 +2029,9 @@ export async function submitDashboardTelegramLoginCodeApi(payload: {
     account_id: number;
     next_step: string;
     requires_password?: boolean;
-  }>('/admin/telegram/login/code/', payload);
+  }>('/admin/telegram/login/code/', payload, {
+    timeout: LONG_OPERATION_TIMEOUT,
+  });
 }
 
 export async function submitDashboardTelegramLoginPasswordApi(payload: {
@@ -1995,7 +2042,9 @@ export async function submitDashboardTelegramLoginPasswordApi(payload: {
     account: DashboardTelegramLoginAccountItem;
     account_id: number;
     next_step: string;
-  }>('/admin/telegram/login/password/', payload);
+  }>('/admin/telegram/login/password/', payload, {
+    timeout: LONG_OPERATION_TIMEOUT,
+  });
 }
 
 export async function sendDashboardTelegramMessageApi(payload: {
@@ -2006,6 +2055,7 @@ export async function sendDashboardTelegramMessageApi(payload: {
   return requestClient.post<DashboardTelegramMessageItem>(
     '/admin/telegram/messages/send/',
     payload,
+    { timeout: LONG_OPERATION_TIMEOUT },
   );
 }
 
@@ -2026,7 +2076,7 @@ export async function getDashboardTelegramGroupsApi(
 ) {
   return requestClient.get<DashboardTelegramGroupFilterItem[]>(
     '/admin/telegram/groups/',
-    { params },
+    { params, timeout: DEFAULT_LIST_TIMEOUT },
   );
 }
 
@@ -2052,6 +2102,7 @@ export async function updateDashboardTelegramGroupApi(
 export async function getDashboardTelegramGroupDetailApi(groupId: number) {
   return requestClient.get<DashboardTelegramGroupDetail>(
     `/admin/telegram/groups/${groupId}/detail/`,
+    { timeout: DEFAULT_LIST_TIMEOUT },
   );
 }
 
@@ -2064,7 +2115,7 @@ export async function getDashboardTelegramMessagesApi(
 ) {
   return requestClient.get<DashboardTelegramMessageItem[]>(
     '/admin/telegram/messages/',
-    { params },
+    { params, timeout: DEFAULT_LIST_TIMEOUT },
   );
 }
 
@@ -2113,7 +2164,7 @@ export async function getDashboardServersStatisticsApi(
 ) {
   return requestClient.get<DashboardServerStatisticsResponse>(
     '/admin/servers/statistics/',
-    { params },
+    { params, timeout: DEFAULT_LIST_TIMEOUT },
   );
 }
 
@@ -2136,6 +2187,7 @@ export async function getDashboardRechargesApi(
 ) {
   return requestClient.get<DashboardRechargeItem[]>('/admin/recharges/', {
     params,
+    timeout: DEFAULT_LIST_TIMEOUT,
   });
 }
 
@@ -2158,5 +2210,6 @@ export async function updateDashboardRechargeStatusApi(
 export async function getDashboardMonitorsApi(params: DashboardListQuery = {}) {
   return requestClient.get<DashboardMonitorItem[]>('/admin/monitors/', {
     params,
+    timeout: DEFAULT_LIST_TIMEOUT,
   });
 }
