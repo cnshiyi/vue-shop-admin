@@ -1341,19 +1341,6 @@ async function toggleAutoRenew(
 
 async function deleteAsset(record: DashboardCloudAssetItem) {
   if (!requireCloudDangerPermission('删除代理本地状态')) return;
-  Modal.confirm({
-    title: '确认清除本地代理记录？',
-    content: `资产：${record.asset_name || record.instance_id || '-'}\n公网 IP：${record.public_ip || '-'}\n\n该操作只清除本地数据库状态，不会删除云端服务器或释放云端 IP。`,
-    okText: '确认清除',
-    okType: 'danger',
-    cancelText: '取消',
-    async onOk() {
-      await deleteAssetConfirmed(record);
-    },
-  });
-}
-
-async function deleteAssetConfirmed(record: DashboardCloudAssetItem) {
   try {
     await deleteDashboardCloudAssetApi(record.id);
     removeAssetFromList(record.id);
@@ -2002,7 +1989,7 @@ onBeforeUnmount(() => {
                     更新
                   </Button>
                   <Popconfirm
-                    title="确认清除这条代理的本地状态吗？不会删除真实云服务器/IP；会清除关联订单的云资源绑定，后续同步按全新资源重新拉回。"
+                    title="确认清除这条代理的本地状态吗？不会删除真实云服务器或释放云端 IP；后续同步会按云端状态重新拉回。"
                     @confirm="deleteAsset(asDashboardCloudAssetItem(record))"
                   >
                     <Button danger type="link" :disabled="!canRunCloudDanger">
@@ -2318,7 +2305,7 @@ onBeforeUnmount(() => {
                 更新
               </Button>
               <Popconfirm
-                title="确认清除这条代理的本地状态吗？不会删除真实云服务器/IP；会清除关联订单的云资源绑定，后续同步按全新资源重新拉回。"
+                title="确认清除这条代理的本地状态吗？不会删除真实云服务器或释放云端 IP；后续同步会按云端状态重新拉回。"
                 @confirm="deleteAsset(record as DashboardCloudAssetItem)"
               >
                 <Button danger type="link" :disabled="!canRunCloudDanger">
