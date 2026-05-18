@@ -1859,8 +1859,8 @@ export async function initDashboardSiteConfigsApi(
 export async function testDashboardDailyExpirySummaryApi() {
   return requestClient.post<{
     delete_due?: number;
-    expired: number;
     errors?: string[];
+    expired: number;
     ip_due?: number;
     sent: number;
     today: number;
