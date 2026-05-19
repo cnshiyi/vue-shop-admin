@@ -193,19 +193,17 @@ function isDeletedAsset(record: DashboardCloudAssetItem) {
   if (isUnattachedIpAsset(record)) {
     return false;
   }
+  if (record.is_deleted === true) {
+    return true;
+  }
+  if (record.is_expired === true) {
+    return false;
+  }
   return (
-    !record.is_active ||
-    [
-      'deleted',
-      'deleting',
-      'expired',
-      'terminated',
-      'terminating',
-      'unknown',
-    ].includes(record.status) ||
-    ['删除中', '已删除', '已终止', '已过期', '未知状态', '终止中'].includes(
-      record.status_label || '',
-    )
+    ['deleted', 'deleting', 'terminated', 'terminating'].includes(
+      record.status,
+    ) ||
+    ['删除中', '已删除', '已终止', '终止中'].includes(record.status_label || '')
   );
 }
 
@@ -216,6 +214,12 @@ const displayedItems = computed(() =>
 );
 const deletedAssetCount = computed(
   () => items.value.filter((item) => isDeletedAsset(item)).length,
+);
+const expiredAssetCount = computed(
+  () =>
+    items.value.filter(
+      (item) => item.is_expired || ['expired', 'expired_grace'].includes(item.status),
+    ).length,
 );
 
 function assetDisplayRank(record: DashboardCloudAssetItem) {
@@ -581,13 +585,14 @@ const riskFilterOptions = computed(() => [
   { label: `运行中 (${riskCountLabel('normal')})`, value: 'normal' },
   { label: `即将到期 (${riskCountLabel('due_soon')})`, value: 'due_soon' },
   { label: `已过期 (${riskCountLabel('expired')})`, value: 'expired' },
+  { label: `已删除 (${riskCountLabel('deleted')})`, value: 'deleted' },
   {
     label: `未附加固定IP (${riskCountLabel('unattached_ip')})`,
     value: 'unattached_ip',
   },
   { label: `异常/待确认 (${riskCountLabel('abnormal')})`, value: 'abnormal' },
   {
-    label: `关机计划关闭 (${riskCountLabel('shutdown_disabled')})`,
+    label: `只同步/自然释放 (${riskCountLabel('shutdown_disabled')})`,
     value: 'shutdown_disabled',
   },
   {
@@ -869,7 +874,7 @@ function setRiskStatus(status: string) {
     return;
   }
   riskStatus.value = status;
-  if (['abnormal', 'expired'].includes(status)) {
+  if (['abnormal', 'deleted'].includes(status)) {
     showDeletedAssets.value = true;
   }
   handleRiskStatusChange();
@@ -1611,6 +1616,7 @@ onBeforeUnmount(() => {
             数量：AWS {{ awsExistingCount }} / 阿里云
             {{ aliyunExistingCount }}
           </Tag>
+          <Tag color="volcano">已过期 {{ expiredAssetCount }} 条</Tag>
           <Tag color="purple">下次刷新：{{ nextRefreshInSeconds }}s</Tag>
           <Space :size="4">
             <span>{{ showDeletedAssets ? '展开已删除' : '折叠已删除' }}</span>
@@ -1695,12 +1701,21 @@ onBeforeUnmount(() => {
               <Tag v-if="activeAssetCount(group.items) > 0" color="success">
                 有效 {{ activeAssetCount(group.items) }} 条
               </Tag>
+              <Tag
+                v-if="
+                  group.items.filter((item) => item.is_expired).length > 0
+                "
+                color="volcano"
+              >
+                过期
+                {{ group.items.filter((item) => item.is_expired).length }} 条
+              </Tag>
             </Space>
           </template>
           <Table
             class="cloud-assets-table"
             :columns="assetTableColumns"
-            :data-source="group.items"
+            :data-source="groupTableItems(group)"
             :loading="loading"
             :pagination="false"
             :row-selection="rowSelection"

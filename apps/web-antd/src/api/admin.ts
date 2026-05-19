@@ -322,7 +322,11 @@ export interface DashboardCloudAssetItem {
   static_ip_name?: null | string;
   instance_id: null | string;
   is_active: boolean;
+  is_deleted?: boolean;
+  is_expired?: boolean;
   ip_change_quota?: number;
+  lifecycle_policy?: string;
+  lifecycle_policy_label?: string;
   server_id?: null | number;
   status: string;
   status_countdown?: string;
