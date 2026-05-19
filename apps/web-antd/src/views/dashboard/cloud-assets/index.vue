@@ -218,7 +218,8 @@ const deletedAssetCount = computed(
 const expiredAssetCount = computed(
   () =>
     items.value.filter(
-      (item) => item.is_expired || ['expired', 'expired_grace'].includes(item.status),
+      (item) =>
+        item.is_expired || ['expired', 'expired_grace'].includes(item.status),
     ).length,
 );
 
@@ -623,7 +624,12 @@ const columns = [
     width: 180,
   },
   { title: '资产名称', dataIndex: 'asset_name', key: 'asset_name', width: 150 },
-  { title: '云厂商', dataIndex: 'provider_label', key: 'provider_label', width: 120 },
+  {
+    title: '云厂商',
+    dataIndex: 'provider_label',
+    key: 'provider_label',
+    width: 120,
+  },
   {
     title: '实例ID',
     dataIndex: 'instance_id',
@@ -1124,9 +1130,13 @@ async function batchSyncSelectedAssets() {
       asset_ids: assetIds,
       selected_count: selectedAssets.value.length,
     });
-    const result = await syncDashboardCloudAssetsApi('cn-hongkong', 'ap-southeast-1', {
-      asset_ids: assetIds,
-    });
+    const result = await syncDashboardCloudAssetsApi(
+      'cn-hongkong',
+      'ap-southeast-1',
+      {
+        asset_ids: assetIds,
+      },
+    );
     logCloudSyncConsole('batch-result', result, result?.ok === false);
     await loadData();
     lastSyncTasks.value = result.tasks || [];
@@ -1170,10 +1180,14 @@ async function syncAssets() {
       providers,
       asset_ids: assetIds,
     });
-    const result = await syncDashboardCloudAssetsApi('cn-hongkong', 'ap-southeast-1', {
-      providers,
-      asset_ids: assetIds,
-    });
+    const result = await syncDashboardCloudAssetsApi(
+      'cn-hongkong',
+      'ap-southeast-1',
+      {
+        providers,
+        asset_ids: assetIds,
+      },
+    );
     logCloudSyncConsole('all-result', result, result?.ok === false);
     markRecentSync();
     await loadData();
@@ -1702,9 +1716,7 @@ onBeforeUnmount(() => {
                 有效 {{ activeAssetCount(group.items) }} 条
               </Tag>
               <Tag
-                v-if="
-                  group.items.filter((item) => item.is_expired).length > 0
-                "
+                v-if="group.items.some((item) => item.is_expired)"
                 color="volcano"
               >
                 过期
@@ -1783,7 +1795,11 @@ onBeforeUnmount(() => {
               </template>
               <template v-else-if="column.key === 'provider_label'">
                 <Space direction="vertical" :size="2">
-                  <Tag :color="record.provider === 'aws_lightsail' ? 'orange' : 'blue'">
+                  <Tag
+                    :color="
+                      record.provider === 'aws_lightsail' ? 'orange' : 'blue'
+                    "
+                  >
                     {{ record.provider_label || record.provider || '-' }}
                   </Tag>
                 </Space>
@@ -1957,7 +1973,11 @@ onBeforeUnmount(() => {
                 </Tag>
               </template>
               <template v-else-if="column.key === 'provider_status'">
-                <Tag :color="record.provider_status === 'running' ? 'success' : 'default'">
+                <Tag
+                  :color="
+                    record.provider_status === 'running' ? 'success' : 'default'
+                  "
+                >
                   {{ record.provider_status || '-' }}
                 </Tag>
               </template>
@@ -2101,7 +2121,9 @@ onBeforeUnmount(() => {
           </template>
           <template v-else-if="column.key === 'provider_label'">
             <Space direction="vertical" :size="2">
-              <Tag :color="record.provider === 'aws_lightsail' ? 'orange' : 'blue'">
+              <Tag
+                :color="record.provider === 'aws_lightsail' ? 'orange' : 'blue'"
+              >
                 {{ record.provider_label || record.provider || '-' }}
               </Tag>
             </Space>
@@ -2273,7 +2295,11 @@ onBeforeUnmount(() => {
             </Tag>
           </template>
           <template v-else-if="column.key === 'provider_status'">
-            <Tag :color="record.provider_status === 'running' ? 'success' : 'default'">
+            <Tag
+              :color="
+                record.provider_status === 'running' ? 'success' : 'default'
+              "
+            >
               {{ record.provider_status || '-' }}
             </Tag>
           </template>
