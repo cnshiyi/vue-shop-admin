@@ -6,6 +6,7 @@ import type {
   DashboardCloudAccountCreatePayload,
   DashboardCloudAccountDetail,
   DashboardCloudAccountLogItem,
+  DashboardSiteConfigItem,
 } from '#/api/admin';
 
 import { computed, onMounted, reactive, ref, watch } from 'vue';
@@ -35,7 +36,10 @@ import {
   deleteDashboardCloudAccountApi,
   getDashboardCloudAccountDetailApi,
   getDashboardCloudAccountsApi,
+  getDashboardSiteConfigGroupsApi,
+  initDashboardSiteConfigsApi,
   updateDashboardCloudAccountApi,
+  updateDashboardSiteConfigApi,
   verifyDashboardCloudAccountApi,
 } from '#/api/admin';
 import { useDashboardPermissions } from '#/utils/dashboard-permissions';
@@ -51,6 +55,13 @@ const current = ref<DashboardCloudAccountConfigItem | null>(null);
 const items = ref<DashboardCloudAccountConfigItem[]>([]);
 const detail = ref<DashboardCloudAccountDetail | null>(null);
 const togglingMap = reactive<Record<number, boolean>>({});
+const lifecycleConfigs = ref<DashboardSiteConfigItem[]>([]);
+const lifecycleSwitchSavingMap = reactive<Record<string, boolean>>({});
+
+const LIFECYCLE_SWITCH_KEYS = [
+  'cloud_lifecycle_delete_enabled',
+  'cloud_unattached_ip_release_enabled',
+] as const;
 
 const DEFAULT_REGION_MAP: Record<string, string> = {
   aliyun: 'cn-hongkong',
@@ -156,7 +167,21 @@ function resetForm() {
 async function loadData() {
   loading.value = true;
   try {
-    items.value = await getDashboardCloudAccountsApi();
+    const [accounts, configs] = await Promise.all([
+      getDashboardCloudAccountsApi(),
+      getDashboardSiteConfigGroupsApi({ group: 'lifecycle' }),
+    ]);
+    items.value = accounts;
+    const lifecycleGroup = configs.find((group) => group.group === 'lifecycle');
+    lifecycleConfigs.value = (lifecycleGroup?.items || [])
+      .filter((item) => LIFECYCLE_SWITCH_KEYS.includes(item.key as any))
+      .map((item) => ({
+        ...item,
+        id: item.id || 0,
+        value: item.value || item.default_value || '1',
+        value_preview:
+          item.value_preview || item.value || item.default_value || '1',
+      }));
   } finally {
     loading.value = false;
   }
@@ -270,13 +295,91 @@ function isAliyunProvider(provider?: null | string) {
   return String(provider || '').includes('aliyun');
 }
 
-function lifecyclePolicyText(record?: null | Pick<DashboardCloudAccountConfigItem, 'provider'>) {
+function lifecyclePolicyText(
+  record?: null | Pick<DashboardCloudAccountConfigItem, 'provider'>,
+) {
   if (!record) return '-';
   return isAliyunProvider(record.provider) ? '只同步/自然释放' : 'AWS 生命周期';
 }
 
-function lifecyclePolicyColor(record?: null | Pick<DashboardCloudAccountConfigItem, 'provider'>) {
+function lifecyclePolicyColor(
+  record?: null | Pick<DashboardCloudAccountConfigItem, 'provider'>,
+) {
   return isAliyunProvider(record?.provider) ? 'processing' : 'warning';
+}
+
+function lifecycleSwitchLabel(key: string) {
+  if (key === 'cloud_lifecycle_delete_enabled') return '云端删机';
+  if (key === 'cloud_unattached_ip_release_enabled') return '释放未附加IP';
+  return key;
+}
+
+function lifecycleSwitchChecked(item: DashboardSiteConfigItem) {
+  return String(item.value || item.value_preview || '1').trim() === '1';
+}
+
+async function toggleLifecycleSwitch(
+  item: DashboardSiteConfigItem,
+  checked: boolean,
+) {
+  if (!requireCloudDangerPermission('切换生命周期总开关')) return;
+  lifecycleSwitchSavingMap[item.key] = true;
+  try {
+    let configId = item.id;
+    if (!configId) {
+      await initDashboardSiteConfigsApi({ scope: 'configs' });
+      const groups = await getDashboardSiteConfigGroupsApi({
+        group: 'lifecycle',
+      });
+      const lifecycleGroup = groups.find(
+        (group) => group.group === 'lifecycle',
+      );
+      const refreshed = (lifecycleGroup?.items || []).find(
+        (config) => config.key === item.key,
+      );
+      configId = refreshed?.id || 0;
+      if (!configId) {
+        throw new Error('配置项初始化失败，请刷新后重试');
+      }
+      item.id = configId;
+    }
+    await updateDashboardSiteConfigApi(configId, {
+      is_sensitive: item.is_sensitive,
+      key: item.key,
+      value: checked ? '1' : '0',
+    });
+    item.value = checked ? '1' : '0';
+    item.value_preview = item.value;
+    for (const account of items.value) {
+      if (item.key === 'cloud_lifecycle_delete_enabled') {
+        account.delete_execution_enabled = checked;
+      }
+      if (item.key === 'cloud_unattached_ip_release_enabled') {
+        account.static_ip_release_enabled = checked;
+      }
+    }
+    message.success(
+      `${lifecycleSwitchLabel(item.key)}已${checked ? '开启' : '关闭'}`,
+    );
+  } catch (error: any) {
+    message.error(error?.message || '切换失败');
+  } finally {
+    lifecycleSwitchSavingMap[item.key] = false;
+  }
+}
+
+function globalDeleteExecutionEnabled() {
+  const item = lifecycleConfigs.value.find(
+    (config) => config.key === 'cloud_lifecycle_delete_enabled',
+  );
+  return lifecycleSwitchChecked(item as DashboardSiteConfigItem);
+}
+
+function globalStaticIpReleaseEnabled() {
+  const item = lifecycleConfigs.value.find(
+    (config) => config.key === 'cloud_unattached_ip_release_enabled',
+  );
+  return lifecycleSwitchChecked(item as DashboardSiteConfigItem);
 }
 
 async function remove(record: DashboardCloudAccountConfigItem) {
@@ -295,12 +398,39 @@ onMounted(loadData);
 
 <template>
   <Page description="支持多平台、多账户并行管理" title="云账号设置">
-    <Space class="mb-3">
-      <Button type="primary" :disabled="!canRunCloudDanger" @click="openCreate">
-        添加账号
-      </Button>
-      <Button :loading="loading" @click="loadData">刷新</Button>
-    </Space>
+    <div class="mb-4 flex flex-wrap items-center gap-x-5 gap-y-3">
+      <Space>
+        <Button
+          type="primary"
+          :disabled="!canRunCloudDanger"
+          @click="openCreate"
+        >
+          添加账号
+        </Button>
+        <Button :loading="loading" @click="loadData">刷新</Button>
+      </Space>
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Space
+          v-for="item in lifecycleConfigs"
+          :key="item.key"
+          size="small"
+          align="center"
+          class="h-8"
+        >
+          <span class="text-xs text-[var(--ant-color-text-secondary)]">
+            {{ lifecycleSwitchLabel(item.key) }}
+          </span>
+          <Switch
+            :checked="lifecycleSwitchChecked(item)"
+            checked-children="开"
+            :disabled="!canRunCloudDanger"
+            :loading="lifecycleSwitchSavingMap[item.key]"
+            un-checked-children="关"
+            @change="(checked) => toggleLifecycleSwitch(item, Boolean(checked))"
+          />
+        </Space>
+      </div>
+    </div>
 
     <Table
       :columns="columns"
@@ -330,7 +460,11 @@ onMounted(loadData);
           />
         </template>
         <template v-else-if="column.key === 'shutdown_enabled'">
-          <Tag :color="lifecyclePolicyColor(record as DashboardCloudAccountConfigItem)">
+          <Tag
+            :color="
+              lifecyclePolicyColor(record as DashboardCloudAccountConfigItem)
+            "
+          >
             {{ lifecyclePolicyText(record as DashboardCloudAccountConfigItem) }}
           </Tag>
         </template>
@@ -432,6 +566,10 @@ onMounted(loadData);
             <Tag :color="lifecyclePolicyColor(detail)">
               {{ lifecyclePolicyText(detail) }}
             </Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="执行开关">
+            删机：{{ globalDeleteExecutionEnabled() ? '开启' : '关闭' }} /
+            释放IP：{{ globalStaticIpReleaseEnabled() ? '开启' : '关闭' }}
           </Descriptions.Item>
           <Descriptions.Item label="创建时间">
             {{ detail.created_at || '-' }}
@@ -590,7 +728,8 @@ onMounted(loadData);
         </Form.Item>
         <Form.Item label="生命周期策略">
           <div class="text-xs text-[var(--ant-color-text-description)] mt-1">
-            AWS 账号仍由服务器任务计划执行到期生命周期；阿里云账号仅同步资产状态，不执行关机或删除，等待云端自然释放。
+            AWS
+            账号仍由服务器任务计划执行到期生命周期；阿里云账号仅同步资产状态，不执行关机或删除，等待云端自然释放。
           </div>
         </Form.Item>
       </Form>

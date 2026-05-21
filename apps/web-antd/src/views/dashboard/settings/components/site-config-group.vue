@@ -218,7 +218,9 @@ async function bindTotp() {
 const switchConfigKeys = new Set([
   'cloud_auto_renew_execution_notify_enabled',
   'cloud_daily_expiry_summary_enabled',
+  'cloud_lifecycle_delete_enabled',
   'cloud_renew_notice_debug_repeat',
+  'cloud_unattached_ip_release_enabled',
   'scanner_block_log_enabled',
   'scanner_verbose',
   'telegram_listener_push_enabled',
@@ -289,8 +291,7 @@ async function saveItem(item: DashboardSiteConfigGroupItem) {
   }
   const value = draftMap[item.key] ?? '';
   const preserveExisting =
-    !!item.is_sensitive &&
-    (maskedMap[item.key] || !value.trim());
+    !!item.is_sensitive && (maskedMap[item.key] || !value.trim());
   savingMap[item.key] = true;
   try {
     await updateDashboardSiteConfigApi(current.id, {

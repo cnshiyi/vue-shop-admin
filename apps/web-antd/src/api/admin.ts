@@ -188,6 +188,8 @@ export interface DashboardCloudOrderItem {
   execution_status?: string;
   execution_status_label?: string;
   total_amount: string;
+  tg_user_id?: null | number;
+  user_id?: null | number;
   username_label?: string;
 }
 
@@ -892,6 +894,11 @@ export interface DashboardShutdownPlanHistoryItem {
 }
 
 export interface DashboardLifecyclePlansDetail {
+  asset_delete_plan_count?: number;
+  asset_delete_plan_missing_count?: number;
+  asset_missing_expiry_count?: number;
+  asset_total_count?: number;
+  asset_with_expiry_count?: number;
   cache_mode?: 'cached' | 'refreshed' | string;
   due_count: number;
   due_items: DashboardShutdownPlanItem[];
@@ -926,6 +933,8 @@ export interface DashboardCloudAccountConfigItem {
   id: number;
   is_active: boolean;
   shutdown_enabled: boolean;
+  delete_execution_enabled: boolean;
+  static_ip_release_enabled: boolean;
   last_checked_at?: null | string;
   name: string;
   provider: string;
@@ -1654,9 +1663,21 @@ export interface DashboardCloudAssetUpdatePayload {
   price?: null | string;
   public_ip?: null | string;
   sort_order?: number;
+  clear_telegram_group?: boolean;
   telegram_group_id?: null | number;
   telegram_group_query?: null | string;
   user_query?: null | string;
+}
+
+export interface DashboardCloudAssetBatchUpdatePayload {
+  actual_expires_at?: null | string;
+  asset_ids: number[];
+  clear_telegram_group?: boolean;
+  fields: string[];
+  is_active?: boolean;
+  note?: null | string;
+  telegram_group_id?: null | number;
+  telegram_group_query?: null | string;
 }
 
 export async function updateDashboardCloudAssetApi(
@@ -1668,6 +1689,18 @@ export async function updateDashboardCloudAssetApi(
     payload,
     { timeout: LONG_OPERATION_TIMEOUT },
   );
+}
+
+export async function batchUpdateDashboardCloudAssetsApi(
+  payload: DashboardCloudAssetBatchUpdatePayload,
+) {
+  return requestClient.post<{
+    items: DashboardCloudAssetItem[];
+    requested_count: number;
+    updated_count: number;
+  }>('/admin/cloud-assets/batch-update/', payload, {
+    timeout: LONG_OPERATION_TIMEOUT,
+  });
 }
 
 export async function toggleDashboardCloudAssetAutoRenewApi(

@@ -204,10 +204,15 @@ function goToDetail(orderId: number) {
 function openEdit(record: DashboardCloudOrderItem) {
   if (!requireCloudDangerPermission('编辑云订单')) return;
   currentRow.value = record;
-  editForm.user_query =
-    record.username_label && record.username_label !== '-'
-      ? record.username_label
-      : '';
+  if (record.user_id) {
+    editForm.user_query = String(record.user_id);
+  } else if (record.tg_user_id) {
+    editForm.user_query = String(record.tg_user_id);
+  } else if (record.username_label && record.username_label !== '-') {
+    editForm.user_query = record.username_label;
+  } else {
+    editForm.user_query = '';
+  }
   editForm.server_name = (record as any).server_name || '';
   editForm.public_ip = record.public_ip || '';
   editForm.total_amount = record.total_amount || '';

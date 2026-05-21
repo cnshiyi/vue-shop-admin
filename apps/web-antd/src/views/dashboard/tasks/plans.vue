@@ -575,7 +575,9 @@ async function runSingleIpDelete(record: DashboardUnattachedIpDeletePlan) {
   );
 }
 
-async function runSingleIpDeleteConfirmed(record: DashboardUnattachedIpDeletePlan) {
+async function runSingleIpDeleteConfirmed(
+  record: DashboardUnattachedIpDeletePlan,
+) {
   const id = assetId(record);
   if (!id || runningIpAssetIds[id]) return;
   runningIpAssetIds[id] = true;
@@ -714,13 +716,46 @@ onMounted(loadData);
               {{ refreshingPlanTable ? '刷新中' : '空闲' }}
             </Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="7天内待删未附加IP">
+          <Descriptions.Item label="代理列表资产">
+            {{ summary?.asset_total_count ?? 0 }} 条
+          </Descriptions.Item>
+          <Descriptions.Item label="有到期时间">
+            <Tag color="processing">
+              {{ summary?.asset_with_expiry_count ?? 0 }} 条
+            </Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="无到期时间">
             <Tag
               :color="
-                pendingIpDeleteItems.length > 0
+                (summary?.asset_missing_expiry_count || 0) > 0
                   ? 'warning'
                   : 'success'
               "
+            >
+              {{ summary?.asset_missing_expiry_count ?? 0 }} 条
+            </Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="删除计划覆盖">
+            <Tag
+              :color="
+                (summary?.asset_delete_plan_missing_count || 0) > 0
+                  ? 'error'
+                  : 'success'
+              "
+            >
+              {{ summary?.asset_delete_plan_count ?? 0 }} 条
+            </Tag>
+            <span
+              v-if="(summary?.asset_delete_plan_missing_count || 0) > 0"
+              class="ml-2"
+              style="color: var(--color-text-secondary)"
+            >
+              漏 {{ summary?.asset_delete_plan_missing_count }} 条
+            </span>
+          </Descriptions.Item>
+          <Descriptions.Item label="7天内待删未附加IP">
+            <Tag
+              :color="pendingIpDeleteItems.length > 0 ? 'warning' : 'success'"
             >
               {{ pendingIpDeleteItems.length }} 条
             </Tag>

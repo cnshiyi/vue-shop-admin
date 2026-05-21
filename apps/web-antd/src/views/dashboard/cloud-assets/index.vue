@@ -2,6 +2,7 @@
 import type { TableColumnsType } from 'ant-design-vue';
 
 import type {
+  DashboardCloudAssetBatchUpdatePayload,
   DashboardCloudAssetDetail,
   DashboardCloudAssetGroup,
   DashboardCloudAssetGroupedResponse,
@@ -40,6 +41,7 @@ import {
 import dayjs from 'dayjs';
 
 import {
+  batchUpdateDashboardCloudAssetsApi,
   deleteDashboardCloudAssetApi,
   getDashboardCloudAssetDetailApi,
   getDashboardCloudAssetRiskSummaryApi,
@@ -119,11 +121,21 @@ const expandedNoteKeys = ref<string[]>([]);
 const expandedUsernameKeys = ref<string[]>([]);
 const expandedAssetNameKeys = ref<string[]>([]);
 const editOpen = ref(false);
+const batchEditOpen = ref(false);
 const currentRow = ref<DashboardCloudAssetItem | null>(null);
 const detailOpen = ref(false);
 const detailLoading = ref(false);
 const detailRow = ref<DashboardCloudAssetDetail | null>(null);
 const columnView = ref<'all' | 'billing' | 'cloud' | 'proxy'>('proxy');
+const batchFormState = reactive({
+  actual_expires_at: null as any,
+  clear_telegram_group: false,
+  fields: [] as string[],
+  is_active: true,
+  note: '',
+  telegram_group_id: undefined as number | undefined,
+  telegram_group_query: '',
+});
 const formState = reactive({
   actual_expires_at: null as any,
   is_active: true,
@@ -556,6 +568,9 @@ function clearSelectedRows() {
 const selectedAssets = computed(() =>
   items.value.filter((item) => selectedRowKeys.value.includes(item.id)),
 );
+const selectedAssetIds = computed(() =>
+  selectedRowKeys.value.map(Number).filter((value) => Number.isFinite(value)),
+);
 
 const rowSelection = computed(() => ({
   preserveSelectedRowKeys: true,
@@ -583,8 +598,8 @@ async function refreshGlobalRiskCounts(keywordText: string) {
 
 const riskFilterOptions = computed(() => [
   { label: `全部 (${riskCounts.value.all || 0})`, value: 'all' },
-  { label: `运行中 (${riskCountLabel('normal')})`, value: 'normal' },
-  { label: `即将到期 (${riskCountLabel('due_soon')})`, value: 'due_soon' },
+  { label: `正在运行 (${riskCountLabel('normal')})`, value: 'normal' },
+  { label: `7天内到期 (${riskCountLabel('due_soon')})`, value: 'due_soon' },
   { label: `已过期 (${riskCountLabel('expired')})`, value: 'expired' },
   { label: `已删除 (${riskCountLabel('deleted')})`, value: 'deleted' },
   {
@@ -1025,12 +1040,10 @@ async function loadTelegramGroups() {
 }
 
 function telegramGroupOptions() {
-  return telegramGroups.value
-    .filter((item) => !item.collapsed)
-    .map((item) => ({
-      label: `${item.title || item.chat_id}${item.username ? ` (@${item.username})` : ''}`,
-      value: item.id,
-    }));
+  return telegramGroups.value.map((item) => ({
+    label: `${item.title || item.chat_id}${item.username ? ` (@${item.username})` : ''}${item.archived ? ' [归档]' : ''}${item.collapsed ? ' [折叠]' : ''}`,
+    value: item.id,
+  }));
 }
 
 function handleTelegramGroupSelectChange(value: unknown) {
@@ -1045,6 +1058,35 @@ function handleTelegramGroupSelectChange(value: unknown) {
     formState.telegram_group_query = selectedGroup.chat_id
       ? String(selectedGroup.chat_id)
       : selectedGroup.username || selectedGroup.title || '';
+  }
+}
+
+function handleBatchTelegramGroupSelectChange(value: unknown) {
+  if (!value) {
+    batchFormState.telegram_group_query = '';
+    return;
+  }
+  const selectedGroup = telegramGroups.value.find(
+    (item) => item.id === Number(value),
+  );
+  if (selectedGroup) {
+    batchFormState.telegram_group_query = selectedGroup.chat_id
+      ? String(selectedGroup.chat_id)
+      : selectedGroup.username || selectedGroup.title || '';
+  }
+}
+
+function clearTelegramGroupBinding() {
+  formState.telegram_group_id = undefined;
+  formState.telegram_group_query = '';
+}
+
+function clearBatchTelegramGroupBinding() {
+  batchFormState.telegram_group_id = undefined;
+  batchFormState.telegram_group_query = '';
+  batchFormState.clear_telegram_group = true;
+  if (!batchFormState.fields.includes('telegram_group')) {
+    batchFormState.fields = [...batchFormState.fields, 'telegram_group'];
   }
 }
 
@@ -1230,6 +1272,22 @@ function openEdit(record: DashboardCloudAssetItem) {
       ? String(record.tg_user_id)
       : '');
   editOpen.value = true;
+}
+
+function openBatchEdit() {
+  if (!requireCloudDangerPermission('批量更新代理')) return;
+  if (selectedAssetIds.value.length === 0) {
+    message.warning('请先选择要批量更新的代理');
+    return;
+  }
+  batchFormState.actual_expires_at = null;
+  batchFormState.clear_telegram_group = false;
+  batchFormState.fields = ['actual_expires_at'];
+  batchFormState.is_active = true;
+  batchFormState.note = '';
+  batchFormState.telegram_group_id = undefined;
+  batchFormState.telegram_group_query = '';
+  batchEditOpen.value = true;
 }
 
 function toggleLinkExpand(id: number) {
@@ -1488,7 +1546,12 @@ function buildAssetEditPayload(record: DashboardCloudAssetItem) {
     ? String(record.telegram_group_chat_id)
     : record.telegram_group_username || record.telegram_group_title || '';
   const nextTelegramGroupQuery = formState.telegram_group_query.trim();
-  if (nextTelegramGroupQuery === previousTelegramGroupQuery) {
+  if (
+    !nextTelegramGroupQuery &&
+    (record.telegram_group_id || previousTelegramGroupQuery)
+  ) {
+    payload.clear_telegram_group = true;
+  } else if (nextTelegramGroupQuery === previousTelegramGroupQuery) {
     const nextTelegramGroupId = formState.telegram_group_id || null;
     if (nextTelegramGroupId !== (record.telegram_group_id || null)) {
       payload.telegram_group_id = nextTelegramGroupId;
@@ -1525,6 +1588,60 @@ async function submitEdit() {
     editOpen.value = false;
   } catch (error: any) {
     message.error(error?.message || '更新失败');
+  } finally {
+    saving.value = false;
+  }
+}
+
+function buildBatchEditPayload() {
+  const fields = [...batchFormState.fields];
+  const payload: DashboardCloudAssetBatchUpdatePayload = {
+    asset_ids: selectedAssetIds.value,
+    fields,
+  };
+  if (fields.includes('actual_expires_at')) {
+    payload.actual_expires_at =
+      normalizedDateValue(batchFormState.actual_expires_at) || null;
+  }
+  if (fields.includes('note')) {
+    payload.note = batchFormState.note || null;
+  }
+  if (fields.includes('is_active')) {
+    payload.is_active = Boolean(batchFormState.is_active);
+  }
+  if (fields.includes('telegram_group')) {
+    if (batchFormState.clear_telegram_group) {
+      payload.clear_telegram_group = true;
+    } else {
+      payload.telegram_group_query =
+        batchFormState.telegram_group_query.trim() || null;
+      payload.telegram_group_id = batchFormState.telegram_group_id || null;
+    }
+  }
+  return payload;
+}
+
+async function submitBatchEdit() {
+  if (!requireCloudDangerPermission('批量更新代理')) return;
+  if (selectedAssetIds.value.length === 0) {
+    message.warning('请先选择要批量更新的代理');
+    return;
+  }
+  if (batchFormState.fields.length === 0) {
+    message.warning('请选择要批量更新的字段');
+    return;
+  }
+  saving.value = true;
+  try {
+    const result = await batchUpdateDashboardCloudAssetsApi(
+      buildBatchEditPayload(),
+    );
+    message.success(`已批量更新 ${result.updated_count || 0} 条代理`);
+    batchEditOpen.value = false;
+    clearSelectedRows();
+    await loadData();
+  } catch (error: any) {
+    message.error(error?.message || '批量更新失败');
   } finally {
     saving.value = false;
   }
@@ -1584,6 +1701,13 @@ onBeforeUnmount(() => {
             @click="batchSyncSelectedAssets"
           >
             批量同步
+          </Button>
+          <Button
+            size="small"
+            :disabled="!canRunCloudDanger || selectedAssetIds.length === 0"
+            @click="openBatchEdit"
+          >
+            批量更新
           </Button>
           <Button
             size="small"
@@ -2487,18 +2611,22 @@ onBeforeUnmount(() => {
           <Input :value="currentRow?.user_display_name || ''" disabled />
         </Form.Item>
         <Form.Item label="绑定群组">
-          <Select
-            v-model:value="formState.telegram_group_id"
-            allow-clear
-            show-search
-            :filter-option="true"
-            :options="telegramGroupOptions()"
-            placeholder="选择要绑定的 Telegram 群组"
-            @change="handleTelegramGroupSelectChange"
-          />
+          <Space.Compact block>
+            <Select
+              v-model:value="formState.telegram_group_id"
+              allow-clear
+              show-search
+              :filter-option="true"
+              :options="telegramGroupOptions()"
+              placeholder="选择要绑定的 Telegram 群组"
+              style="width: 100%"
+              @change="handleTelegramGroupSelectChange"
+            />
+            <Button danger @click="clearTelegramGroupBinding">解绑</Button>
+          </Space.Compact>
         </Form.Item>
         <Form.Item
-          extra="可输入后台群组ID、Telegram 群组 Chat ID、@用户名或群名；留空表示解绑群组。"
+          extra="可输入后台群组ID、Telegram 群组 Chat ID、@用户名或群名；点击解绑会清空群组绑定。"
           label="群组识别"
         >
           <Input
@@ -2543,6 +2671,83 @@ onBeforeUnmount(() => {
         <Form.Item label="启用状态">
           <Switch v-model:checked="formState.is_active" />
         </Form.Item>
+      </Form>
+    </Modal>
+
+    <Modal
+      v-model:open="batchEditOpen"
+      :confirm-loading="saving"
+      :ok-button-props="{ disabled: !canRunCloudDanger }"
+      title="批量更新代理"
+      width="min(720px, calc(100vw - 32px))"
+      @ok="submitBatchEdit"
+    >
+      <Form layout="vertical">
+        <Form.Item label="更新字段">
+          <Select
+            v-model:value="batchFormState.fields"
+            mode="multiple"
+            :options="[
+              { label: '到期日期', value: 'actual_expires_at' },
+              { label: '备注', value: 'note' },
+              { label: '启用状态', value: 'is_active' },
+              { label: '绑定群组', value: 'telegram_group' },
+            ]"
+            placeholder="选择要批量修改的字段"
+          />
+        </Form.Item>
+        <Form.Item label="选中数量">
+          <Input :value="`${selectedAssetIds.length} 条`" disabled />
+        </Form.Item>
+        <Form.Item
+          v-if="batchFormState.fields.includes('actual_expires_at')"
+          label="到期日期"
+        >
+          <DatePicker
+            v-model:value="batchFormState.actual_expires_at"
+            format="YYYY-MM-DD"
+            style="width: 100%"
+          />
+        </Form.Item>
+        <Form.Item v-if="batchFormState.fields.includes('note')" label="备注">
+          <Input v-model:value="batchFormState.note" placeholder="批量备注" />
+        </Form.Item>
+        <Form.Item
+          v-if="batchFormState.fields.includes('is_active')"
+          label="启用状态"
+        >
+          <Switch v-model:checked="batchFormState.is_active" />
+        </Form.Item>
+        <template v-if="batchFormState.fields.includes('telegram_group')">
+          <Form.Item label="绑定群组">
+            <Space.Compact block>
+              <Select
+                v-model:value="batchFormState.telegram_group_id"
+                allow-clear
+                show-search
+                :disabled="batchFormState.clear_telegram_group"
+                :filter-option="true"
+                :options="telegramGroupOptions()"
+                placeholder="选择要绑定的 Telegram 群组"
+                style="width: 100%"
+                @change="handleBatchTelegramGroupSelectChange"
+              />
+              <Button danger @click="clearBatchTelegramGroupBinding">
+                解绑
+              </Button>
+            </Space.Compact>
+          </Form.Item>
+          <Form.Item label="群组识别">
+            <Input
+              v-model:value="batchFormState.telegram_group_query"
+              :disabled="batchFormState.clear_telegram_group"
+              placeholder="例如：1 / -1001234567890 / @groupname / 群名"
+            />
+          </Form.Item>
+          <Form.Item label="解绑群组">
+            <Switch v-model:checked="batchFormState.clear_telegram_group" />
+          </Form.Item>
+        </template>
       </Form>
     </Modal>
   </Page>
