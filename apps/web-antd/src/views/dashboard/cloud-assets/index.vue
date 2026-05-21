@@ -601,6 +601,10 @@ const riskFilterOptions = computed(() => [
   { label: `正在运行 (${riskCountLabel('normal')})`, value: 'normal' },
   { label: `7天内到期 (${riskCountLabel('due_soon')})`, value: 'due_soon' },
   { label: `已过期 (${riskCountLabel('expired')})`, value: 'expired' },
+  {
+    label: `缺到期时间 (${riskCountLabel('missing_expiry')})`,
+    value: 'missing_expiry',
+  },
   { label: `已删除 (${riskCountLabel('deleted')})`, value: 'deleted' },
   {
     label: `未附加固定IP (${riskCountLabel('unattached_ip')})`,
@@ -2046,10 +2050,11 @@ onBeforeUnmount(() => {
                 <span v-else>-</span>
               </template>
               <template v-else-if="column.key === 'actual_expires_at'">
-                <span>{{
-                  record.actual_expires_at
-                    ? dayjs(record.actual_expires_at).format('YYYY-MM-DD')
-                    : '-'
+                <Tag v-if="!record.actual_expires_at" color="warning">
+                  未设置
+                </Tag>
+                <span v-else>{{
+                  dayjs(record.actual_expires_at).format('YYYY-MM-DD')
                 }}</span>
               </template>
               <template v-else-if="column.key === 'note'">
@@ -2368,10 +2373,9 @@ onBeforeUnmount(() => {
             <span v-else>-</span>
           </template>
           <template v-else-if="column.key === 'actual_expires_at'">
-            <span>{{
-              record.actual_expires_at
-                ? dayjs(record.actual_expires_at).format('YYYY-MM-DD')
-                : '-'
+            <Tag v-if="!record.actual_expires_at" color="warning"> 未设置 </Tag>
+            <span v-else>{{
+              dayjs(record.actual_expires_at).format('YYYY-MM-DD')
             }}</span>
           </template>
           <template v-else-if="column.key === 'note'">
