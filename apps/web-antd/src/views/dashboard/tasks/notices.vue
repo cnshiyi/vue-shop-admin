@@ -52,8 +52,6 @@ const expandedTextKeys = ref<Record<string, boolean>>({});
 const switchSaving = ref<Record<string, boolean>>({});
 const noticePage = ref(1);
 const noticeLimit = ref(10);
-const futurePage = ref(1);
-const futureLimit = ref(10);
 const historyPage = ref(1);
 const historyLimit = ref(10);
 
@@ -69,6 +67,12 @@ const noticeBatchColumns: TableColumnsType<DashboardNoticeUserSummaryItem> = [
     dataIndex: 'notice_type_label',
     key: 'notice_type_label',
     width: 150,
+  },
+  {
+    title: '计划范围',
+    dataIndex: 'plan_scope_label',
+    key: 'plan_scope_label',
+    width: 110,
   },
   {
     title: '通知渠道',
@@ -143,10 +147,12 @@ const historyColumns: TableColumnsType<DashboardNoticePlanHistoryItem> = [
 ];
 
 const dueBatchItems = computed(
-  () => detail.value?.due_user_summary_items || [],
-);
-const futureBatchItems = computed(
-  () => detail.value?.future_user_summary_items || [],
+  () =>
+    detail.value?.active_user_summary_items ||
+    [
+      ...(detail.value?.due_user_summary_items || []),
+      ...(detail.value?.future_user_summary_items || []),
+    ],
 );
 const historyItems = computed(() => detail.value?.history_items || []);
 
@@ -217,8 +223,8 @@ async function loadData() {
   try {
     detail.value = await getDashboardNoticePlanApi({
       compact: 1,
-      future_limit: futureLimit.value,
-      future_offset: (futurePage.value - 1) * futureLimit.value,
+      future_limit: noticeLimit.value,
+      future_offset: (noticePage.value - 1) * noticeLimit.value,
       history_limit: historyLimit.value,
       history_offset: (historyPage.value - 1) * historyLimit.value,
       limit: noticeLimit.value,
@@ -237,12 +243,6 @@ async function changeNoticePage(page: number, pageSize: number) {
   await loadData();
 }
 
-async function changeFuturePage(page: number, pageSize: number) {
-  futurePage.value = page;
-  futureLimit.value = pageSize;
-  await loadData();
-}
-
 async function changeHistoryPage(page: number, pageSize: number) {
   historyPage.value = page;
   historyLimit.value = pageSize;
@@ -254,7 +254,7 @@ async function refreshNoticePlan() {
   try {
     const result = await refreshDashboardNoticePlanApi({
       limit: noticeLimit.value,
-      future_limit: futureLimit.value,
+      future_limit: noticeLimit.value,
       history_limit: historyLimit.value,
     });
     message.success(
@@ -435,7 +435,7 @@ onMounted(loadData);
         <Alert
           type="info"
           show-icon
-          :message="`当前每页显示 ${noticeLimit} 组3天内通知 / ${historyLimit} 条历史，支持翻页，并压缩长文案预览。`"
+          :message="`当前每页显示 ${noticeLimit} 组通知计划 / ${historyLimit} 条历史，支持翻页，并压缩长文案预览。`"
           style="margin-bottom: 12px"
         />
         <Descriptions bordered :column="2" size="small">
@@ -473,7 +473,14 @@ onMounted(loadData);
             </Tag>
             / {{ detail?.recent_failure_count ?? 0 }} 条
           </Descriptions.Item>
-          <Descriptions.Item label="3天内通知计划">
+          <Descriptions.Item label="通知计划">
+            <Tag color="processing">
+              {{ detail?.active_user_count ?? 0 }} 组用户通知
+            </Tag>
+            / {{ (detail?.due_count ?? 0) + (detail?.future_count ?? 0) }}
+            个 IP 通知项
+          </Descriptions.Item>
+          <Descriptions.Item label="近期计划">
             <Tag color="warning">{{ detail?.due_user_count ?? 0 }} 种通知</Tag>
             / {{ detail?.due_count ?? 0 }} 个 IP 通知项
           </Descriptions.Item>
@@ -518,7 +525,7 @@ onMounted(loadData);
         />
       </Card>
 
-      <Card title="3天内通知计划（按用户 + 通知类型整合）">
+      <Card title="通知计划（按用户显示）">
         <Table
           :columns="noticeBatchColumns"
           :data-source="dueBatchItems"
@@ -527,11 +534,11 @@ onMounted(loadData);
             current: noticePage,
             pageSize: noticeLimit,
             showSizeChanger: true,
-            total: detail?.due_user_count || 0,
+            total: detail?.active_user_count || 0,
             onChange: changeNoticePage,
           }"
           :row-key="batchRowKey"
-          :scroll="{ x: 1710 }"
+          :scroll="{ x: 1820 }"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'user_display_name'">
@@ -547,6 +554,21 @@ onMounted(loadData);
               >
                 {{
                   (record as DashboardNoticeUserSummaryItem).notice_type_label
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'plan_scope_label'">
+              <Tag
+                :color="
+                  (record as DashboardNoticeUserSummaryItem).plan_scope ===
+                  'future'
+                    ? 'processing'
+                    : 'warning'
+                "
+              >
+                {{
+                  (record as DashboardNoticeUserSummaryItem).plan_scope_label ||
+                  '-'
                 }}
               </Tag>
             </template>
@@ -638,172 +660,6 @@ onMounted(loadData);
                     type="link"
                     size="small"
                     :disabled="!canRunCloudDanger"
-                    class="h-auto px-0 py-0"
-                    @click="
-                      openTextEditor(record as DashboardNoticeUserSummaryItem)
-                    "
-                  >
-                    编辑文案
-                  </Button>
-                </Space>
-              </div>
-            </template>
-            <template v-else-if="column.key === 'next_notice_at'">
-              {{
-                fmtTime(
-                  (record as DashboardNoticeUserSummaryItem).next_notice_at,
-                )
-              }}
-            </template>
-            <template v-else-if="column.key === 'failed_retry_count'">
-              <Tag
-                :color="
-                  (record as DashboardNoticeUserSummaryItem)
-                    .failed_retry_count > 0
-                    ? 'error'
-                    : 'default'
-                "
-              >
-                {{
-                  (record as DashboardNoticeUserSummaryItem).failed_retry_count
-                }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'actions'">
-              <Button
-                type="link"
-                size="small"
-                @click="
-                  openOrder(
-                    (record as DashboardNoticeUserSummaryItem).related_path,
-                  )
-                "
-              >
-                订单详情
-              </Button>
-            </template>
-          </template>
-        </Table>
-      </Card>
-
-      <Card :title="`未来通知计划（${futureLimit}个，按用户 + 通知类型整合）`">
-        <Table
-          :columns="noticeBatchColumns"
-          :data-source="futureBatchItems"
-          :loading="loading"
-          :pagination="{
-            current: futurePage,
-            pageSize: futureLimit,
-            showSizeChanger: true,
-            total: detail?.future_user_count || 0,
-            onChange: changeFuturePage,
-          }"
-          :row-key="batchRowKey"
-          :scroll="{ x: 1710 }"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'user_display_name'">
-              {{ displayUser(record as DashboardNoticeUserSummaryItem) }}
-            </template>
-            <template v-else-if="column.key === 'notice_type_label'">
-              <Tag
-                :color="
-                  noticeColor(
-                    (record as DashboardNoticeUserSummaryItem).notice_type,
-                  )
-                "
-              >
-                {{
-                  (record as DashboardNoticeUserSummaryItem).notice_type_label
-                }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'notice_channel_label'">
-              <div class="flex flex-wrap gap-1">
-                <Tag
-                  :color="
-                    channelColor(
-                      (record as DashboardNoticeUserSummaryItem).notice_channel,
-                    )
-                  "
-                >
-                  {{
-                    (record as DashboardNoticeUserSummaryItem)
-                      .notice_channel_label || '-'
-                  }}
-                </Tag>
-                <Tag
-                  v-for="attempt in (record as DashboardNoticeUserSummaryItem)
-                    .notice_channel_attempts || []"
-                  :key="`${attempt.channel}-${attempt.account_id || attempt.label}`"
-                  :color="attemptColor(attempt.status)"
-                >
-                  {{ attempt.label }}：{{ attempt.status_label }}
-                </Tag>
-              </div>
-            </template>
-            <template v-else-if="column.key === 'ips'">
-              <TypographyParagraph
-                :ellipsis="{
-                  rows: 2,
-                  tooltip: (record as DashboardNoticeUserSummaryItem).ips.join(
-                    '\n',
-                  ),
-                }"
-                class="mb-0 whitespace-pre-line break-all text-sm leading-6"
-              >
-                {{
-                  (record as DashboardNoticeUserSummaryItem).ips.join('\n') ||
-                  '-'
-                }}
-              </TypographyParagraph>
-            </template>
-            <template v-else-if="column.key === 'notice_text_preview'">
-              <div>
-                <Tag
-                  v-if="
-                    (record as DashboardNoticeUserSummaryItem)
-                      .notice_has_manual_text
-                  "
-                  color="warning"
-                >
-                  人工干预
-                </Tag>
-                <div
-                  class="whitespace-pre-wrap break-all text-sm leading-6"
-                  :style="
-                    noticeTextStyle(record as DashboardNoticeUserSummaryItem)
-                  "
-                  :title="
-                    (record as DashboardNoticeUserSummaryItem)
-                      .notice_text_preview || '-'
-                  "
-                >
-                  {{
-                    (record as DashboardNoticeUserSummaryItem)
-                      .notice_text_preview || '-'
-                  }}
-                </div>
-                <Space size="small">
-                  <Button
-                    type="link"
-                    size="small"
-                    class="h-auto px-0 py-0"
-                    @click="
-                      toggleNoticeText(record as DashboardNoticeUserSummaryItem)
-                    "
-                  >
-                    {{
-                      isNoticeTextExpanded(
-                        record as DashboardNoticeUserSummaryItem,
-                      )
-                        ? '收起'
-                        : '展开'
-                    }}
-                  </Button>
-                  <Button
-                    type="link"
-                    size="small"
                     class="h-auto px-0 py-0"
                     @click="
                       openTextEditor(record as DashboardNoticeUserSummaryItem)

@@ -677,6 +677,8 @@ export interface DashboardNoticeUserSummaryItem {
   notice_type: string;
   notice_type_label: string;
   pending_count: number;
+  plan_scope?: 'due' | 'future' | string;
+  plan_scope_label?: string;
   related_path: string;
   retry_label: string;
   tg_user_id: null | number;
@@ -716,6 +718,8 @@ export interface DashboardNoticePlanHistoryItem {
 }
 
 export interface DashboardNoticePlanDetail {
+  active_user_count?: number;
+  active_user_summary_items?: DashboardNoticeUserSummaryItem[];
   due_count: number;
   due_items: DashboardNoticePlanItem[];
   due_user_count: number;
@@ -894,18 +898,22 @@ export interface DashboardLifecyclePlansDetail {
   ip_delete_items: DashboardUnattachedIpDeletePlan[];
   last_run_at: null | string;
   last_refresh_at?: null | string;
+  missing_expiry_count?: number;
   next_run_at: null | string;
   pending_ip_delete_count?: number;
   recent_failure_count: number;
   recent_success_count: number;
   refreshed?: boolean;
   server_delete_history_count?: number;
+  server_asset_count?: number;
   shutdown_count: number;
   shutdown_due_count: number;
-  shutdown_items: DashboardShutdownLog[];
+  shutdown_items: DashboardShutdownPlanItem[];
+  source_asset_count?: number;
   status_label: string;
   task_key: string;
   task_label: string;
+  unattached_ip_count?: number;
 }
 
 export interface DashboardCloudAccountConfigItem {
@@ -1316,7 +1324,12 @@ export async function refreshDashboardLifecyclePlansApi(
     history_count: number;
     ip_delete_count: number;
     last_refresh_at?: null | string;
+    missing_expiry_count: number;
     refreshed: boolean;
+    server_asset_count: number;
+    shutdown_count: number;
+    source_asset_count: number;
+    unattached_ip_count: number;
   }>('/admin/tasks/plans/refresh/', payload);
 }
 

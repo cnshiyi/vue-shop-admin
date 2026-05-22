@@ -206,7 +206,7 @@ const ipDeleteColumns = [
 ];
 
 const summary = computed(() => detail.value);
-const futurePlanItems = computed(() => summary.value?.future_plan_items || []);
+const shutdownPlanItems = computed(() => summary.value?.shutdown_items || []);
 const historyItems = computed(() =>
   (summary.value?.history_items || []).toSorted(
     (left, right) =>
@@ -215,20 +215,6 @@ const historyItems = computed(() =>
   ),
 );
 const ipDeleteItems = computed(() => summary.value?.ip_delete_items || []);
-function isIpDeletePending(item: DashboardUnattachedIpDeletePlan) {
-  if (item.is_history) return false;
-  if (item.is_overdue) return true;
-  if (!item.delete_at) return false;
-  const target = dayjs(item.delete_at);
-  if (!target.isValid()) return false;
-  return target.diff(dayjs(), 'day', true) <= 7;
-}
-
-const futureIpDeleteItems = computed(() =>
-  ipDeleteItems.value.filter(
-    (item: any) => !item.is_history && !isIpDeletePending(item),
-  ),
-);
 const ipDeleteHistoryItems = computed(() =>
   ipDeleteItems.value
     .filter((item: any) => item.is_history)
@@ -431,7 +417,7 @@ async function savePlanNote() {
     note: noteValue.value,
   };
   const orderTarget = target as DashboardShutdownPlanItem;
-  if (orderTarget.item_type === 'order' || orderTarget.order_id) {
+  if (orderTarget.item_type === 'order') {
     payload.order_id = Number(orderTarget.order_id || 0);
   } else {
     payload.asset_id = Number(
@@ -490,7 +476,9 @@ async function refreshPlanTable() {
     const result = await refreshDashboardLifecyclePlansApi({
       limit: planLimit.value,
     });
-    message.success(`删机计划已刷新：未来计划 ${result.future_count} 条`);
+    const activeCount =
+      result.shutdown_count ?? result.due_count + result.future_count;
+    message.success(`删除计划已刷新：${activeCount} 条`);
     await loadData({ silent: true });
   } catch (error: any) {
     message.error(error?.message || '刷新删机计划失败');
@@ -505,7 +493,7 @@ onMounted(loadData);
 <template>
   <Page
     class="plans-page"
-    description="按删除 IP、删除服务器、删除计划和历史记录分区查看"
+    description="按代理列表资产生成统一删除计划，并查看执行历史"
     title="删除计划"
   >
     <Space direction="vertical" style="width: 100%" :size="16">
@@ -526,7 +514,7 @@ onMounted(loadData);
             <Button size="small" :loading="loading" @click="loadMorePlans">
               加载更多
             </Button>
-            <span>{{ summary?.task_label || '服务器删除计划' }}</span>
+            <span>{{ summary?.task_label || '删除计划' }}</span>
             <Tag color="processing">
               {{ summary?.status_label || '独立计划页' }}
             </Tag>
@@ -560,11 +548,21 @@ onMounted(loadData);
               {{ refreshingPlanTable ? '刷新中' : '空闲' }}
             </Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="IP未来计划">
-            {{ futureIpDeleteItems.length }} 条
-          </Descriptions.Item>
-          <Descriptions.Item label="服务器未来计划">
+          <Descriptions.Item label="当前删除计划">
             {{ summary?.shutdown_count ?? 0 }} 条
+          </Descriptions.Item>
+          <Descriptions.Item label="缺少到期时间">
+            <Tag :color="(summary?.missing_expiry_count || 0) > 0 ? 'warning' : 'success'">
+              {{ summary?.missing_expiry_count ?? 0 }} 条
+            </Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="未附加IP">
+            <Tag :color="(summary?.unattached_ip_count || 0) > 0 ? 'warning' : 'success'">
+              {{ summary?.unattached_ip_count ?? 0 }} 条
+            </Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="代理列表资产">
+            {{ summary?.source_asset_count ?? 0 }} 条
           </Descriptions.Item>
           <Descriptions.Item label="最近24小时失败">
             <Tag
@@ -612,188 +610,12 @@ onMounted(loadData);
         </Table>
       </Card>
 
-      <Card title="IP未来执行计划">
-        <Table
-          class="plans-compact-table"
-          size="small"
-          :columns="ipDeleteColumns"
-          :data-source="futureIpDeleteItems"
-          :loading="loading"
-          :pagination="tablePagination"
-          :row-key="rowKey"
-          :scroll="{ x: 1740 }"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'provider_status'">
-              <Tag color="processing">
-                {{
-                  (record as DashboardUnattachedIpDeletePlan).provider_status ||
-                  '-'
-                }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'user_display_name'">
-              <div>
-                <div>{{ (record as any).user_display_name || '-' }}</div>
-                <div
-                  v-if="(record as any).username_label"
-                  style="color: var(--color-text-secondary)"
-                  class="text-xs"
-                >
-                  {{ (record as any).username_label }}
-                </div>
-              </div>
-            </template>
-            <template v-else-if="column.key === 'resource_state_label'">
-              <Tag
-                :color="
-                  resourceStateColor(
-                    (record as DashboardUnattachedIpDeletePlan).resource_state,
-                  )
-                "
-              >
-                {{
-                  (record as DashboardUnattachedIpDeletePlan)
-                    .resource_state_label || '-'
-                }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'plan_state_label'">
-              <div>
-                <Tag
-                  :color="
-                    planStateColor(
-                      (record as DashboardUnattachedIpDeletePlan).plan_state,
-                    )
-                  "
-                >
-                  {{
-                    (record as DashboardUnattachedIpDeletePlan)
-                      .plan_state_label || '-'
-                  }}
-                </Tag>
-                <TypographyParagraph
-                  v-if="
-                    (record as DashboardUnattachedIpDeletePlan).blocked_reason
-                  "
-                  class="mb-0 break-all text-xs leading-5"
-                  style="color: var(--color-text-secondary)"
-                  :ellipsis="{
-                    rows: 1,
-                    tooltip: (record as DashboardUnattachedIpDeletePlan)
-                      .blocked_reason,
-                  }"
-                >
-                  {{
-                    compactCellText(
-                      (record as DashboardUnattachedIpDeletePlan)
-                        .blocked_reason,
-                    )
-                  }}
-                </TypographyParagraph>
-              </div>
-            </template>
-            <template v-else-if="column.key === 'deletion_source_label'">
-              <Tag color="blue">
-                {{
-                  (record as DashboardUnattachedIpDeletePlan)
-                    .deletion_source_label || '-'
-                }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'delete_at'">
-              <Tag
-                :color="
-                  dueColor(
-                    (record as DashboardUnattachedIpDeletePlan).delete_at,
-                    (record as DashboardUnattachedIpDeletePlan).is_overdue,
-                  )
-                "
-              >
-                {{
-                  fmtTime((record as DashboardUnattachedIpDeletePlan).delete_at)
-                }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'logged_at'">
-              {{
-                fmtTime((record as DashboardUnattachedIpDeletePlan).logged_at)
-              }}
-            </template>
-            <template v-else-if="column.key === 'execution_status'">
-              <TypographyParagraph
-                class="mb-0 break-all text-xs leading-5"
-                :ellipsis="{
-                  rows: 1,
-                  tooltip: `${executionText(record as DashboardUnattachedIpDeletePlan)}${executionPlan(record as DashboardUnattachedIpDeletePlan) !== '-' ? ` / 执行计划：${executionPlan(record as DashboardUnattachedIpDeletePlan)}` : ''}`,
-                }"
-              >
-                {{
-                  compactCellText(
-                    `${executionText(record as DashboardUnattachedIpDeletePlan)}${executionPlan(record as DashboardUnattachedIpDeletePlan) !== '-' ? ` / 执行计划：${executionPlan(record as DashboardUnattachedIpDeletePlan)}` : ''}`,
-                  )
-                }}
-              </TypographyParagraph>
-            </template>
-            <template v-else-if="column.key === 'note'">
-              <div>
-                <TypographyParagraph
-                  class="note-cell-text mb-0 whitespace-pre-wrap break-all text-xs leading-5"
-                  :ellipsis="noteEllipsis(record as any)"
-                >
-                  {{ planNote(record as any) }}
-                </TypographyParagraph>
-                <Button
-                  v-if="shouldShowExpand(planNote(record as any), 24)"
-                  type="link"
-                  size="small"
-                  class="note-expand-btn mt-1 h-auto px-0 py-0"
-                  @click="openNotePreview(record as any)"
-                >
-                  查看
-                </Button>
-              </div>
-            </template>
-            <template v-else-if="column.key === 'actions'">
-              <Space :size="4">
-                <Button
-                  type="link"
-                  size="small"
-                  @click="
-                    openNoteEditor(record as DashboardUnattachedIpDeletePlan)
-                  "
-                >
-                  备注
-                </Button>
-                <Button
-                  type="link"
-                  size="small"
-                  @click="
-                    openPath(
-                      (record as DashboardUnattachedIpDeletePlan).detail_path ||
-                        (record as DashboardUnattachedIpDeletePlan)
-                          .asset_detail_path,
-                    )
-                  "
-                >
-                  查看详情
-                </Button>
-              </Space>
-            </template>
-          </template>
-        </Table>
-        <Empty
-          v-if="futureIpDeleteItems.length === 0 && !loading"
-          description="当前没有 IP 未来执行计划"
-        />
-      </Card>
-
-      <Card :title="`服务器未来执行计划（${futurePlanItems.length}）`">
+      <Card :title="`删除计划（${shutdownPlanItems.length}）`">
         <Table
           class="plans-compact-table"
           size="small"
           :columns="dueColumns"
-          :data-source="futurePlanItems"
+          :data-source="shutdownPlanItems"
           :loading="loading"
           :pagination="tablePagination"
           :row-key="rowKey"
@@ -1016,7 +838,7 @@ onMounted(loadData);
                     openPath((record as DashboardShutdownPlanItem).related_path)
                   "
                 >
-                  订单详情
+                  资产详情
                 </Button>
               </Space>
             </template>
