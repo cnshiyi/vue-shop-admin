@@ -928,6 +928,14 @@ export interface DashboardCloudAccountConfigItem {
   status_note?: null | string;
 }
 
+export interface DashboardCloudActionSwitchItem {
+  description?: string;
+  enabled: boolean;
+  id: null | number;
+  key: string;
+  label: string;
+}
+
 export interface DashboardSiteConfigGroupItem {
   default_value?: string;
   description?: string;
@@ -975,7 +983,7 @@ export interface DashboardCloudAccountCreatePayload {
   access_key: string;
   external_account_id?: string;
   is_active: boolean;
-  shutdown_enabled: boolean;
+  shutdown_enabled?: boolean;
   name: string;
   provider: string;
   region_hint?: null | string;

@@ -6,6 +6,8 @@ import type {
   DashboardCloudAccountCreatePayload,
   DashboardCloudAccountDetail,
   DashboardCloudAccountLogItem,
+  DashboardCloudActionSwitchItem,
+  DashboardSiteConfigGroupItem,
 } from '#/api/admin';
 
 import { computed, onMounted, reactive, ref, watch } from 'vue';
@@ -35,7 +37,10 @@ import {
   deleteDashboardCloudAccountApi,
   getDashboardCloudAccountDetailApi,
   getDashboardCloudAccountsApi,
+  getDashboardSiteConfigGroupsApi,
+  initDashboardSiteConfigsApi,
   updateDashboardCloudAccountApi,
+  updateDashboardSiteConfigApi,
   verifyDashboardCloudAccountApi,
 } from '#/api/admin';
 import { useDashboardPermissions } from '#/utils/dashboard-permissions';
@@ -51,7 +56,19 @@ const current = ref<DashboardCloudAccountConfigItem | null>(null);
 const items = ref<DashboardCloudAccountConfigItem[]>([]);
 const detail = ref<DashboardCloudAccountDetail | null>(null);
 const togglingMap = reactive<Record<number, boolean>>({});
-const shutdownTogglingMap = reactive<Record<number, boolean>>({});
+const actionSwitchItems = ref<DashboardCloudActionSwitchItem[]>([]);
+const actionSwitchSavingMap = reactive<Record<string, boolean>>({});
+
+const CLOUD_ACTION_SWITCHES = [
+  {
+    key: 'cloud_server_delete_enabled',
+    label: '删除服务器',
+  },
+  {
+    key: 'cloud_ip_delete_enabled',
+    label: '删除IP',
+  },
+];
 
 const DEFAULT_REGION_MAP: Record<string, string> = {
   aliyun: 'cn-hongkong',
@@ -66,7 +83,6 @@ const form = reactive<DashboardCloudAccountCreatePayload>({
   provider: 'aws',
   region_hint: '',
   secret_key: '',
-  shutdown_enabled: true,
 });
 
 const regionHintTouched = ref(false);
@@ -127,12 +143,6 @@ const columns: TableColumnsType<DashboardCloudAccountConfigItem> = [
     width: 260,
   },
   { title: '启用', dataIndex: 'is_active', key: 'is_active', width: 80 },
-  {
-    title: '关机计划',
-    dataIndex: 'shutdown_enabled',
-    key: 'shutdown_enabled',
-    width: 120,
-  },
   { title: '操作', key: 'actions', width: 280, fixed: 'right' as const },
 ];
 
@@ -152,14 +162,35 @@ function resetForm() {
   form.provider = 'aws';
   form.region_hint = '';
   form.secret_key = '';
-  form.shutdown_enabled = true;
   regionHintTouched.value = false;
+}
+
+function actionSwitchLabel(key: string) {
+  return CLOUD_ACTION_SWITCHES.find((item) => item.key === key)?.label || key;
+}
+
+function toActionSwitchItem(item: DashboardSiteConfigGroupItem) {
+  const label = actionSwitchLabel(item.key);
+  return {
+    description: item.description || '',
+    enabled: String(item.value || '').trim() === '1',
+    id: item.id,
+    key: item.key,
+    label,
+  };
 }
 
 async function loadData() {
   loading.value = true;
   try {
-    items.value = await getDashboardCloudAccountsApi();
+    const [accounts, groups] = await Promise.all([
+      getDashboardCloudAccountsApi(),
+      getDashboardSiteConfigGroupsApi({ group: 'cloud_actions' }),
+    ]);
+    items.value = accounts;
+    actionSwitchItems.value = (groups[0]?.items || []).map((groupItem) =>
+      toActionSwitchItem(groupItem),
+    );
   } finally {
     loading.value = false;
   }
@@ -182,7 +213,6 @@ function openEdit(record: DashboardCloudAccountConfigItem) {
   form.provider = record.provider || 'aws';
   form.region_hint = record.region_hint || '';
   form.secret_key = '';
-  form.shutdown_enabled = record.shutdown_enabled !== false;
   regionHintTouched.value = !!record.region_hint;
   open.value = true;
 }
@@ -221,6 +251,48 @@ async function save() {
     message.error(error?.message || '保存失败');
   } finally {
     saving.value = false;
+  }
+}
+
+async function toggleActionSwitch(
+  item: DashboardCloudActionSwitchItem,
+  checked: boolean,
+) {
+  if (!requireCloudDangerPermission(`切换${item.label}总开关`)) return;
+  actionSwitchSavingMap[item.key] = true;
+  try {
+    if (!item.id) {
+      await initDashboardSiteConfigsApi({ scope: 'configs' });
+      const groups = await getDashboardSiteConfigGroupsApi({
+        group: 'cloud_actions',
+      });
+      actionSwitchItems.value = (groups[0]?.items || []).map((groupItem) =>
+        toActionSwitchItem(groupItem),
+      );
+      const refreshed = actionSwitchItems.value.find(
+        (candidate) => candidate.key === item.key,
+      );
+      if (!refreshed?.id) {
+        throw new Error('配置初始化失败，请刷新后重试');
+      }
+      item = refreshed;
+    }
+    const configId = item.id;
+    if (!configId) {
+      throw new Error('配置不存在，请刷新后重试');
+    }
+    const saved = await updateDashboardSiteConfigApi(configId, {
+      is_sensitive: false,
+      key: item.key,
+      value: checked ? '1' : '0',
+    });
+    item.enabled = String(saved.value || '').trim() === '1';
+    message.success(`${item.label}已${item.enabled ? '开启' : '关闭'}`);
+  } catch (error: any) {
+    item.enabled = !checked;
+    message.error(error?.message || `${item.label}切换失败`);
+  } finally {
+    actionSwitchSavingMap[item.key] = false;
   }
 }
 
@@ -270,30 +342,6 @@ async function toggleActive(
   }
 }
 
-async function toggleShutdown(
-  record: DashboardCloudAccountConfigItem,
-  checked: boolean,
-) {
-  if (!requireCloudDangerPermission('切换云账号关机计划')) return;
-  shutdownTogglingMap[record.id] = true;
-  try {
-    await updateDashboardCloudAccountApi(record.id, {
-      shutdown_enabled: checked,
-    });
-    record.shutdown_enabled = checked;
-    message.success(
-      checked
-        ? '该账号关机计划已开启，将按后台设定时间执行'
-        : '该账号关机计划已关闭，当前只同步不关机',
-    );
-  } catch (error: any) {
-    record.shutdown_enabled = !checked;
-    message.error(error?.message || '切换失败');
-  } finally {
-    shutdownTogglingMap[record.id] = false;
-  }
-}
-
 async function remove(record: DashboardCloudAccountConfigItem) {
   if (!requireCloudDangerPermission('删除云账号')) return;
   try {
@@ -310,12 +358,29 @@ onMounted(loadData);
 
 <template>
   <Page description="支持多平台、多账户并行管理" title="云账号设置">
-    <Space class="mb-3">
+    <div class="cloud-account-toolbar">
       <Button type="primary" :disabled="!canRunCloudDanger" @click="openCreate">
         添加账号
       </Button>
       <Button :loading="loading" @click="loadData">刷新</Button>
-    </Space>
+      <div class="action-switches">
+        <div
+          v-for="item in actionSwitchItems"
+          :key="item.key"
+          class="action-switch"
+        >
+          <span class="action-switch-label">{{ item.label }}</span>
+          <Switch
+            :checked="item.enabled"
+            checked-children="开启"
+            :disabled="!canRunCloudDanger"
+            :loading="actionSwitchSavingMap[item.key]"
+            un-checked-children="关闭"
+            @change="(checked) => toggleActionSwitch(item, Boolean(checked))"
+          />
+        </div>
+      </div>
+    </div>
 
     <Table
       :columns="columns"
@@ -338,28 +403,6 @@ onMounted(loadData);
             @change="
               (checked) =>
                 toggleActive(
-                  record as DashboardCloudAccountConfigItem,
-                  Boolean(checked),
-                )
-            "
-          />
-        </template>
-        <template v-else-if="column.key === 'shutdown_enabled'">
-          <Switch
-            :checked="
-              (record as DashboardCloudAccountConfigItem).shutdown_enabled
-            "
-            checked-children="执行关机"
-            :disabled="!canRunCloudDanger"
-            :loading="
-              shutdownTogglingMap[
-                (record as DashboardCloudAccountConfigItem).id
-              ]
-            "
-            un-checked-children="只同步"
-            @change="
-              (checked) =>
-                toggleShutdown(
                   record as DashboardCloudAccountConfigItem,
                   Boolean(checked),
                 )
@@ -459,9 +502,6 @@ onMounted(loadData);
           </Descriptions.Item>
           <Descriptions.Item label="启用">
             {{ detail.is_active ? '是' : '否' }}
-          </Descriptions.Item>
-          <Descriptions.Item label="关机计划">
-            {{ detail.shutdown_enabled ? '执行关机' : '只同步' }}
           </Descriptions.Item>
           <Descriptions.Item label="创建时间">
             {{ detail.created_at || '-' }}
@@ -618,17 +658,38 @@ onMounted(loadData);
         <Form.Item label="启用状态">
           <Switch v-model:checked="form.is_active" />
         </Form.Item>
-        <Form.Item label="关机计划">
-          <Switch
-            v-model:checked="form.shutdown_enabled"
-            checked-children="执行关机"
-            un-checked-children="只同步"
-          />
-          <div class="text-xs text-[var(--ant-color-text-description)] mt-1">
-            关闭后当前账号仅保留同步，不执行停机；重新打开后会在后台设定的关机时间窗口执行。
-          </div>
-        </Form.Item>
       </Form>
     </Modal>
   </Page>
 </template>
+
+<style scoped>
+.cloud-account-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.action-switches {
+  display: inline-flex;
+  gap: 18px;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 14px;
+  margin-left: 8px;
+  border-left: 1px solid var(--ant-color-border-secondary);
+}
+
+.action-switch {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.action-switch-label {
+  color: var(--ant-color-text-secondary);
+}
+</style>
