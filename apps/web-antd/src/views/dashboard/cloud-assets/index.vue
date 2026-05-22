@@ -123,7 +123,7 @@ const currentRow = ref<DashboardCloudAssetItem | null>(null);
 const detailOpen = ref(false);
 const detailLoading = ref(false);
 const detailRow = ref<DashboardCloudAssetDetail | null>(null);
-const columnView = ref<'compact' | 'finance' | 'ops'>('ops');
+const columnView = ref<'cloud' | 'compact' | 'finance' | 'ops'>('ops');
 const formState = reactive({
   actual_expires_at: null as any,
   is_active: true,
@@ -600,6 +600,18 @@ const columns = [
   },
   { title: '资产名称', dataIndex: 'asset_name', key: 'asset_name', width: 150 },
   {
+    title: '云厂商',
+    dataIndex: 'provider_label',
+    key: 'provider_label',
+    width: 120,
+  },
+  {
+    title: '实例ID',
+    dataIndex: 'instance_id',
+    key: 'instance_id',
+    width: 220,
+  },
+  {
     title: '排序',
     dataIndex: 'sort_order',
     key: 'sort_order',
@@ -617,6 +629,12 @@ const columns = [
     width: 320,
   },
   { title: '状态', dataIndex: 'status', key: 'status', width: 110 },
+  {
+    title: '云上状态',
+    dataIndex: 'provider_status',
+    key: 'provider_status',
+    width: 150,
+  },
   {
     title: '剩余天数',
     dataIndex: 'status_countdown',
@@ -645,6 +663,7 @@ const columnViewOptions = [
   { label: '操作视图', value: 'ops' },
   { label: '紧凑视图', value: 'compact' },
   { label: '财务视图', value: 'finance' },
+  { label: '云资源', value: 'cloud' },
 ];
 
 const syncScopeOptions = [
@@ -699,6 +718,18 @@ const assetTableColumns = computed<TableColumnsType<DashboardCloudAssetItem>>(
           'public_ip',
           'user_display_name',
           'username_label',
+        ].includes(column.key);
+      }
+      if (columnView.value === 'cloud') {
+        return [
+          'actions',
+          'asset_name',
+          'instance_id',
+          'provider_label',
+          'provider_status',
+          'public_ip',
+          'region_label',
+          'status',
         ].includes(column.key);
       }
       return true;
@@ -1697,6 +1728,33 @@ onBeforeUnmount(() => {
                   {{ record.sort_order || 99 }}
                 </Tag>
               </template>
+              <template v-else-if="column.key === 'provider_label'">
+                <Space direction="vertical" :size="2">
+                  <Tag
+                    :color="
+                      record.provider === 'aws_lightsail' ? 'orange' : 'blue'
+                    "
+                  >
+                    {{ record.provider_label || record.provider || '-' }}
+                  </Tag>
+                </Space>
+              </template>
+              <template v-else-if="column.key === 'instance_id'">
+                <TypographyParagraph
+                  v-if="record.instance_id || record.provider_resource_id"
+                  :copyable="{
+                    text: record.instance_id || record.provider_resource_id,
+                  }"
+                  :ellipsis="{
+                    rows: 2,
+                    tooltip: record.instance_id || record.provider_resource_id,
+                  }"
+                  class="mb-0 break-all font-mono text-xs leading-5"
+                >
+                  {{ record.instance_id || record.provider_resource_id }}
+                </TypographyParagraph>
+                <span v-else>-</span>
+              </template>
               <template v-else-if="column.key === 'account_label'">
                 <TypographyParagraph
                   v-if="record.account_label"
@@ -1849,6 +1907,15 @@ onBeforeUnmount(() => {
                   }}
                 </Tag>
               </template>
+              <template v-else-if="column.key === 'provider_status'">
+                <Tag
+                  :color="
+                    record.provider_status === 'running' ? 'success' : 'default'
+                  "
+                >
+                  {{ record.provider_status || '-' }}
+                </Tag>
+              </template>
               <template v-else-if="column.key === 'status_countdown'">
                 <Tag
                   :color="
@@ -1986,6 +2053,31 @@ onBeforeUnmount(() => {
             <Tag :color="sortOrderTagColor(record.sort_order)">
               {{ record.sort_order || 99 }}
             </Tag>
+          </template>
+          <template v-else-if="column.key === 'provider_label'">
+            <Space direction="vertical" :size="2">
+              <Tag
+                :color="record.provider === 'aws_lightsail' ? 'orange' : 'blue'"
+              >
+                {{ record.provider_label || record.provider || '-' }}
+              </Tag>
+            </Space>
+          </template>
+          <template v-else-if="column.key === 'instance_id'">
+            <TypographyParagraph
+              v-if="record.instance_id || record.provider_resource_id"
+              :copyable="{
+                text: record.instance_id || record.provider_resource_id,
+              }"
+              :ellipsis="{
+                rows: 2,
+                tooltip: record.instance_id || record.provider_resource_id,
+              }"
+              class="mb-0 break-all font-mono text-xs leading-5"
+            >
+              {{ record.instance_id || record.provider_resource_id }}
+            </TypographyParagraph>
+            <span v-else>-</span>
           </template>
           <template v-else-if="column.key === 'account_label'">
             <TypographyParagraph
@@ -2135,6 +2227,15 @@ onBeforeUnmount(() => {
                   ? '未附加IP'
                   : record.status_label || record.status || '-'
               }}
+            </Tag>
+          </template>
+          <template v-else-if="column.key === 'provider_status'">
+            <Tag
+              :color="
+                record.provider_status === 'running' ? 'success' : 'default'
+              "
+            >
+              {{ record.provider_status || '-' }}
             </Tag>
           </template>
           <template v-else-if="column.key === 'status_countdown'">

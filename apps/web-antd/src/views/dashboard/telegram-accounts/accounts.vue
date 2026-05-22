@@ -74,7 +74,9 @@ function statusText(status: string) {
 async function loadData() {
   loading.value = true;
   try {
-    overview.value = await getDashboardTelegramAccountsApi();
+    overview.value = await getDashboardTelegramAccountsApi({
+      scope: 'accounts',
+    });
   } finally {
     loading.value = false;
   }

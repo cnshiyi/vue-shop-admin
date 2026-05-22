@@ -9,6 +9,7 @@ interface DashboardListQuery {
   page_size?: number;
   paginated?: 0 | 1;
   risk_status?: string;
+  scope?: 'accounts' | 'chats' | 'users';
   sort_by?: 'actual_expires_at' | 'days_left' | 'expires_at' | 'remaining_days';
   sort_order?: 'asc' | 'desc';
 }
@@ -1031,6 +1032,8 @@ export interface DashboardTelegramChatUserItem {
   first_name: string;
   id: number;
   latest_at: null | string;
+  latest_chat_id?: null | number;
+  latest_login_account_id?: null | number;
   latest_message: string;
   message_count: number;
   primary_username: string;

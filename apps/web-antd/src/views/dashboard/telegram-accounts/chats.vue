@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type {
-  DashboardTelegramChatItem,
+  DashboardTelegramChatUserItem,
   DashboardTelegramMessageItem,
 } from '#/api/admin';
 
@@ -8,13 +8,12 @@ import { computed, nextTick, onMounted, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Empty, Input, message, Switch, Tag } from 'ant-design-vue';
+import { Button, Empty, Input, message, Tag } from 'ant-design-vue';
 
 import {
   getDashboardTelegramAccountsApi,
   getDashboardTelegramMessagesApi,
   sendDashboardTelegramMessageApi,
-  updateDashboardTelegramChatArchiveApi,
 } from '#/api/admin';
 import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
@@ -22,10 +21,9 @@ const loading = ref(false);
 const sending = ref(false);
 const keyword = ref('');
 const draftMessage = ref('');
-const showArchived = ref(false);
-const chats = ref<DashboardTelegramChatItem[]>([]);
+const users = ref<DashboardTelegramChatUserItem[]>([]);
 const messages = ref<DashboardTelegramMessageItem[]>([]);
-const selectedChat = ref<DashboardTelegramChatItem | null>(null);
+const selectedUser = ref<DashboardTelegramChatUserItem | null>(null);
 const messageScrollRef = ref<HTMLElement | null>(null);
 const { canRunCloudDanger, requireCloudDangerPermission } =
   useDashboardPermissions();
@@ -40,32 +38,32 @@ async function scrollMessagesToBottom() {
 
 async function loadData(options: { keepSelected?: boolean } = {}) {
   loading.value = true;
-  const currentChatId = selectedChat.value?.chat_id;
+  const currentTgUserId = selectedUser.value?.tg_user_id;
   try {
     const overview = await getDashboardTelegramAccountsApi({
-      archived: showArchived.value ? 1 : 0,
       keyword: keyword.value || undefined,
+      scope: 'users',
     });
-    chats.value = overview.chats || [];
-    if (options.keepSelected && currentChatId) {
-      selectedChat.value =
-        chats.value.find((item) => item.chat_id === currentChatId) ||
-        selectedChat.value;
+    users.value = overview.users || [];
+    if (options.keepSelected && currentTgUserId) {
+      selectedUser.value =
+        users.value.find((item) => item.tg_user_id === currentTgUserId) ||
+        selectedUser.value;
     } else {
-      selectedChat.value = null;
-      messages.value = overview.messages;
+      selectedUser.value = null;
+      messages.value = [];
     }
   } finally {
     loading.value = false;
   }
 }
 
-async function selectChat(chat: DashboardTelegramChatItem) {
-  selectedChat.value = chat;
+async function selectUser(user: DashboardTelegramChatUserItem) {
+  selectedUser.value = user;
   loading.value = true;
   try {
     messages.value = await getDashboardTelegramMessagesApi({
-      chat_id: chat.chat_id,
+      tg_user_id: user.tg_user_id,
     });
     await scrollMessagesToBottom();
   } finally {
@@ -76,13 +74,17 @@ async function selectChat(chat: DashboardTelegramChatItem) {
 async function sendMessage() {
   if (!requireCloudDangerPermission('发送 Telegram 消息')) return;
   const text = draftMessage.value.trim();
-  if (!selectedChat.value || !text) return;
-  const chat = selectedChat.value;
+  if (!selectedUser.value || !text) return;
+  const user = selectedUser.value;
+  if (!user.latest_chat_id) {
+    message.error('该用户暂无可回复会话');
+    return;
+  }
   sending.value = true;
   try {
     const sent = await sendDashboardTelegramMessageApi({
-      chat_id: chat.chat_id,
-      login_account_id: chat.login_account_id,
+      chat_id: user.latest_chat_id,
+      login_account_id: user.latest_login_account_id,
       text,
     });
     messages.value = [
@@ -96,37 +98,6 @@ async function sendMessage() {
     message.error(error?.message || '发送失败');
   } finally {
     sending.value = false;
-  }
-}
-
-async function toggleArchive(
-  chat: DashboardTelegramChatItem,
-  archived: boolean,
-) {
-  if (
-    !requireCloudDangerPermission(
-      archived ? '归档 Telegram 会话' : '取消归档 Telegram 会话',
-    )
-  )
-    return;
-  try {
-    await updateDashboardTelegramChatArchiveApi({
-      archived,
-      chat_id: chat.chat_id,
-      title: chat.title,
-    });
-    message.success(archived ? '已归档' : '已取消归档');
-    if (
-      selectedChat.value?.chat_id === chat.chat_id &&
-      archived &&
-      !showArchived.value
-    ) {
-      selectedChat.value = null;
-      messages.value = [];
-    }
-    await loadData({ keepSelected: true });
-  } catch (error: any) {
-    message.error(error?.message || '操作失败');
   }
 }
 
@@ -146,7 +117,7 @@ onMounted(() => loadData());
 </script>
 
 <template>
-  <Page title="聊天记录" description="按会话聚合查看和发送 Telegram 消息">
+  <Page title="聊天记录" description="先加载用户，选中用户后再读取单用户聊天记录">
     <div class="chat-shell">
       <aside class="conversation-pane">
         <div class="pane-toolbar">
@@ -154,16 +125,10 @@ onMounted(() => loadData());
             v-model:value="keyword"
             allow-clear
             enter-button="搜索"
-            placeholder="搜索会话 / 用户 / 内容"
+            placeholder="搜索用户 / 昵称 / Telegram ID"
             @search="() => loadData()"
           />
           <div class="pane-actions">
-            <Switch
-              v-model:checked="showArchived"
-              checked-children="含归档"
-              un-checked-children="隐藏归档"
-              @change="() => loadData()"
-            />
             <Button
               :loading="loading"
               @click="() => loadData({ keepSelected: true })"
@@ -175,56 +140,57 @@ onMounted(() => loadData());
 
         <div class="conversation-list">
           <div
-            v-for="chat in chats"
-            :key="chat.chat_id"
+            v-for="user in users"
+            :key="user.tg_user_id"
             class="conversation-item"
-            :class="{ active: selectedChat?.chat_id === chat.chat_id }"
-            @click="selectChat(chat)"
+            :class="{ active: selectedUser?.tg_user_id === user.tg_user_id }"
+            @click="selectUser(user)"
           >
             <div class="conversation-main">
               <div class="conversation-title-row">
-                <span class="conversation-title">{{ chat.title }}</span>
-                <Tag v-if="chat.archived" color="default">归档</Tag>
+                <span class="conversation-title">{{ user.display_name }}</span>
+                <Tag
+                  v-if="selectedUser?.tg_user_id === user.tg_user_id"
+                  color="green"
+                >
+                  当前
+                </Tag>
+              </div>
+              <div class="conversation-subtitle">
+                {{ user.username_label || `ID ${user.tg_user_id}` }}
+              </div>
+              <div v-if="user.latest_message" class="conversation-subtitle">
+                {{ user.latest_message }}
               </div>
             </div>
             <div class="conversation-side">
-              <span>{{ chat.message_count }} 条</span>
-              <Button
-                v-if="chat.is_group"
-                size="small"
-                type="link"
-                :disabled="!canRunCloudDanger"
-                @click.stop="toggleArchive(chat, !chat.archived)"
-              >
-                {{ chat.archived ? '取消' : '归档' }}
-              </Button>
+              <span>{{ user.message_count }} 条</span>
+              <span>{{ formatTime(user.latest_at) }}</span>
             </div>
           </div>
-          <Empty v-if="chats.length === 0" description="暂无匹配会话" />
+          <Empty v-if="users.length === 0" description="暂无匹配用户" />
         </div>
       </aside>
 
       <section class="chat-pane">
         <header class="chat-header">
-          <div v-if="selectedChat">
-            <div class="chat-title">{{ selectedChat.title }}</div>
+          <div v-if="selectedUser">
+            <div class="chat-title">{{ selectedUser.display_name }}</div>
             <div class="chat-subtitle">
               {{
-                selectedChat.subtitle ||
-                selectedChat.login_account_label ||
-                selectedChat.source_label
+                selectedUser.username_label || `ID ${selectedUser.tg_user_id}`
               }}
-              · {{ selectedChat.message_count }} 条消息
+              · {{ selectedUser.message_count }} 条消息
             </div>
           </div>
           <div v-else>
-            <div class="chat-title">请选择一个会话</div>
-            <div class="chat-subtitle">左侧按私聊和群组聚合</div>
+            <div class="chat-title">请选择一个用户</div>
+            <div class="chat-subtitle">左侧只加载用户，聊天记录选中后再读取</div>
           </div>
         </header>
 
         <main ref="messageScrollRef" class="message-timeline">
-          <template v-if="selectedChat && orderedMessages.length > 0">
+          <template v-if="selectedUser && orderedMessages.length > 0">
             <div
               v-for="(item, index) in orderedMessages"
               :key="item.id"
@@ -257,7 +223,7 @@ onMounted(() => loadData());
           </template>
           <Empty
             v-else
-            :description="selectedChat ? '暂无聊天记录' : '先选择左侧会话'"
+            :description="selectedUser ? '暂无聊天记录' : '先选择左侧用户'"
           />
         </main>
 
@@ -265,14 +231,14 @@ onMounted(() => loadData());
           <Input.TextArea
             v-model:value="draftMessage"
             :auto-size="{ minRows: 2, maxRows: 5 }"
-            :disabled="!selectedChat || !canRunCloudDanger"
+            :disabled="!selectedUser || !canRunCloudDanger"
             placeholder="输入消息，Enter 发送，Shift+Enter 换行"
             @press-enter.exact.prevent="sendMessage"
           />
           <Button
             type="primary"
             :disabled="
-              !selectedChat || !draftMessage.trim() || !canRunCloudDanger
+              !selectedUser || !draftMessage.trim() || !canRunCloudDanger
             "
             :loading="sending"
             @click="sendMessage"

@@ -60,6 +60,7 @@ async function loadData() {
   try {
     overview.value = await getDashboardTelegramAccountsApi({
       keyword: keyword.value || undefined,
+      scope: 'users',
     });
   } finally {
     loading.value = false;
@@ -132,8 +133,7 @@ onMounted(loadData);
         <Button :loading="loading" @click="loadData">刷新</Button>
       </Space>
       <div class="mt-2 text-xs text-[var(--ant-color-text-description)]">
-        当前自动收集范围：用户主动与 bot 产生的资料和聊天记录。个人 Telegram
-        账号登录采集需要单独接 Telethon/GramJS 授权流程，未在后台静默抓取。
+        当前先加载用户入口；聊天记录只在选中单个用户后读取，避免一次加载过多历史消息。
       </div>
     </Card>
 
@@ -190,8 +190,8 @@ onMounted(loadData);
           "
         >
           <List
-            v-if="(selectedUser ? messages : overview.messages).length > 0"
-            :data-source="selectedUser ? messages : overview.messages"
+            v-if="selectedUser && messages.length > 0"
+            :data-source="messages"
           >
             <template #renderItem="{ item }">
               <List.Item>
@@ -219,7 +219,10 @@ onMounted(loadData);
               </List.Item>
             </template>
           </List>
-          <Empty v-else description="暂无聊天记录" />
+          <Empty
+            v-else
+            :description="selectedUser ? '暂无聊天记录' : '先选择左侧用户'"
+          />
         </Card>
       </Col>
     </Row>
