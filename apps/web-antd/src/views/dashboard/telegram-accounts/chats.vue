@@ -117,7 +117,10 @@ onMounted(() => loadData());
 </script>
 
 <template>
-  <Page title="聊天记录" description="先加载用户，选中用户后再读取单用户聊天记录">
+  <Page
+    title="聊天记录"
+    description="先加载用户，选中用户后再读取单用户聊天记录"
+  >
     <div class="chat-shell">
       <aside class="conversation-pane">
         <div class="pane-toolbar">
@@ -185,7 +188,9 @@ onMounted(() => loadData());
           </div>
           <div v-else>
             <div class="chat-title">请选择一个用户</div>
-            <div class="chat-subtitle">左侧只加载用户，聊天记录选中后再读取</div>
+            <div class="chat-subtitle">
+              左侧只加载用户，聊天记录选中后再读取
+            </div>
           </div>
         </header>
 
