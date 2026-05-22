@@ -552,12 +552,20 @@ onMounted(loadData);
             {{ summary?.shutdown_count ?? 0 }} 条
           </Descriptions.Item>
           <Descriptions.Item label="缺少到期时间">
-            <Tag :color="(summary?.missing_expiry_count || 0) > 0 ? 'warning' : 'success'">
+            <Tag
+              :color="
+                (summary?.missing_expiry_count || 0) > 0 ? 'warning' : 'success'
+              "
+            >
               {{ summary?.missing_expiry_count ?? 0 }} 条
             </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="未附加IP">
-            <Tag :color="(summary?.unattached_ip_count || 0) > 0 ? 'warning' : 'success'">
+            <Tag
+              :color="
+                (summary?.unattached_ip_count || 0) > 0 ? 'warning' : 'success'
+              "
+            >
               {{ summary?.unattached_ip_count ?? 0 }} 条
             </Tag>
           </Descriptions.Item>

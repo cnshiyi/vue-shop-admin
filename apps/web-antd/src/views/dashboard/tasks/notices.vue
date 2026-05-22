@@ -148,8 +148,7 @@ const historyColumns: TableColumnsType<DashboardNoticePlanHistoryItem> = [
 
 const dueBatchItems = computed(
   () =>
-    detail.value?.active_user_summary_items ||
-    [
+    detail.value?.active_user_summary_items || [
       ...(detail.value?.due_user_summary_items || []),
       ...(detail.value?.future_user_summary_items || []),
     ],
