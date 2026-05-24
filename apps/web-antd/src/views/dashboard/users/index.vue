@@ -86,6 +86,16 @@ async function loadData() {
   }
 }
 
+function usernamePipeLabel(value?: null | string) {
+  const raw = String(value || '').trim();
+  if (!raw || raw === '-') return '-';
+  return raw
+    .split(/\s*[/|｜]\s*/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join('｜');
+}
+
 function resetSearch() {
   keyword.value = '';
   loadData();
@@ -163,7 +173,7 @@ onMounted(loadData);
             <div class="font-medium">{{ record.display_name || '-' }}</div>
           </template>
           <template v-else-if="column.key === 'username_label'">
-            <span>{{ record.username_label || '-' }}</span>
+            <span>{{ usernamePipeLabel(record.username_label) }}</span>
           </template>
           <template v-else-if="column.key === 'proxy_count'">
             <span>{{ record.proxy_count || 0 }}</span>

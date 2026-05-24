@@ -70,6 +70,16 @@ function empty(value: unknown) {
   return value === null || value === undefined || value === '' ? '-' : value;
 }
 
+function usernamePipeText(value?: null | string) {
+  const raw = String(value || '').trim();
+  if (!raw || raw === '-') return '-';
+  return raw
+    .split(/\s*[/|｜]\s*/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join('｜');
+}
+
 function formatTime(value?: null | string) {
   return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
 }
@@ -376,7 +386,7 @@ onMounted(loadData);
             {{ empty(detail.user_display_name) }}
           </Descriptions.Item>
           <Descriptions.Item label="用户名">
-            {{ empty(detail.username_label) }}
+            {{ usernamePipeText(detail.username_label) }}
           </Descriptions.Item>
           <Descriptions.Item label="Telegram ID">
             {{ empty(detail.tg_user_id) }}

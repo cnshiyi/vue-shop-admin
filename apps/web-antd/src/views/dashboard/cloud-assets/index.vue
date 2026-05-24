@@ -7,6 +7,7 @@ import type {
   DashboardCloudAssetGroupedResponse,
   DashboardCloudAssetItem,
   DashboardCloudAssetUpdatePayload,
+  DashboardCloudOrderSummaryItem,
   DashboardTelegramGroupFilterItem,
 } from '#/api/admin';
 
@@ -123,7 +124,8 @@ const currentRow = ref<DashboardCloudAssetItem | null>(null);
 const detailOpen = ref(false);
 const detailLoading = ref(false);
 const detailRow = ref<DashboardCloudAssetDetail | null>(null);
-const columnView = ref<'cloud' | 'compact' | 'finance' | 'ops'>('ops');
+const expandedLifecycleRows = ref<Record<string, boolean>>({});
+const columnView = ref<'cloud' | 'ops'>('cloud');
 const formState = reactive({
   actual_expires_at: null as any,
   is_active: true,
@@ -282,7 +284,10 @@ function userGroupTitle(item: DashboardCloudAssetItem) {
 }
 
 function userGroupLabel(item: DashboardCloudAssetItem) {
-  return item.username_label || String(item.tg_user_id || item.user_id || '-');
+  const usernameLabel = usernamePipeLabel(item);
+  return usernameLabel === '-'
+    ? String(item.tg_user_id || item.user_id || '-')
+    : usernameLabel;
 }
 
 function userGroupId(item: DashboardCloudAssetItem) {
@@ -439,6 +444,232 @@ function assetPriceLabel(record: DashboardCloudAssetItem) {
   return `${record.price} ${record.currency || 'USDT'}`;
 }
 
+function empty(value: unknown) {
+  return value === null || value === undefined || value === '' ? '-' : value;
+}
+
+function formatTime(value?: null | string) {
+  return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
+}
+
+function formatExpiryTime(value?: null | string) {
+  return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
+}
+
+function statusColor(status?: string) {
+  if (['completed', 'paid', 'running'].includes(status || '')) return 'green';
+  if (
+    [
+      'expiring',
+      'pending',
+      'provisioning',
+      'renew_pending',
+      'unknown',
+    ].includes(status || '')
+  )
+    return 'orange';
+  if (['deleted', 'expired', 'failed', 'terminated'].includes(status || ''))
+    return 'red';
+  return 'blue';
+}
+
+function usernamePipeLabel(record: DashboardCloudAssetItem) {
+  const value = String(record.username_label || '').trim();
+  if (!value || value === '-') {
+    return '-';
+  }
+  return value
+    .split(/\s*[/|｜]\s*/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join('｜');
+}
+
+function resourceIdLabel(record: DashboardCloudAssetItem) {
+  const value = resourceIdValue(record);
+  if (!value) {
+    return '-';
+  }
+  return `${resourceIdKindLabel(record)}：${value}`;
+}
+
+function resourceIdCopyValue(record: DashboardCloudAssetItem) {
+  return resourceIdValue(record);
+}
+
+function resourceIdKindLabel(record: DashboardCloudAssetItem) {
+  return isUnattachedIpAsset(record) ? '固定IP' : '实例ID';
+}
+
+function resourceIdValue(record: DashboardCloudAssetItem) {
+  if (isUnattachedIpAsset(record)) {
+    const providerResourceId = String(record.provider_resource_id || '').trim();
+    const staticIpFromResource =
+      providerResourceId.includes('StaticIp/') ||
+      providerResourceId.includes(':StaticIp/')
+        ? providerResourceId.split('/').pop() || ''
+        : '';
+    const staticIpNameFromAssetName = record.instance_id
+      ? ''
+      : record.asset_name || '';
+    return (
+      record.static_ip_name ||
+      staticIpFromResource ||
+      staticIpNameFromAssetName ||
+      record.public_ip ||
+      record.previous_public_ip ||
+      ''
+    );
+  }
+  return record.instance_id || record.provider_resource_id || '';
+}
+
+function historyOrderTagColor(status?: string) {
+  if (['completed', 'paid'].includes(status || '')) return 'green';
+  if (
+    ['expiring', 'provisioning', 'renew_pending', 'suspended'].includes(
+      status || '',
+    )
+  )
+    return 'orange';
+  if (['cancelled', 'deleted', 'expired', 'failed'].includes(status || ''))
+    return 'red';
+  return 'blue';
+}
+
+function historySourceTagColor(source?: string) {
+  if (source === 'manual_owner_change') return 'purple';
+  if (source === 'manual_expiry_change') return 'gold';
+  if (source === 'manual_price_change') return 'cyan';
+  if (source === 'manual_owner_expiry_change') return 'magenta';
+  if (source === 'renewal' || source === 'renewal_rebuild') return 'blue';
+  return 'default';
+}
+
+function historyOrderIpChange(item?: DashboardCloudOrderSummaryItem | null) {
+  const previousIp = String(item?.previous_public_ip || '').trim();
+  const currentIp = String(item?.public_ip || '').trim();
+  if (previousIp && currentIp && previousIp !== currentIp)
+    return `${previousIp} → ${currentIp}`;
+  return previousIp || currentIp || '';
+}
+
+function orderSourceItems(item?: DashboardCloudOrderSummaryItem | null) {
+  if (!item) return [] as Array<{ key: string; label: string }>;
+  const tagKeys = item.order_source_tags || [];
+  const tagLabels = item.order_source_tag_labels || [];
+  if (tagLabels.length > 0) {
+    return tagLabels.map((label, index) => ({
+      key: tagKeys[index] || item.order_source || label,
+      label,
+    }));
+  }
+  return item.order_source_label
+    ? [
+        {
+          key: item.order_source || item.order_source_label,
+          label: item.order_source_label,
+        },
+      ]
+    : [];
+}
+
+function lifecycleOrderPath(orderNo?: string) {
+  const value = String(orderNo || '').trim();
+  if (!value || value === '-') return '';
+  return detailRow.value?.lifecycle_order_links?.[value] || '';
+}
+
+function parseLifecycleLine(line: string, fallbackEvent?: string) {
+  const text = String(line || '').trim();
+  if (!text) return null;
+  const executedAt =
+    text.match(/执行时间：(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/)?.[1] || '';
+  const publicIp = text.match(/IP：([^；]+)/)?.[1] || '';
+  const triggerLabel = text.match(/触发事件：([^；]+)/)?.[1] || '';
+  const orderNo = text.match(/订单号：([^；]+)/)?.[1] || '';
+  const serverName = text.match(/服务器名：([^；]+)/)?.[1] || '';
+  const previousPublicIp =
+    text.match(/上一个IP：([^；]+)/)?.[1] ||
+    text.match(/旧IP[=：]([^；]+)/)?.[1] ||
+    text.match(/原固定\/旧IP\s*([^；]+)/)?.[1] ||
+    text.match(/旧固定IP\s*([^；\s]+)/)?.[1] ||
+    text.match(/自动同步发现 IP 变化：([^\s；]+)\s*->/)?.[1] ||
+    text.match(/固定 IP ([^\s；]+) 从/)?.[1] ||
+    (publicIp && text.includes('固定 IP 保留期结束') ? publicIp : '');
+  const summary = text.match(/执行内容：(.+)$/)?.[1] || text;
+
+  let eventLabel = fallbackEvent || '变更';
+  if (summary.includes('开始创建服务器')) eventLabel = '创建开始';
+  else if (
+    summary.includes('云端实例已创建') ||
+    summary.includes('触发创建云端实例')
+  )
+    eventLabel = '实例创建';
+  else if (summary.includes('创建并分配IP')) eventLabel = '分配IP';
+  else if (summary.includes('执行关机')) eventLabel = '关机';
+  else if (summary.includes('执行删除') || summary.includes('实例已删除'))
+    eventLabel = '删除';
+  else if (summary.includes('固定 IP 已真实释放') || summary.includes('已回收'))
+    eventLabel = '回收';
+  else if (
+    summary.includes('旧服务器生命周期') ||
+    summary.includes('旧机日期已调整')
+  )
+    eventLabel = '旧机安排';
+  else if (summary.includes('续费')) eventLabel = '续费';
+
+  return {
+    id: `${executedAt}-${triggerLabel}-${eventLabel}-${publicIp}-${summary}`,
+    executed_at: executedAt,
+    trigger_label: triggerLabel || '-',
+    event_label: eventLabel,
+    order_no: orderNo || '-',
+    order_link_path: lifecycleOrderPath(orderNo),
+    server_name: serverName || '-',
+    public_ip: publicIp || '-',
+    previous_public_ip: previousPublicIp || '-',
+    summary,
+  };
+}
+
+const detailHistoryOrders = computed<DashboardCloudOrderSummaryItem[]>(
+  () => detailRow.value?.history_orders || [],
+);
+
+const detailLifecycleRows = computed(() => {
+  const rows: Array<Record<string, string>> = [];
+  for (const item of detailRow.value?.ip_logs || []) {
+    const lines = String(item.note || '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    for (const line of lines) {
+      const parsed = parseLifecycleLine(
+        line,
+        item.event_label || item.event_type,
+      );
+      if (parsed) rows.push(parsed);
+    }
+  }
+  return rows;
+});
+
+function lifecycleSummaryTooLong(text?: null | string) {
+  const value = String(text || '').trim();
+  if (!value) return false;
+  return value.length > 100 || value.split('\n').filter(Boolean).length > 2;
+}
+
+function lifecycleExpanded(record: Record<string, string>) {
+  return Boolean(expandedLifecycleRows.value[String(record.id || '')]);
+}
+
+function toggleLifecycleSummary(record: Record<string, string>) {
+  const key = String(record.id || '');
+  expandedLifecycleRows.value[key] = !expandedLifecycleRows.value[key];
+}
+
 function riskCountLabel(status: string) {
   return Number(riskCounts.value[status] || 0);
 }
@@ -588,6 +819,12 @@ const riskFilterOptions = computed(() => [
 const columns = [
   {
     title: '用户',
+    dataIndex: 'cloud_user_summary',
+    key: 'cloud_user_summary',
+    width: 220,
+  },
+  {
+    title: '用户',
     dataIndex: 'user_display_name',
     key: 'user_display_name',
     width: 150,
@@ -597,6 +834,12 @@ const columns = [
     dataIndex: 'username_label',
     key: 'username_label',
     width: 180,
+  },
+  {
+    title: '资源信息',
+    dataIndex: 'cloud_resource_summary',
+    key: 'cloud_resource_summary',
+    width: 360,
   },
   { title: '资产名称', dataIndex: 'asset_name', key: 'asset_name', width: 150 },
   {
@@ -620,6 +863,12 @@ const columns = [
       (b.sort_order || 99) - (a.sort_order || 99),
   },
   { title: '地区', dataIndex: 'region_label', key: 'region_label', width: 120 },
+  {
+    title: 'IP / 价格',
+    dataIndex: 'cloud_ip_price',
+    key: 'cloud_ip_price',
+    width: 170,
+  },
   { title: '公网IP', dataIndex: 'public_ip', key: 'public_ip', width: 140 },
   { title: '价格', dataIndex: 'price', key: 'price', width: 130 },
   {
@@ -661,9 +910,7 @@ const columns = [
 
 const columnViewOptions = [
   { label: '操作视图', value: 'ops' },
-  { label: '紧凑视图', value: 'compact' },
-  { label: '财务视图', value: 'finance' },
-  { label: '云资源', value: 'cloud' },
+  { label: '云资源视图', value: 'cloud' },
 ];
 
 const syncScopeOptions = [
@@ -692,45 +939,26 @@ const assetTableColumns = computed<TableColumnsType<DashboardCloudAssetItem>>(
       sortOrder: tableColumnSortOrder(column.key),
     }));
     const filteredByView = mappedColumns.filter((column) => {
+      if (columnView.value === 'cloud') {
+        return [
+          'actions',
+          'actual_expires_at',
+          'auto_renew_enabled',
+          'cloud_ip_price',
+          'cloud_resource_summary',
+          'cloud_user_summary',
+          'note',
+          'provider_status',
+          'status',
+          'status_countdown',
+        ].includes(column.key);
+      }
       if (
         grouped.value &&
         groupMode.value === 'telegram_group' &&
         ['user_display_name', 'username_label'].includes(column.key)
       ) {
         return false;
-      }
-      if (columnView.value === 'compact') {
-        return [
-          'actions',
-          'asset_name',
-          'mtproxy_link',
-          'public_ip',
-          'status_countdown',
-        ].includes(column.key);
-      }
-      if (columnView.value === 'finance') {
-        return [
-          'actions',
-          'actual_expires_at',
-          'asset_name',
-          'auto_renew_enabled',
-          'price',
-          'public_ip',
-          'user_display_name',
-          'username_label',
-        ].includes(column.key);
-      }
-      if (columnView.value === 'cloud') {
-        return [
-          'actions',
-          'asset_name',
-          'instance_id',
-          'provider_label',
-          'provider_status',
-          'public_ip',
-          'region_label',
-          'status',
-        ].includes(column.key);
       }
       return true;
     });
@@ -769,8 +997,9 @@ function groupUserSummary(group: DashboardCloudAssetGroup) {
       if (item.user_display_name && item.user_display_name !== '未绑定用户') {
         return item.user_display_name;
       }
-      if (item.username_label && item.username_label !== '-') {
-        return item.username_label;
+      const usernameLabel = usernamePipeLabel(item);
+      if (usernameLabel && usernameLabel !== '-') {
+        return usernameLabel;
       }
       if (item.tg_user_id) return `TG ${item.tg_user_id}`;
       if (item.user_id) return `用户 ${item.user_id}`;
@@ -803,6 +1032,11 @@ async function openDetail(record: DashboardCloudAssetItem) {
 function openDetailPage(assetId?: number) {
   if (!assetId) return;
   router.push(`/admin/cloud-assets/${assetId}`).catch(() => {});
+}
+
+function openOrder(path?: null | string) {
+  if (!path) return;
+  router.push(path).catch(() => {});
 }
 
 function formatRefreshTime(value: dayjs.Dayjs | null) {
@@ -1672,20 +1906,115 @@ onBeforeUnmount(() => {
             @change="handleAssetTableChange"
           >
             <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'username_label'">
+              <template v-if="column.key === 'cloud_user_summary'">
+                <Space direction="vertical" :size="2">
+                  <span>{{ record.user_display_name || '未绑定用户' }}</span>
+                  <TypographyParagraph
+                    v-if="
+                      usernamePipeLabel(asDashboardCloudAssetItem(record)) !==
+                      '-'
+                    "
+                    :ellipsis="{
+                      rows: 1,
+                      tooltip: usernamePipeLabel(
+                        asDashboardCloudAssetItem(record),
+                      ),
+                    }"
+                    class="mb-0 max-w-full break-all text-xs leading-5"
+                  >
+                    {{ usernamePipeLabel(asDashboardCloudAssetItem(record)) }}
+                  </TypographyParagraph>
+                </Space>
+              </template>
+              <template v-else-if="column.key === 'cloud_resource_summary'">
+                <Space direction="vertical" :size="2">
+                  <TypographyParagraph
+                    :ellipsis="{
+                      rows: 1,
+                      tooltip: record.asset_name || '-',
+                    }"
+                    class="mb-0 max-w-full break-all text-xs leading-5"
+                  >
+                    {{ record.asset_name || '-' }}
+                  </TypographyParagraph>
+                  <Space :size="4" wrap>
+                    <Tag
+                      :color="
+                        record.provider === 'aws_lightsail' ? 'orange' : 'blue'
+                      "
+                    >
+                      {{ record.provider_label || record.provider || '-' }}
+                    </Tag>
+                    <Tag v-if="record.region_code" color="geekblue">
+                      {{ record.region_code }}
+                    </Tag>
+                    <span v-else>{{
+                      regionDisplay(asDashboardCloudAssetItem(record))
+                    }}</span>
+                  </Space>
+                  <TypographyParagraph
+                    v-if="
+                      resourceIdLabel(asDashboardCloudAssetItem(record)) !== '-'
+                    "
+                    :copyable="{
+                      text: resourceIdCopyValue(
+                        asDashboardCloudAssetItem(record),
+                      ),
+                    }"
+                    :ellipsis="{
+                      rows: 1,
+                      tooltip: resourceIdLabel(
+                        asDashboardCloudAssetItem(record),
+                      ),
+                    }"
+                    class="mb-0 max-w-full break-all font-mono text-xs leading-5"
+                  >
+                    {{ resourceIdLabel(asDashboardCloudAssetItem(record)) }}
+                  </TypographyParagraph>
+                </Space>
+              </template>
+              <template v-else-if="column.key === 'cloud_ip_price'">
+                <Space direction="vertical" :size="2">
+                  <TypographyParagraph
+                    v-if="record.public_ip"
+                    :copyable="{ text: record.public_ip }"
+                    class="mb-0 font-mono text-xs leading-5"
+                  >
+                    {{ record.public_ip }}
+                  </TypographyParagraph>
+                  <span v-else>-</span>
+                  <Tag
+                    :color="
+                      hasAssetPrice(asDashboardCloudAssetItem(record))
+                        ? 'success'
+                        : 'error'
+                    "
+                  >
+                    {{ assetPriceLabel(asDashboardCloudAssetItem(record)) }}
+                  </Tag>
+                </Space>
+              </template>
+              <template v-else-if="column.key === 'username_label'">
                 <div
-                  v-if="record.username_label && record.username_label !== '-'"
+                  v-if="
+                    usernamePipeLabel(asDashboardCloudAssetItem(record)) !== '-'
+                  "
                   class="max-w-full overflow-hidden"
                 >
                   <TypographyParagraph
                     :ellipsis="
                       isUsernameExpanded(record.id)
                         ? false
-                        : { rows: 1, tooltip: record.username_label }
+                        : {
+                            rows: 1,
+                            tooltip: usernamePipeLabel(
+                              asDashboardCloudAssetItem(record),
+                            ),
+                          }
                     "
                     class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
                   >
-                    {{ record.username_label }}
+                    {{ usernamePipeLabel(asDashboardCloudAssetItem(record)) }}
                   </TypographyParagraph>
                   <Button
                     size="small"
@@ -1910,7 +2239,9 @@ onBeforeUnmount(() => {
               <template v-else-if="column.key === 'provider_status'">
                 <Tag
                   :color="
-                    record.provider_status === 'running' ? 'success' : 'default'
+                    ['running', '运行中'].includes(record.provider_status)
+                      ? 'success'
+                      : 'default'
                   "
                 >
                   {{ record.provider_status || '-' }}
@@ -1998,20 +2329,108 @@ onBeforeUnmount(() => {
         @change="handleAssetTableChange"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'username_label'">
+          <template v-if="column.key === 'cloud_user_summary'">
+            <Space direction="vertical" :size="2">
+              <span>{{ record.user_display_name || '未绑定用户' }}</span>
+              <TypographyParagraph
+                v-if="
+                  usernamePipeLabel(record as DashboardCloudAssetItem) !== '-'
+                "
+                :ellipsis="{
+                  rows: 1,
+                  tooltip: usernamePipeLabel(record as DashboardCloudAssetItem),
+                }"
+                class="mb-0 max-w-full break-all text-xs leading-5"
+              >
+                {{ usernamePipeLabel(record as DashboardCloudAssetItem) }}
+              </TypographyParagraph>
+            </Space>
+          </template>
+          <template v-else-if="column.key === 'cloud_resource_summary'">
+            <Space direction="vertical" :size="2">
+              <TypographyParagraph
+                :ellipsis="{
+                  rows: 1,
+                  tooltip: record.asset_name || '-',
+                }"
+                class="mb-0 max-w-full break-all text-xs leading-5"
+              >
+                {{ record.asset_name || '-' }}
+              </TypographyParagraph>
+              <Space :size="4" wrap>
+                <Tag
+                  :color="
+                    record.provider === 'aws_lightsail' ? 'orange' : 'blue'
+                  "
+                >
+                  {{ record.provider_label || record.provider || '-' }}
+                </Tag>
+                <Tag v-if="record.region_code" color="geekblue">
+                  {{ record.region_code }}
+                </Tag>
+                <span v-else>{{
+                  regionDisplay(record as DashboardCloudAssetItem)
+                }}</span>
+              </Space>
+              <TypographyParagraph
+                v-if="
+                  resourceIdLabel(record as DashboardCloudAssetItem) !== '-'
+                "
+                :copyable="{
+                  text: resourceIdCopyValue(record as DashboardCloudAssetItem),
+                }"
+                :ellipsis="{
+                  rows: 1,
+                  tooltip: resourceIdLabel(record as DashboardCloudAssetItem),
+                }"
+                class="mb-0 max-w-full break-all font-mono text-xs leading-5"
+              >
+                {{ resourceIdLabel(record as DashboardCloudAssetItem) }}
+              </TypographyParagraph>
+            </Space>
+          </template>
+          <template v-else-if="column.key === 'cloud_ip_price'">
+            <Space direction="vertical" :size="2">
+              <TypographyParagraph
+                v-if="record.public_ip"
+                :copyable="{ text: record.public_ip }"
+                class="mb-0 font-mono text-xs leading-5"
+              >
+                {{ record.public_ip }}
+              </TypographyParagraph>
+              <span v-else>-</span>
+              <Tag
+                :color="
+                  hasAssetPrice(record as DashboardCloudAssetItem)
+                    ? 'success'
+                    : 'error'
+                "
+              >
+                {{ assetPriceLabel(record as DashboardCloudAssetItem) }}
+              </Tag>
+            </Space>
+          </template>
+          <template v-else-if="column.key === 'username_label'">
             <div
-              v-if="record.username_label && record.username_label !== '-'"
+              v-if="
+                usernamePipeLabel(asDashboardCloudAssetItem(record)) !== '-'
+              "
               class="max-w-full overflow-hidden"
             >
               <TypographyParagraph
                 :ellipsis="
                   isUsernameExpanded(record.id)
                     ? false
-                    : { rows: 1, tooltip: record.username_label }
+                    : {
+                        rows: 1,
+                        tooltip: usernamePipeLabel(
+                          asDashboardCloudAssetItem(record),
+                        ),
+                      }
                 "
                 class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
               >
-                {{ record.username_label }}
+                {{ usernamePipeLabel(asDashboardCloudAssetItem(record)) }}
               </TypographyParagraph>
               <Button
                 size="small"
@@ -2232,7 +2651,9 @@ onBeforeUnmount(() => {
           <template v-else-if="column.key === 'provider_status'">
             <Tag
               :color="
-                record.provider_status === 'running' ? 'success' : 'default'
+                ['running', '运行中'].includes(record.provider_status)
+                  ? 'success'
+                  : 'default'
               "
             >
               {{ record.provider_status || '-' }}
@@ -2313,30 +2734,71 @@ onBeforeUnmount(() => {
             打开详情页
           </Button>
         </Space>
-        <Descriptions bordered size="small" :column="2">
-          <Descriptions.Item label="用户">
-            {{ detailRow.user_display_name || '-' }}
+        <Descriptions bordered size="small" :column="2" title="基础信息">
+          <Descriptions.Item label="资产名称">
+            {{ empty(detailRow.asset_name) }}
           </Descriptions.Item>
-          <Descriptions.Item label="用户名">
-            {{ detailRow.username_label || '-' }}
+          <Descriptions.Item label="来源">
+            {{ empty(detailRow.source_label || detailRow.source) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="厂商">
+            {{ empty(detailRow.provider_label || detailRow.provider) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="地区">
+            {{ regionDisplay(detailRow) }}
           </Descriptions.Item>
           <Descriptions.Item label="群组">
-            {{ detailRow.telegram_group_title || '-' }}
+            {{ empty(detailRow.telegram_group_title) }}
           </Descriptions.Item>
           <Descriptions.Item label="云账号">
-            {{ detailRow.account_label || '-' }}
+            <TypographyParagraph
+              :copyable="
+                detailRow.account_label
+                  ? { text: detailRow.account_label }
+                  : false
+              "
+              class="!mb-0 break-all font-mono"
+            >
+              {{ empty(detailRow.account_label) }}
+            </TypographyParagraph>
           </Descriptions.Item>
-          <Descriptions.Item label="公网IP">
-            {{ detailRow.public_ip || '-' }}
+        </Descriptions>
+
+        <Descriptions
+          bordered
+          class="mt-3"
+          size="small"
+          :column="2"
+          title="服务器与 IP"
+        >
+          <Descriptions.Item label="公网 IP">
+            {{ empty(detailRow.public_ip) }}
           </Descriptions.Item>
-          <Descriptions.Item label="实例ID">
-            {{ detailRow.instance_id || detailRow.provider_resource_id || '-' }}
+          <Descriptions.Item label="上一个 IP">
+            {{ empty(detailRow.previous_public_ip) }}
+          </Descriptions.Item>
+          <Descriptions.Item :label="resourceIdKindLabel(detailRow)">
+            <TypographyParagraph
+              :copyable="
+                resourceIdCopyValue(detailRow)
+                  ? { text: resourceIdCopyValue(detailRow) }
+                  : false
+              "
+              class="!mb-0 break-all font-mono"
+            >
+              {{ empty(resourceIdCopyValue(detailRow)) }}
+            </TypographyParagraph>
+          </Descriptions.Item>
+          <Descriptions.Item label="固定 IP 名称">
+            {{ empty(detailRow.static_ip_name) }}
           </Descriptions.Item>
           <Descriptions.Item label="状态">
-            {{ detailRow.status_label || detailRow.status || '-' }}
+            <Tag :color="statusColor(detailRow.status)">
+              {{ empty(detailRow.status_label || detailRow.status) }}
+            </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="云上状态">
-            {{ detailRow.provider_status || '-' }}
+            {{ empty(detailRow.provider_status) }}
           </Descriptions.Item>
           <Descriptions.Item label="剩余">
             {{
@@ -2346,11 +2808,54 @@ onBeforeUnmount(() => {
             }}
           </Descriptions.Item>
           <Descriptions.Item label="到期">
-            {{
-              detailRow.actual_expires_at
-                ? dayjs(detailRow.actual_expires_at).format('YYYY-MM-DD HH:mm')
-                : '-'
-            }}
+            {{ formatExpiryTime(detailRow.actual_expires_at) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="最近同步">
+            {{ formatTime(detailRow.provider_checked_at) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="创建时间">
+            {{ formatTime(detailRow.created_at) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="更新时间">
+            {{ formatTime(detailRow.updated_at) }}
+          </Descriptions.Item>
+        </Descriptions>
+
+        <Descriptions
+          bordered
+          class="mt-3"
+          size="small"
+          :column="2"
+          title="用户与订单"
+        >
+          <Descriptions.Item label="用户">
+            {{ empty(detailRow.user_display_name) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="用户名">
+            {{ usernamePipeLabel(detailRow) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="Telegram ID">
+            {{ empty(detailRow.tg_user_id) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="后台用户 ID">
+            {{ empty(detailRow.user_id) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="订单号">
+            <Space v-if="detailRow.order_no">
+              <span>{{ detailRow.order_no }}</span>
+              <Button
+                v-if="detailRow.order_link_path"
+                size="small"
+                type="link"
+                @click="openOrder(detailRow.order_link_path)"
+              >
+                查看订单
+              </Button>
+            </Space>
+            <span v-else>-</span>
+          </Descriptions.Item>
+          <Descriptions.Item label="订单状态">
+            {{ empty(detailRow.order_status_label || detailRow.order_status) }}
           </Descriptions.Item>
           <Descriptions.Item label="价格">
             {{ assetPriceLabel(detailRow) }}
@@ -2359,7 +2864,105 @@ onBeforeUnmount(() => {
             {{ detailRow.auto_renew_enabled ? '已开启' : '已关闭' }}
           </Descriptions.Item>
         </Descriptions>
-        <div class="mt-3">
+
+        <div class="mt-3 rounded border border-solid border-gray-200 p-3">
+          <div class="mb-2 font-medium">关联订单</div>
+          <template v-if="detailRow.related_order">
+            <Descriptions bordered :column="2" size="small">
+              <Descriptions.Item label="订单号">
+                <Space>
+                  <span>{{ detailRow.related_order.order_no }}</span>
+                  <Button
+                    v-if="detailRow.related_order.order_link_path"
+                    size="small"
+                    type="link"
+                    @click="openOrder(detailRow.related_order.order_link_path)"
+                  >
+                    跳转
+                  </Button>
+                </Space>
+              </Descriptions.Item>
+              <Descriptions.Item label="状态">
+                <Space wrap>
+                  <Tag
+                    :color="
+                      historyOrderTagColor(detailRow.related_order.status)
+                    "
+                  >
+                    {{
+                      detailRow.related_order.status_label ||
+                      detailRow.related_order.status
+                    }}
+                  </Tag>
+                  <Tag
+                    v-for="tag in orderSourceItems(detailRow.related_order)"
+                    :key="tag.key"
+                    :color="historySourceTagColor(tag.key)"
+                  >
+                    {{ tag.label }}
+                  </Tag>
+                </Space>
+              </Descriptions.Item>
+              <Descriptions.Item label="公网 IP">
+                {{ empty(detailRow.related_order.public_ip) }}
+              </Descriptions.Item>
+              <Descriptions.Item label="服务到期">
+                {{
+                  formatExpiryTime(detailRow.related_order.service_expires_at)
+                }}
+              </Descriptions.Item>
+            </Descriptions>
+          </template>
+          <Empty v-else description="暂无关联订单" />
+        </div>
+
+        <div class="mt-3 rounded border border-solid border-gray-200 p-3">
+          <div class="mb-2 font-medium">历史订单</div>
+          <template v-if="detailHistoryOrders.length > 0">
+            <div
+              v-for="item in detailHistoryOrders"
+              :key="item.id"
+              class="mb-3 rounded border border-solid border-gray-200 p-3 last:mb-0"
+            >
+              <Space class="mb-2" wrap>
+                <span class="font-medium">{{ item.order_no }}</span>
+                <Tag :color="historyOrderTagColor(item.status)">
+                  {{ item.status_label || item.status }}
+                </Tag>
+                <Tag
+                  v-for="tag in orderSourceItems(item)"
+                  :key="`${item.id}-${tag.key}-${tag.label}`"
+                  :color="historySourceTagColor(tag.key)"
+                >
+                  {{ tag.label }}
+                </Tag>
+                <Tag v-if="item.id === detailRow.order_id" color="processing">
+                  当前关联
+                </Tag>
+                <Button
+                  v-if="item.order_link_path"
+                  size="small"
+                  type="link"
+                  @click="openOrder(item.order_link_path)"
+                >
+                  查看
+                </Button>
+              </Space>
+              <div
+                class="grid grid-cols-1 gap-2 text-sm text-gray-500 md:grid-cols-2"
+              >
+                <div>公网 IP：{{ empty(item.public_ip) }}</div>
+                <div>IP 变更：{{ empty(historyOrderIpChange(item)) }}</div>
+                <div>到期：{{ formatExpiryTime(item.service_expires_at) }}</div>
+                <div>创建：{{ formatTime(item.created_at) }}</div>
+              </div>
+            </div>
+          </template>
+          <Empty v-else description="暂无历史订单" />
+        </div>
+
+        <div class="mt-3 rounded border border-solid border-gray-200 p-3">
+          <div class="mb-2 font-medium">代理链接</div>
           <TypographyParagraph
             v-if="buildProxyLinkText(detailRow)"
             :copyable="{ text: buildProxyLinkText(detailRow) }"
@@ -2367,38 +2970,72 @@ onBeforeUnmount(() => {
           >
             {{ buildProxyLinkText(detailRow) }}
           </TypographyParagraph>
+          <Empty v-else description="暂无代理链接" />
         </div>
-        <div v-if="detailRow.note" class="mt-3">
+
+        <div class="mt-3 rounded border border-solid border-gray-200 p-3">
+          <div class="mb-2 font-medium">人工备注</div>
           <TypographyParagraph
+            v-if="detailRow.note"
             :ellipsis="{ rows: 4, expandable: true, symbol: '展开备注' }"
             class="break-all text-xs leading-5"
           >
             {{ detailRow.note }}
           </TypographyParagraph>
+          <Empty v-else description="暂无人工备注" />
         </div>
-        <div v-if="detailRow.ip_logs?.length" class="detail-log-list mt-4">
-          <div
-            v-for="log in detailRow.ip_logs.slice(0, 8)"
-            :key="log.id"
-            class="detail-log-row"
-          >
-            <Space wrap>
-              <Tag color="blue">{{ log.event_label || log.event_type }}</Tag>
-              <span>{{
-                log.created_at
-                  ? dayjs(log.created_at).format('MM-DD HH:mm:ss')
-                  : '-'
-              }}</span>
-              <span>{{ log.public_ip || log.previous_public_ip || '-' }}</span>
-            </Space>
-            <TypographyParagraph
-              v-if="log.note"
-              :ellipsis="{ rows: 2, expandable: true, symbol: '展开' }"
-              class="mb-0 mt-1 break-all text-xs leading-5"
+
+        <div class="detail-log-list mt-4">
+          <div class="mb-2 font-medium">IP / 生命周期日志</div>
+          <template v-if="detailLifecycleRows.length > 0">
+            <div
+              v-for="row in detailLifecycleRows"
+              :key="row.id"
+              class="detail-log-row"
             >
-              {{ log.note }}
-            </TypographyParagraph>
-          </div>
+              <Space class="mb-1" wrap>
+                <Tag color="blue">{{ empty(row.event_label) }}</Tag>
+                <span>{{ empty(row.executed_at) }}</span>
+                <span>{{ empty(row.trigger_label) }}</span>
+                <Button
+                  v-if="row.order_link_path"
+                  class="!px-0"
+                  size="small"
+                  type="link"
+                  @click="openOrder(row.order_link_path)"
+                >
+                  {{ empty(row.order_no) }}
+                </Button>
+                <span v-else>{{ empty(row.order_no) }}</span>
+              </Space>
+              <div class="mb-1 text-xs text-gray-500">
+                服务器：{{ empty(row.server_name) }} / 当前 IP：{{
+                  empty(row.public_ip)
+                }}
+                / 上一个 IP：{{ empty(row.previous_public_ip) }}
+              </div>
+              <TypographyParagraph
+                class="!mb-0 whitespace-pre-wrap break-all text-xs leading-5"
+                :class="[
+                  !lifecycleExpanded(row) &&
+                  lifecycleSummaryTooLong(row.summary)
+                    ? 'collapsed-note'
+                    : '',
+                ]"
+              >
+                {{ empty(row.summary) }}
+              </TypographyParagraph>
+              <Button
+                v-if="lifecycleSummaryTooLong(row.summary)"
+                size="small"
+                type="link"
+                @click="toggleLifecycleSummary(row)"
+              >
+                {{ lifecycleExpanded(row) ? '收起' : '展开' }}
+              </Button>
+            </div>
+          </template>
+          <Empty v-else description="暂无生命周期日志" />
         </div>
       </template>
     </Drawer>
@@ -2555,6 +3192,13 @@ onBeforeUnmount(() => {
 .detail-log-row {
   padding: 8px 0;
   border-bottom: 1px solid #f0f0f0;
+}
+
+.collapsed-note {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 :deep(.ant-table-small .ant-table-thead > tr > th),
