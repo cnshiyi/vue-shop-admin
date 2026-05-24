@@ -206,7 +206,9 @@ const ipDeleteColumns = [
 ];
 
 const summary = computed(() => detail.value);
-const shutdownPlanItems = computed(() => summary.value?.shutdown_items || []);
+const shutdownPlanItems = computed(() =>
+  sortActivePlans(summary.value?.shutdown_items || []),
+);
 const historyItems = computed(() =>
   (summary.value?.history_items || []).toSorted(
     (left, right) =>
@@ -216,13 +218,7 @@ const historyItems = computed(() =>
 );
 const ipDeleteItems = computed(() => summary.value?.ip_delete_items || []);
 const ipDeletePlanItems = computed(() =>
-  ipDeleteItems.value
-    .filter((item: any) => !item.is_history)
-    .toSorted(
-      (left: any, right: any) =>
-        dayjs(left.delete_at || left.logged_at || 0).valueOf() -
-        dayjs(right.delete_at || right.logged_at || 0).valueOf(),
-    ),
+  sortActivePlans(ipDeleteItems.value.filter((item: any) => !item.is_history)),
 );
 const ipDeleteHistoryItems = computed(() =>
   ipDeleteItems.value
@@ -247,6 +243,55 @@ const lastRunFailureText = computed(() =>
 
 function fmtTime(value?: null | string) {
   return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
+}
+
+function planTimeValue(record: any) {
+  const raw =
+    record?.delete_at ||
+    record?.next_run_at ||
+    record?.suspend_at ||
+    record?.service_expires_at ||
+    record?.logged_at ||
+    '';
+  const parsed = dayjs(raw);
+  return parsed.isValid() ? parsed.valueOf() : Number.MAX_SAFE_INTEGER;
+}
+
+function planTimeBucket(record: any) {
+  const raw =
+    record?.delete_at ||
+    record?.next_run_at ||
+    record?.suspend_at ||
+    record?.service_expires_at ||
+    '';
+  const parsed = dayjs(raw);
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm') : '';
+}
+
+function planUserKey(record: any) {
+  return String(
+    record?.user_id ||
+      record?.tg_user_id ||
+      record?.user_display_name ||
+      record?.username_label ||
+      '',
+  ).toLowerCase();
+}
+
+function sortActivePlans<T extends Record<string, any>>(items: T[]) {
+  return items.toSorted((left, right) => {
+    const timeDiff = planTimeValue(left) - planTimeValue(right);
+    if (timeDiff !== 0) return timeDiff;
+    const userDiff = planUserKey(left).localeCompare(planUserKey(right));
+    if (userDiff !== 0) return userDiff;
+    const bucketDiff = planTimeBucket(left).localeCompare(
+      planTimeBucket(right),
+    );
+    if (bucketDiff !== 0) return bucketDiff;
+    return String(
+      left.id || left.asset_id || left.order_id || '',
+    ).localeCompare(String(right.id || right.asset_id || right.order_id || ''));
+  });
 }
 
 function fmtRecordTime(record: any, key: unknown) {
@@ -286,12 +331,14 @@ function dueColor(value?: null | string, overdue?: boolean) {
   const target = dayjs(value);
   if (!target.isValid()) return 'default';
   const hours = target.diff(dayjs(), 'hour', true);
-  if (hours <= 0) return 'error';
-  if (hours <= 24) return 'error';
-  if (hours <= 72) return 'volcano';
-  if (hours <= 168) return 'orange';
-  if (hours <= 360) return 'gold';
+  if (hours <= 0) return 'red';
+  if (hours <= 12) return 'red';
+  if (hours <= 24) return 'volcano';
+  if (hours <= 72) return 'orange';
+  if (hours <= 168) return 'gold';
+  if (hours <= 360) return 'lime';
   if (hours <= 720) return 'green';
+  if (hours <= 1440) return 'cyan';
   return 'blue';
 }
 
@@ -852,93 +899,6 @@ onMounted(loadData);
         </Table>
       </Card>
 
-      <Card title="服务器删除历史记录">
-        <Table
-          class="plans-compact-table"
-          size="small"
-          :columns="historyColumns"
-          :data-source="historyItems"
-          :loading="loading"
-          :pagination="tablePagination"
-          :row-key="rowKey"
-          :scroll="{ x: 1720 }"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'result_label'">
-              <Tag
-                :color="resultColor(record as DashboardShutdownPlanHistoryItem)"
-              >
-                {{ (record as DashboardShutdownPlanHistoryItem).result_label }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'user_display_name'">
-              <div>
-                <div>{{ (record as any).user_display_name || '-' }}</div>
-                <div
-                  v-if="(record as any).username_label"
-                  style="color: var(--color-text-secondary)"
-                  class="text-xs"
-                >
-                  {{ (record as any).username_label }}
-                </div>
-              </div>
-            </template>
-            <template v-else-if="column.key === 'deletion_source_label'">
-              <Tag color="blue">
-                {{
-                  (record as DashboardShutdownPlanHistoryItem)
-                    .deletion_source_label || '-'
-                }}
-              </Tag>
-            </template>
-            <template
-              v-else-if="
-                ['executed_at', 'service_expires_at', 'suspend_at'].includes(
-                  String(column.key),
-                )
-              "
-            >
-              <Tag :color="recordTimeColor(record, column.key)">
-                {{ fmtRecordTime(record, column.key) }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'failure_reason'">
-              <TypographyParagraph
-                v-if="
-                  !(record as DashboardShutdownPlanHistoryItem).is_success &&
-                  (record as DashboardShutdownPlanHistoryItem).failure_reason
-                "
-                class="mb-0 break-all text-xs leading-5"
-                :ellipsis="{
-                  rows: 2,
-                  tooltip: (record as DashboardShutdownPlanHistoryItem)
-                    .failure_reason,
-                }"
-              >
-                {{
-                  (record as DashboardShutdownPlanHistoryItem).failure_reason
-                }}
-              </TypographyParagraph>
-              <span v-else>-</span>
-            </template>
-            <template v-else-if="column.key === 'actions'">
-              <Button
-                v-if="(record as DashboardShutdownPlanHistoryItem).related_path"
-                type="link"
-                size="small"
-                @click="
-                  openPath(
-                    (record as DashboardShutdownPlanHistoryItem).related_path,
-                  )
-                "
-              >
-                详情
-</Button><span v-else>-</span>
-            </template>
-          </template>
-        </Table>
-      </Card>
-
       <Card :title="`IP删除计划（${ipDeletePlanItems.length}）`">
         <Table
           class="plans-compact-table"
@@ -1147,6 +1107,94 @@ onMounted(loadData);
           v-if="ipDeletePlanItems.length === 0 && !loading"
           description="当前没有 IP 删除计划"
         />
+      </Card>
+
+      <Card title="服务器删除历史记录">
+        <Table
+          class="plans-compact-table"
+          size="small"
+          :columns="historyColumns"
+          :data-source="historyItems"
+          :loading="loading"
+          :pagination="tablePagination"
+          :row-key="rowKey"
+          :scroll="{ x: 1720 }"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'result_label'">
+              <Tag
+                :color="resultColor(record as DashboardShutdownPlanHistoryItem)"
+              >
+                {{ (record as DashboardShutdownPlanHistoryItem).result_label }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'user_display_name'">
+              <div>
+                <div>{{ (record as any).user_display_name || '-' }}</div>
+                <div
+                  v-if="(record as any).username_label"
+                  style="color: var(--color-text-secondary)"
+                  class="text-xs"
+                >
+                  {{ (record as any).username_label }}
+                </div>
+              </div>
+            </template>
+            <template v-else-if="column.key === 'deletion_source_label'">
+              <Tag color="blue">
+                {{
+                  (record as DashboardShutdownPlanHistoryItem)
+                    .deletion_source_label || '-'
+                }}
+              </Tag>
+            </template>
+            <template
+              v-else-if="
+                ['executed_at', 'service_expires_at', 'suspend_at'].includes(
+                  String(column.key),
+                )
+              "
+            >
+              <Tag :color="recordTimeColor(record, column.key)">
+                {{ fmtRecordTime(record, column.key) }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'failure_reason'">
+              <TypographyParagraph
+                v-if="
+                  !(record as DashboardShutdownPlanHistoryItem).is_success &&
+                  (record as DashboardShutdownPlanHistoryItem).failure_reason
+                "
+                class="mb-0 break-all text-xs leading-5"
+                :ellipsis="{
+                  rows: 2,
+                  tooltip: (record as DashboardShutdownPlanHistoryItem)
+                    .failure_reason,
+                }"
+              >
+                {{
+                  (record as DashboardShutdownPlanHistoryItem).failure_reason
+                }}
+              </TypographyParagraph>
+              <span v-else>-</span>
+            </template>
+            <template v-else-if="column.key === 'actions'">
+              <Button
+                v-if="(record as DashboardShutdownPlanHistoryItem).related_path"
+                type="link"
+                size="small"
+                @click="
+                  openPath(
+                    (record as DashboardShutdownPlanHistoryItem).related_path,
+                  )
+                "
+              >
+                详情
+              </Button>
+              <span v-else>-</span>
+            </template>
+          </template>
+        </Table>
       </Card>
 
       <Card :title="`IP删除历史记录（${ipDeleteHistoryItems.length}）`">
