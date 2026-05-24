@@ -25,12 +25,14 @@
   - `upstream`: `https://github.com/vbenjs/vue-vben-admin.git`
 - 初步检查工作区，开始写入交接上下文前工作区干净。
 - 初步查看根目录 `package.json`，项目是 `type: module`，可放置无第三方依赖的 Node `.mjs` 脚本。
+- 2026-05-25 自动化跟进已补充 `scripts/github-secret-monitor.mjs`。
+- 2026-05-25 已在根目录 `package.json` 添加 `security:github` 命令。
+- 2026-05-25 已新增使用说明 `docs/security/github-secret-monitor.md`。
+- 2026-05-25 已验证 `node --check`、`pnpm security:github -- --help`、无 token 失败、无范围失败、`oxlint` 单文件检查。
 
 尚未完成：
 
-- GitHub 监控脚本本体尚未落地。
-- `package.json` 尚未添加运行命令。
-- 尚未添加使用说明或示例配置。
+- 需要在有 `GITHUB_TOKEN` 的环境中对授权仓库执行一次真实 API 扫描。
 
 ## 计划实现
 
@@ -38,7 +40,7 @@
 
 - `scripts/github-secret-monitor.mjs`
 - `docs/handoff/github-monitoring-handoff-2026-05-25.md`
-- 可选：`docs/security/github-secret-monitor.md`
+- `docs/security/github-secret-monitor.md`
 
 建议新增 npm script：
 
