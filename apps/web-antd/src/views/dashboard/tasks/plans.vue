@@ -68,6 +68,7 @@ const dueColumns = [
     key: 'user_display_name',
     width: 180,
   },
+  { title: '备注', dataIndex: 'note', key: 'note', width: 220 },
   { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 190 },
   {
     title: '服务到期',
@@ -89,7 +90,6 @@ const dueColumns = [
     key: 'plan_state_label',
     width: 160,
   },
-  { title: '备注', dataIndex: 'note', key: 'note', width: 260 },
   {
     title: '执行状态',
     dataIndex: 'execution_status',
@@ -169,6 +169,7 @@ const ipDeleteColumns = [
     key: 'user_display_name',
     width: 180,
   },
+  { title: '备注', dataIndex: 'note', key: 'note', width: 220 },
   {
     title: '状态',
     dataIndex: 'provider_status',
@@ -194,7 +195,6 @@ const ipDeleteColumns = [
     width: 140,
   },
   { title: '计划释放', dataIndex: 'delete_at', key: 'delete_at', width: 180 },
-  { title: '备注', dataIndex: 'note', key: 'note', width: 280 },
   { title: '记录时间', dataIndex: 'logged_at', key: 'logged_at', width: 180 },
   {
     title: '执行状态',
@@ -215,6 +215,15 @@ const historyItems = computed(() =>
   ),
 );
 const ipDeleteItems = computed(() => summary.value?.ip_delete_items || []);
+const ipDeletePlanItems = computed(() =>
+  ipDeleteItems.value
+    .filter((item: any) => !item.is_history)
+    .toSorted(
+      (left: any, right: any) =>
+        dayjs(left.delete_at || left.logged_at || 0).valueOf() -
+        dayjs(right.delete_at || right.logged_at || 0).valueOf(),
+    ),
+);
 const ipDeleteHistoryItems = computed(() =>
   ipDeleteItems.value
     .filter((item: any) => item.is_history)
@@ -262,10 +271,6 @@ function isExpanded(key: string) {
 
 function toggleExpanded(key: string) {
   expandedKeys[key] = !expandedKeys[key];
-}
-
-function shouldShowExpand(value?: null | string, threshold = 48) {
-  return Boolean(value && value.length > threshold);
 }
 
 function queueColor(status?: string) {
@@ -329,8 +334,9 @@ function executionPlan(record: { execution_plan?: string }) {
 function planNote(record: {
   display_note?: null | string;
   note?: null | string;
+  source_note?: null | string;
 }) {
-  return record.display_note || record.note || '-';
+  return record.display_note || record.note || record.source_note || '-';
 }
 
 function compactCellText(text?: null | string) {
@@ -340,29 +346,11 @@ function compactCellText(text?: null | string) {
     .trim();
 }
 
-function noteExpandedKey(record: {
-  id: number | string;
-  order_id?: null | number;
-}) {
-  return `note-${rowKey(record)}`;
-}
-
 function expandedCellKey(
   prefix: string,
   record: { id: number | string; order_id?: null | number },
 ) {
   return `${prefix}-${rowKey(record)}`;
-}
-
-function noteEllipsis(record: {
-  display_note?: null | string;
-  id: number | string;
-  note?: null | string;
-  order_id?: null | number;
-}) {
-  return isExpanded(noteExpandedKey(record))
-    ? false
-    : { rows: 1, tooltip: planNote(record) };
 }
 
 function cellEllipsis(
@@ -381,7 +369,7 @@ function shouldShowCellExpand(
   extraText?: null | string,
   threshold = 48,
 ) {
-  return shouldShowExpand(`${text || ''}${extraText || ''}`, threshold);
+  return Boolean(`${text || ''}${extraText || ''}`.length > threshold);
 }
 
 function openNotePreview(
@@ -454,7 +442,6 @@ async function loadData(options?: { silent?: boolean }) {
   if (!options?.silent) loading.value = true;
   try {
     detail.value = await getDashboardLifecyclePlansApi({
-      compact: 1,
       limit: planLimit.value,
     });
   } catch (error: any) {
@@ -477,7 +464,9 @@ async function refreshPlanTable() {
       limit: planLimit.value,
     });
     const activeCount =
-      result.shutdown_count ?? result.due_count + result.future_count;
+      result.source_asset_count ??
+      result.shutdown_count ??
+      result.due_count + result.future_count;
     message.success(`删除计划已刷新：${activeCount} 条`);
     await loadData({ silent: true });
   } catch (error: any) {
@@ -530,7 +519,7 @@ onMounted(loadData);
         <Alert
           type="info"
           show-icon
-          :message="`当前按 ${planLimit} 条分批加载，并压缩长备注预览；数据很多时可继续加载更多。`"
+          :message="`当前按 ${planLimit} 条分批加载；数据很多时可继续加载更多。`"
           style="margin-bottom: 12px"
         />
         <Descriptions bordered :column="2" size="small">
@@ -549,7 +538,7 @@ onMounted(loadData);
             </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="当前删除计划">
-            {{ summary?.shutdown_count ?? 0 }} 条
+            {{ summary?.source_asset_count ?? 0 }} 条
           </Descriptions.Item>
           <Descriptions.Item label="缺少到期时间">
             <Tag
@@ -569,8 +558,8 @@ onMounted(loadData);
               {{ summary?.unattached_ip_count ?? 0 }} 条
             </Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="代理列表资产">
-            {{ summary?.source_asset_count ?? 0 }} 条
+          <Descriptions.Item label="服务器资产">
+            {{ summary?.server_asset_count ?? 0 }} 条
           </Descriptions.Item>
           <Descriptions.Item label="最近24小时失败">
             <Tag
@@ -618,7 +607,7 @@ onMounted(loadData);
         </Table>
       </Card>
 
-      <Card :title="`删除计划（${shutdownPlanItems.length}）`">
+      <Card :title="`服务器删机计划（${shutdownPlanItems.length}）`">
         <Table
           class="plans-compact-table"
           size="small"
@@ -815,15 +804,24 @@ onMounted(loadData);
               <div>
                 <TypographyParagraph
                   class="note-cell-text mb-0 whitespace-pre-wrap break-all text-xs leading-5"
-                  :ellipsis="noteEllipsis(record as any)"
+                  :ellipsis="
+                    cellEllipsis(
+                      'shutdown-note',
+                      record as any,
+                      planNote(record as any),
+                      2,
+                    )
+                  "
                 >
                   {{ planNote(record as any) }}
                 </TypographyParagraph>
                 <Button
-                  v-if="shouldShowExpand(planNote(record as any), 24)"
+                  v-if="
+                    shouldShowCellExpand(planNote(record as any), undefined, 36)
+                  "
                   type="link"
                   size="small"
-                  class="note-expand-btn mt-1 h-auto px-0 py-0"
+                  class="note-expand-btn"
                   @click="openNotePreview(record as any)"
                 >
                   查看
@@ -939,6 +937,216 @@ onMounted(loadData);
             </template>
           </template>
         </Table>
+      </Card>
+
+      <Card :title="`IP删除计划（${ipDeletePlanItems.length}）`">
+        <Table
+          class="plans-compact-table"
+          size="small"
+          :columns="ipDeleteColumns"
+          :data-source="ipDeletePlanItems"
+          :loading="loading"
+          :pagination="tablePagination"
+          :row-key="rowKey"
+          :scroll="{ x: 1740 }"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'provider_status'">
+              <Tag
+                :color="
+                  (record as DashboardUnattachedIpDeletePlan).is_overdue
+                    ? 'error'
+                    : 'warning'
+                "
+              >
+                {{
+                  (record as DashboardUnattachedIpDeletePlan).provider_status ||
+                  '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'user_display_name'">
+              <div>
+                <div>{{ (record as any).user_display_name || '-' }}</div>
+                <div
+                  v-if="(record as any).username_label"
+                  style="color: var(--color-text-secondary)"
+                  class="text-xs"
+                >
+                  {{ (record as any).username_label }}
+                </div>
+              </div>
+            </template>
+            <template v-else-if="column.key === 'resource_state_label'">
+              <Tag
+                :color="
+                  resourceStateColor(
+                    (record as DashboardUnattachedIpDeletePlan).resource_state,
+                  )
+                "
+              >
+                {{
+                  (record as DashboardUnattachedIpDeletePlan)
+                    .resource_state_label || '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'plan_state_label'">
+              <div>
+                <Tag
+                  :color="
+                    planStateColor(
+                      (record as DashboardUnattachedIpDeletePlan).plan_state,
+                    )
+                  "
+                >
+                  {{
+                    (record as DashboardUnattachedIpDeletePlan)
+                      .plan_state_label || '-'
+                  }}
+                </Tag>
+                <TypographyParagraph
+                  v-if="
+                    (record as DashboardUnattachedIpDeletePlan).blocked_reason
+                  "
+                  class="mb-0 break-all text-xs leading-5"
+                  style="color: var(--color-text-secondary)"
+                  :ellipsis="{
+                    rows: 1,
+                    tooltip: (record as DashboardUnattachedIpDeletePlan)
+                      .blocked_reason,
+                  }"
+                >
+                  {{
+                    compactCellText(
+                      (record as DashboardUnattachedIpDeletePlan)
+                        .blocked_reason,
+                    )
+                  }}
+                </TypographyParagraph>
+              </div>
+            </template>
+            <template v-else-if="column.key === 'deletion_source_label'">
+              <Tag color="blue">
+                {{
+                  (record as DashboardUnattachedIpDeletePlan)
+                    .deletion_source_label || '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'delete_at'">
+              <Tag
+                :color="
+                  dueColor(
+                    (record as DashboardUnattachedIpDeletePlan).delete_at,
+                    (record as DashboardUnattachedIpDeletePlan).is_overdue,
+                  )
+                "
+              >
+                {{
+                  fmtTime((record as DashboardUnattachedIpDeletePlan).delete_at)
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'logged_at'">
+              {{
+                fmtTime((record as DashboardUnattachedIpDeletePlan).logged_at)
+              }}
+            </template>
+            <template v-else-if="column.key === 'execution_status'">
+              <div>
+                <TypographyParagraph
+                  :ellipsis="
+                    cellEllipsis(
+                      'ip-plan-exec',
+                      record as DashboardUnattachedIpDeletePlan,
+                      executionText(record as DashboardUnattachedIpDeletePlan),
+                    )
+                  "
+                  class="mb-0 break-all text-xs leading-5"
+                >
+                  {{ executionText(record as DashboardUnattachedIpDeletePlan) }}
+                </TypographyParagraph>
+                <TypographyParagraph
+                  v-if="
+                    executionPlan(record as DashboardUnattachedIpDeletePlan) !==
+                    '-'
+                  "
+                  class="mb-0 text-xs"
+                  style="color: var(--color-text-secondary)"
+                  :ellipsis="
+                    cellEllipsis(
+                      'ip-plan-exec-plan',
+                      record as DashboardUnattachedIpDeletePlan,
+                      `执行计划：${executionPlan(record as DashboardUnattachedIpDeletePlan)}`,
+                      1,
+                    )
+                  "
+                >
+                  执行计划：{{
+                    executionPlan(record as DashboardUnattachedIpDeletePlan)
+                  }}
+                </TypographyParagraph>
+              </div>
+            </template>
+            <template v-else-if="column.key === 'note'">
+              <TypographyParagraph
+                class="note-cell-text mb-0 whitespace-pre-wrap break-all text-xs leading-5"
+                :ellipsis="
+                  cellEllipsis(
+                    'ip-plan-note',
+                    record as any,
+                    planNote(record as any),
+                    2,
+                  )
+                "
+              >
+                {{ planNote(record as any) }}
+              </TypographyParagraph>
+              <Button
+                v-if="
+                  shouldShowCellExpand(planNote(record as any), undefined, 36)
+                "
+                type="link"
+                size="small"
+                class="note-expand-btn"
+                @click="openNotePreview(record as any)"
+              >
+                查看
+              </Button>
+            </template>
+            <template v-else-if="column.key === 'actions'">
+              <Space :size="4">
+                <Button
+                  type="link"
+                  size="small"
+                  @click="
+                    openNoteEditor(record as DashboardUnattachedIpDeletePlan)
+                  "
+                >
+                  备注
+                </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  @click="
+                    openPath(
+                      (record as DashboardUnattachedIpDeletePlan).detail_path ||
+                        (record as DashboardUnattachedIpDeletePlan)
+                          .asset_detail_path,
+                    )
+                  "
+                >
+                  详情
+                </Button>
+              </Space>
+            </template>
+          </template>
+        </Table>
+        <Empty
+          v-if="ipDeletePlanItems.length === 0 && !loading"
+          description="当前没有 IP 删除计划"
+        />
       </Card>
 
       <Card :title="`IP删除历史记录（${ipDeleteHistoryItems.length}）`">
@@ -1134,23 +1342,30 @@ onMounted(loadData);
               </div>
             </template>
             <template v-else-if="column.key === 'note'">
-              <div>
-                <TypographyParagraph
-                  class="note-cell-text mb-0 whitespace-pre-wrap break-all text-xs leading-5"
-                  :ellipsis="noteEllipsis(record as any)"
-                >
-                  {{ planNote(record as any) }}
-                </TypographyParagraph>
-                <Button
-                  v-if="shouldShowExpand(planNote(record as any), 24)"
-                  type="link"
-                  size="small"
-                  class="note-expand-btn mt-1 h-auto px-0 py-0"
-                  @click="openNotePreview(record as any)"
-                >
-                  查看
-                </Button>
-              </div>
+              <TypographyParagraph
+                class="note-cell-text mb-0 whitespace-pre-wrap break-all text-xs leading-5"
+                :ellipsis="
+                  cellEllipsis(
+                    'ip-history-note',
+                    record as any,
+                    planNote(record as any),
+                    2,
+                  )
+                "
+              >
+                {{ planNote(record as any) }}
+              </TypographyParagraph>
+              <Button
+                v-if="
+                  shouldShowCellExpand(planNote(record as any), undefined, 36)
+                "
+                type="link"
+                size="small"
+                class="note-expand-btn"
+                @click="openNotePreview(record as any)"
+              >
+                查看
+              </Button>
             </template>
             <template v-else-if="column.key === 'actions'">
               <Button
@@ -1212,18 +1427,6 @@ onMounted(loadData);
       </Table>
     </Modal>
     <Modal
-      v-model:open="notePreviewOpen"
-      :title="notePreviewTitle"
-      width="720px"
-      :footer="null"
-    >
-      <TypographyParagraph
-        class="mb-0 whitespace-pre-wrap break-all text-sm leading-6"
-      >
-        {{ notePreviewValue || '-' }}
-      </TypographyParagraph>
-    </Modal>
-    <Modal
       v-model:open="noteModalOpen"
       title="编辑备注"
       :confirm-loading="noteSaving"
@@ -1234,6 +1437,18 @@ onMounted(loadData);
         :auto-size="{ minRows: 4, maxRows: 10 }"
         placeholder="填写删除计划备注"
       />
+    </Modal>
+    <Modal
+      v-model:open="notePreviewOpen"
+      :title="notePreviewTitle"
+      width="720px"
+      :footer="null"
+    >
+      <TypographyParagraph
+        class="mb-0 whitespace-pre-wrap break-all text-sm leading-6"
+      >
+        {{ notePreviewValue || '-' }}
+      </TypographyParagraph>
     </Modal>
   </Page>
 </template>
@@ -1254,7 +1469,13 @@ onMounted(loadData);
   min-height: 20px;
 }
 
-.plans-page :deep(.plans-compact-table .ant-table-cell > div > div.text-xs) {
+.plans-page
+  :deep(
+    .plans-compact-table
+      .ant-table-cell
+      > div
+      > div.text-xs:not(.note-cell-text)
+  ) {
   display: none;
 }
 
@@ -1266,17 +1487,29 @@ onMounted(loadData);
   white-space: nowrap !important;
 }
 
-.plans-page :deep(.plans-compact-table .ant-typography + .ant-typography) {
-  display: none;
-}
-
 .plans-page :deep(.plans-compact-table .mt-1.h-auto.px-0.py-0),
 .plans-page :deep(.plans-compact-table .h-auto.px-0.py-0) {
   display: none;
 }
 
 .plans-page :deep(.plans-compact-table .note-cell-text) {
-  white-space: pre-wrap !important;
+  display: block;
+  max-width: 100%;
+  max-height: 40px;
+  overflow: hidden;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+  white-space: normal !important;
+}
+
+.plans-page
+  :deep(.plans-compact-table .note-cell-text.ant-typography-ellipsis) {
+  max-height: 40px;
+}
+
+.plans-page
+  :deep(.plans-compact-table .note-cell-text:not(.ant-typography-ellipsis)) {
+  max-height: 40px;
 }
 
 .plans-page :deep(.plans-compact-table .note-expand-btn) {

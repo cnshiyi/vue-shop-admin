@@ -109,6 +109,7 @@ export interface DashboardUnattachedIpDeletePlan {
   missing_confirm_remaining?: number;
   missing_confirm_threshold?: number;
   note: string;
+  source_note?: string;
   plan_state?: string;
   plan_state_label?: string;
   provider_status: string;

@@ -799,6 +799,10 @@ const riskFilterOptions = computed(() => [
   },
   { label: `异常/待确认 (${riskCountLabel('abnormal')})`, value: 'abnormal' },
   {
+    label: `云账号已停用 (${riskCountLabel('account_disabled')})`,
+    value: 'account_disabled',
+  },
+  {
     label: `关机计划关闭 (${riskCountLabel('shutdown_disabled')})`,
     value: 'shutdown_disabled',
   },
