@@ -1,10 +1,12 @@
 <script lang="ts" setup>
 import type {
+  DashboardCloudActionSwitchItem,
   DashboardLifecyclePlansDetail,
   DashboardShutdownPlanHistoryItem,
   DashboardShutdownPlanItem,
   DashboardShutdownPlanRunResult,
   DashboardShutdownPlanRunResultItem,
+  DashboardSiteConfigGroupItem,
   DashboardUnattachedIpDeletePlan,
 } from '#/api/admin';
 
@@ -23,6 +25,7 @@ import {
   message,
   Modal,
   Space,
+  Switch,
   Table,
   Tag,
   TypographyParagraph,
@@ -31,11 +34,17 @@ import dayjs from 'dayjs';
 
 import {
   getDashboardLifecyclePlansApi,
+  getDashboardSiteConfigGroupsApi,
+  initDashboardSiteConfigsApi,
   refreshDashboardLifecyclePlansApi,
   updateDashboardLifecyclePlanNoteApi,
+  updateDashboardSiteConfigApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const router = useRouter();
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 const loading = ref(false);
 const refreshingPlanTable = ref(false);
 const planLimit = ref(50);
@@ -53,15 +62,22 @@ const noteTarget = ref<
 const notePreviewOpen = ref(false);
 const notePreviewTitle = ref('备注详情');
 const notePreviewValue = ref('');
+const actionSwitchItems = ref<DashboardCloudActionSwitchItem[]>([]);
+const actionSwitchSavingMap = reactive<Record<string, boolean>>({});
+
+const CLOUD_ACTION_SWITCHES = [
+  {
+    key: 'cloud_server_delete_enabled',
+    label: '删除服务器',
+  },
+  {
+    key: 'cloud_ip_delete_enabled',
+    label: '删除IP',
+  },
+];
 
 const dueColumns = [
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
-  {
-    title: '队列状态',
-    dataIndex: 'queue_status_label',
-    key: 'queue_status_label',
-    width: 150,
-  },
   {
     title: '用户',
     dataIndex: 'user_display_name',
@@ -318,13 +334,6 @@ function toggleExpanded(key: string) {
   expandedKeys[key] = !expandedKeys[key];
 }
 
-function queueColor(status?: string) {
-  if (status === 'retry_failed') return 'error';
-  if (status === 'due_now' || status === 'fallback_retry') return 'warning';
-  if (status === 'within_window') return 'processing';
-  return 'default';
-}
-
 function dueColor(value?: null | string, overdue?: boolean) {
   if (overdue) return 'error';
   if (!value) return 'default';
@@ -438,6 +447,67 @@ function openNoteEditor(
   noteModalOpen.value = true;
 }
 
+function actionSwitchLabel(key: string) {
+  return CLOUD_ACTION_SWITCHES.find((item) => item.key === key)?.label || key;
+}
+
+function toActionSwitchItem(item: DashboardSiteConfigGroupItem) {
+  const label = actionSwitchLabel(item.key);
+  return {
+    description: item.description || '',
+    enabled: String(item.value || '').trim() === '1',
+    id: item.id,
+    key: item.key,
+    label,
+  };
+}
+
+async function loadActionSwitches() {
+  const groups = await getDashboardSiteConfigGroupsApi({
+    group: 'cloud_actions',
+  });
+  actionSwitchItems.value = (groups[0]?.items || []).map((groupItem) =>
+    toActionSwitchItem(groupItem),
+  );
+}
+
+async function toggleActionSwitch(
+  item: DashboardCloudActionSwitchItem,
+  checked: boolean,
+) {
+  if (!requireCloudDangerPermission(`切换${item.label}总开关`)) return;
+  actionSwitchSavingMap[item.key] = true;
+  try {
+    if (!item.id) {
+      await initDashboardSiteConfigsApi({ scope: 'configs' });
+      await loadActionSwitches();
+      const refreshed = actionSwitchItems.value.find(
+        (candidate) => candidate.key === item.key,
+      );
+      if (!refreshed?.id) {
+        throw new Error('配置初始化失败，请刷新后重试');
+      }
+      item = refreshed;
+    }
+    const configId = item.id;
+    if (!configId) {
+      throw new Error('配置不存在，请刷新后重试');
+    }
+    const saved = await updateDashboardSiteConfigApi(configId, {
+      is_sensitive: false,
+      key: item.key,
+      value: checked ? '1' : '0',
+    });
+    item.enabled = String(saved.value || '').trim() === '1';
+    message.success(`${item.label}已${item.enabled ? '开启' : '关闭'}`);
+  } catch (error: any) {
+    item.enabled = !checked;
+    message.error(error?.message || `${item.label}切换失败`);
+  } finally {
+    actionSwitchSavingMap[item.key] = false;
+  }
+}
+
 async function savePlanNote() {
   const target = noteTarget.value;
   if (!target || noteSaving.value) return;
@@ -523,7 +593,12 @@ async function refreshPlanTable() {
   }
 }
 
-onMounted(loadData);
+onMounted(() => {
+  loadData();
+  loadActionSwitches().catch((error: any) => {
+    message.error(error?.message || '删除开关加载失败');
+  });
+});
 </script>
 
 <template>
@@ -561,6 +636,26 @@ onMounted(loadData);
                   : `最后刷新：${fmtTime(summary?.last_refresh_at)}`
               }}
             </Tag>
+            <div class="plan-action-switches">
+              <div
+                v-for="item in actionSwitchItems"
+                :key="item.key"
+                class="plan-action-switch"
+              >
+                <span class="plan-action-switch-label">{{ item.label }}</span>
+                <Switch
+                  :checked="item.enabled"
+                  checked-children="开启"
+                  :disabled="!canRunCloudDanger"
+                  :loading="actionSwitchSavingMap[item.key]"
+                  size="small"
+                  un-checked-children="关闭"
+                  @change="
+                    (checked) => toggleActionSwitch(item, Boolean(checked))
+                  "
+                />
+              </div>
+            </div>
           </Space>
         </template>
         <Alert
@@ -666,19 +761,7 @@ onMounted(loadData);
           :scroll="{ x: 1680 }"
         >
           <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'queue_status_label'">
-              <Tag
-                :color="
-                  queueColor((record as DashboardShutdownPlanItem).queue_status)
-                "
-              >
-                {{
-                  (record as DashboardShutdownPlanItem).queue_status_label ||
-                  '-'
-                }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'user_display_name'">
+            <template v-if="column.key === 'user_display_name'">
               <div>
                 <div>{{ (record as any).user_display_name || '-' }}</div>
                 <div
@@ -1502,6 +1585,27 @@ onMounted(loadData);
 </template>
 
 <style scoped>
+.plan-action-switches {
+  display: inline-flex;
+  gap: 14px;
+  align-items: center;
+  min-height: 24px;
+  padding-left: 12px;
+  border-left: 1px solid var(--ant-color-border-secondary);
+}
+
+.plan-action-switch {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.plan-action-switch-label {
+  font-size: 12px;
+  color: var(--ant-color-text-secondary);
+}
+
 .plans-page :deep(.plans-compact-table .ant-table-thead > tr > th) {
   padding-top: 10px;
   padding-bottom: 10px;

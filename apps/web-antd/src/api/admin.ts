@@ -337,6 +337,7 @@ export interface DashboardCloudAssetItem {
   order_id: null | number;
   order_link_path?: string;
   order_no: string;
+  can_auto_renew?: boolean;
   price: string;
   provider: null | string;
   provider_label?: string;

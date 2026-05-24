@@ -1535,8 +1535,12 @@ async function toggleAutoRenew(
   enabled: boolean,
 ) {
   if (!requireCloudDangerPermission('自动续费开关')) return;
-  if (!record.order_id) {
-    message.error('该代理未绑定订单，无法设置自动续费');
+  if (!record.user_id) {
+    message.error('该代理未绑定用户，无法设置自动续费');
+    return;
+  }
+  if (record.can_auto_renew === false) {
+    message.error('该代理当前状态无法设置自动续费');
     return;
   }
   autoRenewSavingIds.value = [...autoRenewSavingIds.value, record.id];
@@ -2128,7 +2132,11 @@ onBeforeUnmount(() => {
                     :checked="Boolean(record.auto_renew_enabled)"
                     checked-children="开"
                     un-checked-children="关"
-                    :disabled="!canRunCloudDanger || !record.order_id"
+                    :disabled="
+                      !canRunCloudDanger ||
+                      !record.user_id ||
+                      record.can_auto_renew === false
+                    "
                     :loading="isAutoRenewSaving(record.id)"
                     @change="
                       (checked) =>
@@ -2542,7 +2550,11 @@ onBeforeUnmount(() => {
                 :checked="Boolean(record.auto_renew_enabled)"
                 checked-children="开"
                 un-checked-children="关"
-                :disabled="!canRunCloudDanger || !record.order_id"
+                :disabled="
+                  !canRunCloudDanger ||
+                  !record.user_id ||
+                  record.can_auto_renew === false
+                "
                 :loading="isAutoRenewSaving(record.id)"
                 @change="
                   (checked) =>

@@ -6,8 +6,6 @@ import type {
   DashboardCloudAccountCreatePayload,
   DashboardCloudAccountDetail,
   DashboardCloudAccountLogItem,
-  DashboardCloudActionSwitchItem,
-  DashboardSiteConfigGroupItem,
 } from '#/api/admin';
 
 import { computed, onMounted, reactive, ref, watch } from 'vue';
@@ -37,10 +35,7 @@ import {
   deleteDashboardCloudAccountApi,
   getDashboardCloudAccountDetailApi,
   getDashboardCloudAccountsApi,
-  getDashboardSiteConfigGroupsApi,
-  initDashboardSiteConfigsApi,
   updateDashboardCloudAccountApi,
-  updateDashboardSiteConfigApi,
   verifyDashboardCloudAccountApi,
 } from '#/api/admin';
 import { useDashboardPermissions } from '#/utils/dashboard-permissions';
@@ -56,19 +51,6 @@ const current = ref<DashboardCloudAccountConfigItem | null>(null);
 const items = ref<DashboardCloudAccountConfigItem[]>([]);
 const detail = ref<DashboardCloudAccountDetail | null>(null);
 const togglingMap = reactive<Record<number, boolean>>({});
-const actionSwitchItems = ref<DashboardCloudActionSwitchItem[]>([]);
-const actionSwitchSavingMap = reactive<Record<string, boolean>>({});
-
-const CLOUD_ACTION_SWITCHES = [
-  {
-    key: 'cloud_server_delete_enabled',
-    label: '删除服务器',
-  },
-  {
-    key: 'cloud_ip_delete_enabled',
-    label: '删除IP',
-  },
-];
 
 const DEFAULT_REGION_MAP: Record<string, string> = {
   aliyun: 'cn-hongkong',
@@ -165,32 +147,10 @@ function resetForm() {
   regionHintTouched.value = false;
 }
 
-function actionSwitchLabel(key: string) {
-  return CLOUD_ACTION_SWITCHES.find((item) => item.key === key)?.label || key;
-}
-
-function toActionSwitchItem(item: DashboardSiteConfigGroupItem) {
-  const label = actionSwitchLabel(item.key);
-  return {
-    description: item.description || '',
-    enabled: String(item.value || '').trim() === '1',
-    id: item.id,
-    key: item.key,
-    label,
-  };
-}
-
 async function loadData() {
   loading.value = true;
   try {
-    const [accounts, groups] = await Promise.all([
-      getDashboardCloudAccountsApi(),
-      getDashboardSiteConfigGroupsApi({ group: 'cloud_actions' }),
-    ]);
-    items.value = accounts;
-    actionSwitchItems.value = (groups[0]?.items || []).map((groupItem) =>
-      toActionSwitchItem(groupItem),
-    );
+    items.value = await getDashboardCloudAccountsApi();
   } finally {
     loading.value = false;
   }
@@ -251,48 +211,6 @@ async function save() {
     message.error(error?.message || '保存失败');
   } finally {
     saving.value = false;
-  }
-}
-
-async function toggleActionSwitch(
-  item: DashboardCloudActionSwitchItem,
-  checked: boolean,
-) {
-  if (!requireCloudDangerPermission(`切换${item.label}总开关`)) return;
-  actionSwitchSavingMap[item.key] = true;
-  try {
-    if (!item.id) {
-      await initDashboardSiteConfigsApi({ scope: 'configs' });
-      const groups = await getDashboardSiteConfigGroupsApi({
-        group: 'cloud_actions',
-      });
-      actionSwitchItems.value = (groups[0]?.items || []).map((groupItem) =>
-        toActionSwitchItem(groupItem),
-      );
-      const refreshed = actionSwitchItems.value.find(
-        (candidate) => candidate.key === item.key,
-      );
-      if (!refreshed?.id) {
-        throw new Error('配置初始化失败，请刷新后重试');
-      }
-      item = refreshed;
-    }
-    const configId = item.id;
-    if (!configId) {
-      throw new Error('配置不存在，请刷新后重试');
-    }
-    const saved = await updateDashboardSiteConfigApi(configId, {
-      is_sensitive: false,
-      key: item.key,
-      value: checked ? '1' : '0',
-    });
-    item.enabled = String(saved.value || '').trim() === '1';
-    message.success(`${item.label}已${item.enabled ? '开启' : '关闭'}`);
-  } catch (error: any) {
-    item.enabled = !checked;
-    message.error(error?.message || `${item.label}切换失败`);
-  } finally {
-    actionSwitchSavingMap[item.key] = false;
   }
 }
 
@@ -363,23 +281,6 @@ onMounted(loadData);
         添加账号
       </Button>
       <Button :loading="loading" @click="loadData">刷新</Button>
-      <div class="action-switches">
-        <div
-          v-for="item in actionSwitchItems"
-          :key="item.key"
-          class="action-switch"
-        >
-          <span class="action-switch-label">{{ item.label }}</span>
-          <Switch
-            :checked="item.enabled"
-            checked-children="开启"
-            :disabled="!canRunCloudDanger"
-            :loading="actionSwitchSavingMap[item.key]"
-            un-checked-children="关闭"
-            @change="(checked) => toggleActionSwitch(item, Boolean(checked))"
-          />
-        </div>
-      </div>
     </div>
 
     <Table
@@ -670,26 +571,5 @@ onMounted(loadData);
   gap: 10px 12px;
   align-items: center;
   margin-bottom: 16px;
-}
-
-.action-switches {
-  display: inline-flex;
-  gap: 18px;
-  align-items: center;
-  min-height: 32px;
-  padding: 0 14px;
-  margin-left: 8px;
-  border-left: 1px solid var(--ant-color-border-secondary);
-}
-
-.action-switch {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  white-space: nowrap;
-}
-
-.action-switch-label {
-  color: var(--ant-color-text-secondary);
 }
 </style>
