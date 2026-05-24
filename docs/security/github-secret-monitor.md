@@ -52,4 +52,3 @@ pnpm security:github -- --repo owner/name --query '"MY_SERVICE_TOKEN"'
 - `0`：未发现疑似泄露。
 - `1`：发现疑似泄露。
 - `2`：参数、鉴权或 GitHub API 错误。
-
