@@ -1652,6 +1652,26 @@ export async function getDashboardCloudAssetSyncJobApi(jobId: number) {
   );
 }
 
+export async function getDashboardCloudAssetSyncJobsApi(
+  params: Pick<DashboardListQuery, 'page' | 'page_size'> & {
+    status?: string;
+  } = {},
+) {
+  return requestClient.get<{
+    items: DashboardCloudAssetSyncJob[];
+    page: number;
+    page_size: number;
+    total: number;
+    total_pages?: number;
+  }>('/admin/cloud-assets/sync-jobs/', { params });
+}
+
+export async function retryDashboardCloudAssetSyncJobApi(jobId: number) {
+  return requestClient.post<DashboardCloudAssetsSyncResult>(
+    `/admin/cloud-assets/sync-jobs/${jobId}/retry/`,
+  );
+}
+
 export async function getDashboardCloudAssetRiskSummaryApi(
   params: DashboardListQuery = {},
 ) {

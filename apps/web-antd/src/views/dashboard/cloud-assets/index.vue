@@ -46,10 +46,12 @@ import {
   getDashboardCloudAssetDetailApi,
   getDashboardCloudAssetRiskSummaryApi,
   getDashboardCloudAssetSyncJobApi,
+  getDashboardCloudAssetSyncJobsApi,
   getDashboardCloudAssetsGroupedPageApi,
   getDashboardCloudAssetsPageApi,
   getDashboardCloudAssetsSyncStatusApi,
   getDashboardTelegramGroupsApi,
+  retryDashboardCloudAssetSyncJobApi,
   syncDashboardCloudAssetsApi,
   syncDashboardCloudAssetStatusApi,
   toggleDashboardCloudAssetAutoRenewApi,
@@ -70,6 +72,10 @@ const syncScope = ref<'aliyun' | 'all' | 'aws' | 'selected'>('all');
 const lastSyncTasks = ref<any[]>([]);
 const lastSkippedSyncTasks = ref<any[]>([]);
 const activeSyncJob = ref<DashboardCloudAssetSyncJob | null>(null);
+const syncJobsOpen = ref(false);
+const syncJobsLoading = ref(false);
+const syncJobs = ref<DashboardCloudAssetSyncJob[]>([]);
+const syncJobRetryingIds = ref<number[]>([]);
 const assetSyncingIds = ref<number[]>([]);
 const autoRenewSavingIds = ref<number[]>([]);
 const keyword = ref('');
@@ -112,6 +118,11 @@ const groupPagination = reactive({
 const assetPagination = reactive({
   page: 1,
   pageSize: ASSET_PAGE_SIZE,
+  total: 0,
+});
+const syncJobsPagination = reactive({
+  page: 1,
+  pageSize: 20,
   total: 0,
 });
 const expandedGroupKeys = ref<string[]>([]);
@@ -990,6 +1001,57 @@ const assetTableColumns = computed<TableColumnsType<DashboardCloudAssetItem>>(
   },
 );
 
+const syncJobTableColumns = computed<TableColumnsType<DashboardCloudAssetSyncJob>>(
+  () => [
+    { dataIndex: 'id', key: 'id', title: '任务', width: 110 },
+    { dataIndex: 'status', key: 'status', title: '状态', width: 130 },
+    { dataIndex: 'scope', key: 'scope', title: '范围', width: 260 },
+    { dataIndex: 'progress', key: 'progress', title: '进度', width: 140 },
+    { dataIndex: 'created_at', key: 'created_at', title: '时间', width: 210 },
+    { dataIndex: 'errors', key: 'errors', title: '结果', width: 260 },
+    { key: 'actions', title: '操作', width: 120 },
+  ],
+);
+
+type SyncJobTableRecord = Partial<DashboardCloudAssetSyncJob> &
+  Record<string, any>;
+
+function syncJobStatusColor(status?: string) {
+  if (status === 'succeeded') return 'green';
+  if (status === 'failed') return 'red';
+  if (status === 'partial') return 'orange';
+  if (status === 'running') return 'processing';
+  return 'default';
+}
+
+function syncJobScopeLabel(job: SyncJobTableRecord) {
+  const scope = job.scope || {};
+  const providerItems = Array.isArray(job.providers)
+    ? job.providers
+    : (Array.isArray(scope.providers) ? scope.providers : []);
+  const providers = providerItems.join(' / ') || 'all';
+  const assets = job.asset_ids?.length ? `${job.asset_ids.length} 条代理` : '';
+  const accounts = job.account_ids?.length ? `${job.account_ids.length} 个账号` : '';
+  const regions = [scope.aliyun_region, scope.aws_region]
+    .filter(Boolean)
+    .join(' / ');
+  return [providers, assets, accounts, regions].filter(Boolean).join(' · ');
+}
+
+function syncJobResultLabel(job: SyncJobTableRecord) {
+  const errors = job.errors || job.result?.errors || [];
+  const warnings = job.warnings || job.result?.warnings || [];
+  if (errors.length > 0) return errors.slice(0, 2).join('；');
+  if (warnings.length > 0) return warnings.slice(0, 2).join('；');
+  if (job.is_terminal) return '完成';
+  return job.current_task || '等待执行';
+}
+
+function isSyncJobRetrying(jobId?: number | string) {
+  const parsedId = Number(jobId || 0);
+  return parsedId > 0 && syncJobRetryingIds.value.includes(parsedId);
+}
+
 function handleAssetTableChange(
   pagination: any,
   _filters: unknown,
@@ -1133,11 +1195,31 @@ function applySyncJobSummary(job: DashboardCloudAssetSyncJob | null) {
   lastSkippedSyncTasks.value = result.skipped_tasks || job?.skipped_tasks || [];
 }
 
+function upsertSyncJobStatus(job: DashboardCloudAssetSyncJob | null) {
+  if (!job?.id) return;
+  const index = syncJobs.value.findIndex((item) => item.id === job.id);
+  if (index >= 0) {
+    syncJobs.value = [
+      ...syncJobs.value.slice(0, index),
+      job,
+      ...syncJobs.value.slice(index + 1),
+    ];
+    return;
+  }
+  if (syncJobsPagination.page === 1) {
+    syncJobs.value = [job, ...syncJobs.value].slice(
+      0,
+      syncJobsPagination.pageSize,
+    );
+    syncJobsPagination.total += 1;
+  }
+}
+
 async function pollCloudAssetSyncJob(jobId: number) {
-  syncing.value = true;
   for (let attempt = 0; attempt < 900; attempt += 1) {
     const job = await getDashboardCloudAssetSyncJobApi(jobId);
     activeSyncJob.value = job;
+    upsertSyncJobStatus(job);
     if (
       job.is_terminal ||
       ['failed', 'partial', 'succeeded'].includes(job.status)
@@ -1159,7 +1241,6 @@ function monitorCloudAssetSyncJob(jobId: number) {
     if (watchedSyncJobId === jobId) {
       watchedSyncJobId = null;
       watchedSyncJobPromise = null;
-      syncing.value = false;
     }
   });
   return watchedSyncJobPromise;
@@ -1179,6 +1260,61 @@ function resumeCloudAssetSyncJob(job: DashboardCloudAssetSyncJob) {
       logCloudSyncConsole('resume-job-error', error, true);
       message.error(error?.message || '后台同步任务轮询失败');
     });
+}
+
+async function loadSyncJobs(page = syncJobsPagination.page) {
+  syncJobsLoading.value = true;
+  try {
+    const response = await getDashboardCloudAssetSyncJobsApi({
+      page,
+      page_size: syncJobsPagination.pageSize,
+    });
+    syncJobs.value = response.items || [];
+    syncJobsPagination.page = response.page || page;
+    syncJobsPagination.pageSize =
+      response.page_size || syncJobsPagination.pageSize;
+    syncJobsPagination.total = response.total || 0;
+  } finally {
+    syncJobsLoading.value = false;
+  }
+}
+
+function openSyncJobs() {
+  syncJobsOpen.value = true;
+  loadSyncJobs(1);
+}
+
+function handleSyncJobsTableChange(pagination: any) {
+  syncJobsPagination.page = Number(pagination?.current || 1);
+  syncJobsPagination.pageSize = Number(
+    pagination?.pageSize || syncJobsPagination.pageSize,
+  );
+  loadSyncJobs(syncJobsPagination.page);
+}
+
+async function retrySyncJob(job: SyncJobTableRecord) {
+  if (!requireCloudDangerPermission('重试同步任务')) return;
+  const jobId = Number(job.id || 0);
+  if (!jobId) {
+    message.error('同步任务 ID 无效');
+    return;
+  }
+  syncJobRetryingIds.value = [...syncJobRetryingIds.value, jobId];
+  try {
+    const result = await retryDashboardCloudAssetSyncJobApi(jobId);
+    if (result.job_id) {
+      message.success('同步任务已重新入队');
+      upsertSyncJobStatus(result.job || null);
+      await loadSyncJobs(1);
+      void monitorCloudAssetSyncJob(result.job_id);
+    }
+  } catch (error: any) {
+    message.error(error?.message || '重试同步任务失败');
+  } finally {
+    syncJobRetryingIds.value = syncJobRetryingIds.value.filter(
+      (id) => id !== jobId,
+    );
+  }
 }
 
 function handleRiskStatusChange() {
@@ -1255,6 +1391,9 @@ async function loadData() {
       latestCompletedJob?.skipped_tasks ||
       syncStatus.recent_syncs?.[0]?.skipped_tasks ||
       [];
+    if (!syncJobsOpen.value && syncStatus.recent_jobs?.length) {
+      syncJobs.value = syncStatus.recent_jobs;
+    }
     const activeJob = syncStatus.active_jobs?.[0];
     if (activeJob) {
       resumeCloudAssetSyncJob(activeJob);
@@ -1429,6 +1568,7 @@ async function batchSyncSelectedAssets() {
   syncing.value = true;
   try {
     const assetIds = selectedAssets.value.map((asset) => asset.id);
+    const selectedCount = assetIds.length;
     logCloudSyncConsole('batch-start', {
       asset_ids: assetIds,
       selected_count: selectedAssets.value.length,
@@ -1442,12 +1582,33 @@ async function batchSyncSelectedAssets() {
     );
     if (queuedResult.queued && queuedResult.job_id) {
       message.info('选中代理已加入后台同步队列');
+      activeSyncJob.value = queuedResult.job || activeSyncJob.value;
+      upsertSyncJobStatus(queuedResult.job || null);
+      if (syncJobsOpen.value) {
+        await loadSyncJobs(1);
+      }
+      void monitorCloudAssetSyncJob(queuedResult.job_id)
+        .then(async (completedJob) => {
+          const result = completedJob?.result || queuedResult;
+          activeSyncJob.value = null;
+          logCloudSyncConsole('batch-result', result, result?.ok === false);
+          await loadData();
+          lastSyncTasks.value = result.tasks || [];
+          lastSkippedSyncTasks.value = result.skipped_tasks || [];
+          if (result?.ok === false || result?.errors?.length) {
+            message.warning('选中代理同步完成，但存在错误，请查看同步任务');
+            return;
+          }
+          message.success(`已按选中代理涉及账号同步 ${selectedCount} 条`);
+          clearSelectedRows();
+        })
+        .catch((error: any) => {
+          logCloudSyncConsole('batch-error', error, true);
+          message.error(error?.message || '批量同步失败');
+        });
+      return;
     }
-    const completedJob = queuedResult.job_id
-      ? await monitorCloudAssetSyncJob(queuedResult.job_id)
-      : null;
-    const result = completedJob?.result || queuedResult;
-    activeSyncJob.value = null;
+    const result = queuedResult;
     logCloudSyncConsole('batch-result', result, result?.ok === false);
     await loadData();
     lastSyncTasks.value = result.tasks || [];
@@ -1457,7 +1618,7 @@ async function batchSyncSelectedAssets() {
       return;
     }
     message.success(
-      `已按选中代理涉及账号同步 ${selectedAssets.value.length} 条`,
+      `已按选中代理涉及账号同步 ${selectedCount} 条`,
     );
     clearSelectedRows();
   } catch (error: any) {
@@ -1501,12 +1662,35 @@ async function syncAssets() {
     );
     if (queuedResult.queued && queuedResult.job_id) {
       message.info('代理同步已加入后台队列');
+      activeSyncJob.value = queuedResult.job || activeSyncJob.value;
+      upsertSyncJobStatus(queuedResult.job || null);
+      if (syncJobsOpen.value) {
+        await loadSyncJobs(1);
+      }
+      void monitorCloudAssetSyncJob(queuedResult.job_id)
+        .then(async (completedJob) => {
+          const result = completedJob?.result || queuedResult;
+          activeSyncJob.value = null;
+          logCloudSyncConsole('all-result', result, result?.ok === false);
+          markRecentSync();
+          await loadData();
+          lastSyncTasks.value = result.tasks || [];
+          lastSkippedSyncTasks.value = result.skipped_tasks || [];
+          if (result?.ok === false || result?.errors?.length) {
+            message.warning('代理同步完成，但存在错误，请查看同步任务');
+            return;
+          }
+          message.success(
+            `代理同步完成：AWS 存在 ${awsExistingCount.value} 条，阿里云存在 ${aliyunExistingCount.value} 条，未附加IP ${unattachedIpCount.value} 条`,
+          );
+        })
+        .catch((error: any) => {
+          logCloudSyncConsole('all-error', error, true);
+          message.error(error?.message || '代理同步失败，请查看同步任务');
+        });
+      return;
     }
-    const completedJob = queuedResult.job_id
-      ? await monitorCloudAssetSyncJob(queuedResult.job_id)
-      : null;
-    const result = completedJob?.result || queuedResult;
-    activeSyncJob.value = null;
+    const result = queuedResult;
     logCloudSyncConsole('all-result', result, result?.ok === false);
     markRecentSync();
     await loadData();
@@ -1700,6 +1884,7 @@ function startAutoRefresh() {
     if (
       !editOpen.value &&
       !detailOpen.value &&
+      !syncJobsOpen.value &&
       !loading.value &&
       !loadingMore.value &&
       !saving.value &&
@@ -1914,6 +2099,7 @@ onBeforeUnmount(() => {
           </Button>
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
+          <Button size="small" @click="openSyncJobs">同步任务</Button>
           <Tag v-if="selectedAssets.length > 0" color="geekblue">
             已选 {{ selectedAssets.length }} 条
           </Tag>
@@ -2865,6 +3051,141 @@ onBeforeUnmount(() => {
     </Card>
 
     <Drawer
+      v-model:open="syncJobsOpen"
+      placement="right"
+      title="同步任务"
+      width="min(860px, 100vw)"
+    >
+      <Space class="mb-3" wrap>
+        <Button size="small" :loading="syncJobsLoading" @click="loadSyncJobs()">
+          刷新
+        </Button>
+      </Space>
+      <Table
+        :columns="syncJobTableColumns"
+        :data-source="syncJobs"
+        :loading="syncJobsLoading"
+        :pagination="{
+          current: syncJobsPagination.page,
+          pageSize: syncJobsPagination.pageSize,
+          showSizeChanger: true,
+          total: syncJobsPagination.total,
+          showTotal: (total: number) => `共 ${total} 个任务`,
+        }"
+        row-key="id"
+        size="small"
+        :scroll="{ x: 980 }"
+        @change="handleSyncJobsTableChange"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'id'">
+            <Space direction="vertical" :size="2">
+              <span class="font-mono">#{{ record.id }}</span>
+              <TypographyParagraph
+                class="!mb-0 max-w-full break-all font-mono text-xs leading-5"
+                :copyable="{ text: record.run_id }"
+                :ellipsis="{ rows: 1, tooltip: record.run_id }"
+              >
+                {{ record.run_id }}
+              </TypographyParagraph>
+            </Space>
+          </template>
+          <template v-else-if="column.key === 'status'">
+            <Tag :color="syncJobStatusColor(record.status)">
+              {{ record.status_label || record.status }}
+            </Tag>
+          </template>
+          <template v-else-if="column.key === 'scope'">
+            <TypographyParagraph
+              class="!mb-0 max-w-full break-all text-xs leading-5"
+              :ellipsis="{ rows: 2, tooltip: syncJobScopeLabel(record) }"
+            >
+              {{ syncJobScopeLabel(record) }}
+            </TypographyParagraph>
+          </template>
+          <template v-else-if="column.key === 'progress'">
+            <Space direction="vertical" :size="2">
+              <span>
+                {{ record.progress_current || 0 }}/{{
+                  record.progress_total || 0
+                }}
+              </span>
+              <Tag color="blue">{{ record.progress_percent || 0 }}%</Tag>
+            </Space>
+          </template>
+          <template v-else-if="column.key === 'created_at'">
+            <Space direction="vertical" :size="2">
+              <span>{{ formatTime(record.created_at) }}</span>
+              <span class="text-xs text-gray-500">
+                {{ formatTime(record.finished_at || record.updated_at) }}
+              </span>
+            </Space>
+          </template>
+          <template v-else-if="column.key === 'errors'">
+            <TypographyParagraph
+              class="!mb-0 max-w-full break-all text-xs leading-5"
+              :ellipsis="{ rows: 2, tooltip: syncJobResultLabel(record) }"
+            >
+              {{ syncJobResultLabel(record) }}
+            </TypographyParagraph>
+          </template>
+          <template v-else-if="column.key === 'actions'">
+            <Space :size="4">
+              <Button
+                size="small"
+                :disabled="!record.is_terminal || !canRunCloudDanger"
+                :loading="isSyncJobRetrying(record.id)"
+                @click="retrySyncJob(record)"
+              >
+                重试
+              </Button>
+            </Space>
+          </template>
+        </template>
+        <template #expandedRowRender="{ record }">
+          <div class="sync-job-expanded">
+            <div class="mb-2">
+              <Tag
+                v-for="task in record.tasks || []"
+                :key="`${record.id}-${task.provider}-${task.region}-${task.command}`"
+                color="cyan"
+              >
+                {{ task.provider || '-' }} / {{ task.region || 'all' }}
+              </Tag>
+              <Tag
+                v-for="task in record.skipped_tasks || []"
+                :key="`${record.id}-skip-${task.provider}-${task.region}-${task.reason}`"
+                color="warning"
+              >
+                跳过 {{ task.provider || '-' }} / {{ task.region || 'all' }}
+              </Tag>
+            </div>
+            <TypographyParagraph
+              v-if="
+                (record.errors || []).length > 0 ||
+                (record.warnings || []).length > 0
+              "
+              class="!mb-2 whitespace-pre-wrap break-all text-xs leading-5"
+            >
+              {{
+                [...(record.errors || []), ...(record.warnings || [])].join(
+                  '\n',
+                )
+              }}
+            </TypographyParagraph>
+            <TypographyParagraph
+              v-if="(record.logs || []).length > 0"
+              class="!mb-0 whitespace-pre-wrap break-all font-mono text-xs leading-5"
+              :ellipsis="{ rows: 8, expandable: true, symbol: '展开日志' }"
+            >
+              {{ (record.logs || []).join('\n') }}
+            </TypographyParagraph>
+          </div>
+        </template>
+      </Table>
+    </Drawer>
+
+    <Drawer
       v-model:open="detailOpen"
       placement="right"
       title="代理详情"
@@ -3341,6 +3662,13 @@ onBeforeUnmount(() => {
 .detail-log-row {
   padding: 8px 0;
   border-bottom: 1px solid #f0f0f0;
+}
+
+.sync-job-expanded {
+  padding: 8px 12px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
 }
 
 .collapsed-note {

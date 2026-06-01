@@ -47,24 +47,24 @@ pre-commit:
     PATH: /opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
   commands:
     code-workspace:
-      run: /opt/homebrew/bin/pnpm vsh code-workspace --auto-commit
+      run: pnpm vsh code-workspace --auto-commit
     lint-md:
-      run: /opt/homebrew/bin/pnpm oxfmt {staged_files}
+      run: pnpm oxfmt {staged_files}
       glob: '*.md'
     lint-vue:
-      run: /opt/homebrew/bin/pnpm oxfmt {staged_files} && /opt/homebrew/bin/pnpm oxlint --fix {staged_files} && /opt/homebrew/bin/pnpm eslint --cache --fix {staged_files} && /opt/homebrew/bin/pnpm stylelint --fix --allow-empty-input {staged_files}
+      run: pnpm oxfmt {staged_files} && pnpm oxlint --fix {staged_files} && pnpm eslint --cache --fix {staged_files} && pnpm stylelint --fix --allow-empty-input {staged_files}
       glob: '*.vue'
     lint-js:
-      run: /opt/homebrew/bin/pnpm oxfmt {staged_files} && /opt/homebrew/bin/pnpm oxlint --fix {staged_files} && /opt/homebrew/bin/pnpm eslint --cache --fix {staged_files}
+      run: pnpm oxfmt {staged_files} && pnpm oxlint --fix {staged_files} && pnpm eslint --cache --fix {staged_files}
       glob: '*.{js,jsx,ts,tsx}'
     lint-style:
-      run: /opt/homebrew/bin/pnpm oxfmt {staged_files} && /opt/homebrew/bin/pnpm stylelint --fix --allow-empty-input {staged_files}
+      run: pnpm oxfmt {staged_files} && pnpm stylelint --fix --allow-empty-input {staged_files}
       glob: '*.{scss,less,styl,html,vue,css}'
     lint-package:
-      run: /opt/homebrew/bin/pnpm oxfmt {staged_files}
+      run: pnpm oxfmt {staged_files}
       glob: 'package.json'
     lint-json:
-      run: /opt/homebrew/bin/pnpm oxfmt {staged_files}
+      run: pnpm oxfmt {staged_files}
       glob: '{!(package)*.json,*.code-snippets,.!(browserslist)*rc}'
 
 post-merge:
@@ -72,11 +72,11 @@ post-merge:
     PATH: /opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
   commands:
     install:
-      run: /opt/homebrew/bin/pnpm install
+      run: pnpm install
 
 commit-msg:
   env:
     PATH: /opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
   commands:
     commitlint:
-      run: /opt/homebrew/bin/pnpm exec commitlint --edit $1
+      run: pnpm exec commitlint --edit $1
