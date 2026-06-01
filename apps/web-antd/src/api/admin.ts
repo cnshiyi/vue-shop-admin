@@ -593,13 +593,16 @@ export interface DashboardSiteConfigItem {
 
 export interface DashboardTaskItem {
   created_at: null | string;
-  id: number;
+  detail_path?: string;
+  id: number | string;
   execution_status?: string;
   execution_status_label?: string;
+  next_run_at?: null | string;
   note: null | string;
-  order_no: string;
-  plan_name: string;
-  provider: string;
+  order_id?: number;
+  order_no?: string;
+  plan_name?: string;
+  provider?: string;
   provider_label?: string;
   public_ip: null | string;
   related_path: string;
@@ -608,6 +611,33 @@ export interface DashboardTaskItem {
   task_label: string;
   task_type: string;
   updated_at: null | string;
+}
+
+export interface DashboardTaskCenterSection {
+  active: number;
+  failed: number;
+  generated_at?: null | string;
+  health: 'error' | 'ok' | 'warning' | string;
+  items: DashboardTaskItem[];
+  key: string;
+  metrics?: Record<string, any>;
+  path: string;
+  status_counts: Record<string, number>;
+  title: string;
+  total: number;
+  warning: number;
+}
+
+export interface DashboardTaskCenterOverview {
+  generated_at?: null | string;
+  sections: DashboardTaskCenterSection[];
+  totals: {
+    active: number;
+    failed: number;
+    sections: number;
+    tasks: number;
+    warning: number;
+  };
 }
 
 export interface DashboardNoticeSwitchItem {
@@ -1236,6 +1266,12 @@ export async function getDashboardUsersApi(params: DashboardListQuery = {}) {
 
 export async function getDashboardTasksApi() {
   return requestClient.get<DashboardTaskItem[]>('/admin/tasks/');
+}
+
+export async function getDashboardTaskCenterApi() {
+  return requestClient.get<DashboardTaskCenterOverview>(
+    '/admin/tasks/center/',
+  );
 }
 
 export async function getDashboardNoticePlanApi(
