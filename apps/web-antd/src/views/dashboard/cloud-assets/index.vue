@@ -6,6 +6,7 @@ import type {
   DashboardCloudAssetGroup,
   DashboardCloudAssetGroupedResponse,
   DashboardCloudAssetItem,
+  DashboardCloudAssetSyncJob,
   DashboardCloudAssetUpdatePayload,
   DashboardCloudOrderSummaryItem,
   DashboardTelegramGroupFilterItem,
@@ -44,6 +45,7 @@ import {
   deleteDashboardCloudAssetApi,
   getDashboardCloudAssetDetailApi,
   getDashboardCloudAssetRiskSummaryApi,
+  getDashboardCloudAssetSyncJobApi,
   getDashboardCloudAssetsGroupedPageApi,
   getDashboardCloudAssetsPageApi,
   getDashboardCloudAssetsSyncStatusApi,
@@ -67,6 +69,7 @@ const syncing = ref(false);
 const syncScope = ref<'aliyun' | 'all' | 'aws' | 'selected'>('all');
 const lastSyncTasks = ref<any[]>([]);
 const lastSkippedSyncTasks = ref<any[]>([]);
+const activeSyncJob = ref<DashboardCloudAssetSyncJob | null>(null);
 const assetSyncingIds = ref<number[]>([]);
 const autoRenewSavingIds = ref<number[]>([]);
 const keyword = ref('');
@@ -106,6 +109,11 @@ const groupPagination = reactive({
   pageSize: ASSET_PAGE_SIZE,
   total: 0,
 });
+const assetPagination = reactive({
+  page: 1,
+  pageSize: ASSET_PAGE_SIZE,
+  total: 0,
+});
 const expandedGroupKeys = ref<string[]>([]);
 const expandedGroupCount = computed(() => expandedGroupKeys.value.length);
 const totalGroupCount = computed(() => groups.value.length);
@@ -140,6 +148,9 @@ const formState = reactive({
 let countdownTimer: null | ReturnType<typeof setInterval> = null;
 let syncHighlightTimer: null | ReturnType<typeof setTimeout> = null;
 let loadSequence = 0;
+let watchedSyncJobId: null | number = null;
+let watchedSyncJobPromise: null | Promise<DashboardCloudAssetSyncJob | null> =
+  null;
 
 function normalizeDaysLeft(record: DashboardCloudAssetItem) {
   if (typeof record.days_left !== 'number' || Number.isNaN(record.days_left)) {
@@ -212,12 +223,16 @@ function isDeletedAsset(record: DashboardCloudAssetItem) {
 }
 
 const displayedItems = computed(() =>
-  showDeletedAssets.value
+  showDeletedAssets.value || riskStatus.value !== 'all'
     ? items.value
     : items.value.filter((item) => !isDeletedAsset(item)),
 );
 const deletedAssetCount = computed(
-  () => items.value.filter((item) => isDeletedAsset(item)).length,
+  () =>
+    Number(
+      riskCounts.value.deleted ??
+        items.value.filter((item) => isDeletedAsset(item)).length,
+    ),
 );
 
 function assetDisplayRank(record: DashboardCloudAssetItem) {
@@ -388,14 +403,19 @@ function setAllGroupsExpanded(expanded: boolean) {
     : [];
 }
 
-function handleGroupModeChange() {
+function resetListPages() {
   groupPagination.page = 1;
+  assetPagination.page = 1;
+}
+
+function handleGroupModeChange() {
+  resetListPages();
   clearSelectedRows();
   loadData();
 }
 
 function handleGroupedChange(enabled: boolean | number | string) {
-  groupPagination.page = 1;
+  resetListPages();
   clearSelectedRows();
   if (enabled) {
     loadData();
@@ -407,9 +427,9 @@ function handleGroupedChange(enabled: boolean | number | string) {
 }
 
 function handleDeletedAssetsVisibleChange() {
-  if (grouped.value) {
-    refreshGroupedItems(displayedItems.value, true);
-  }
+  resetListPages();
+  clearSelectedRows();
+  loadData();
 }
 
 function handleGroupPageChange(page: number, pageSize: number) {
@@ -971,18 +991,36 @@ const assetTableColumns = computed<TableColumnsType<DashboardCloudAssetItem>>(
 );
 
 function handleAssetTableChange(
-  _pagination: unknown,
+  pagination: any,
   _filters: unknown,
   sorter: any,
 ) {
+  const nextPage = Number(pagination?.current || assetPagination.page || 1);
+  const nextPageSize = Number(
+    pagination?.pageSize || assetPagination.pageSize || ASSET_PAGE_SIZE,
+  );
+  const pageChanged =
+    !grouped.value &&
+    (nextPage !== assetPagination.page ||
+      nextPageSize !== assetPagination.pageSize);
+  if (!grouped.value) {
+    assetPagination.page =
+      nextPageSize === assetPagination.pageSize ? nextPage : 1;
+    assetPagination.pageSize = nextPageSize;
+  }
+
   const activeSorter = Array.isArray(sorter)
     ? sorter.find((item) => item.order)
     : sorter;
   const key = activeSorter?.columnKey || activeSorter?.field;
   const order = activeSorter?.order;
   if (!['actual_expires_at', 'status_countdown'].includes(key)) {
+    if (pageChanged) {
+      loadData();
+    }
     return;
   }
+  const previousSortMode = totalSortMode.value;
   if (!order) {
     totalSortMode.value = 'default';
   } else if (key === 'actual_expires_at') {
@@ -991,7 +1029,13 @@ function handleAssetTableChange(
     totalSortMode.value =
       order === 'ascend' ? 'remaining_asc' : 'remaining_desc';
   }
-  loadData();
+  const sortChanged = previousSortMode !== totalSortMode.value;
+  if (sortChanged) {
+    resetListPages();
+  }
+  if (pageChanged || sortChanged) {
+    loadData();
+  }
 }
 
 function groupUserSummary(group: DashboardCloudAssetGroup) {
@@ -1079,8 +1123,66 @@ function markRecentSync() {
   }, 10_000);
 }
 
+function delay(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function applySyncJobSummary(job: DashboardCloudAssetSyncJob | null) {
+  const result = job?.result || {};
+  lastSyncTasks.value = result.tasks || job?.tasks || [];
+  lastSkippedSyncTasks.value = result.skipped_tasks || job?.skipped_tasks || [];
+}
+
+async function pollCloudAssetSyncJob(jobId: number) {
+  syncing.value = true;
+  for (let attempt = 0; attempt < 900; attempt += 1) {
+    const job = await getDashboardCloudAssetSyncJobApi(jobId);
+    activeSyncJob.value = job;
+    if (
+      job.is_terminal ||
+      ['failed', 'partial', 'succeeded'].includes(job.status)
+    ) {
+      applySyncJobSummary(job);
+      return job;
+    }
+    await delay(2_000);
+  }
+  throw new Error('同步任务等待超时，请稍后刷新查看结果');
+}
+
+function monitorCloudAssetSyncJob(jobId: number) {
+  if (watchedSyncJobId === jobId && watchedSyncJobPromise) {
+    return watchedSyncJobPromise;
+  }
+  watchedSyncJobId = jobId;
+  watchedSyncJobPromise = pollCloudAssetSyncJob(jobId).finally(() => {
+    if (watchedSyncJobId === jobId) {
+      watchedSyncJobId = null;
+      watchedSyncJobPromise = null;
+      syncing.value = false;
+    }
+  });
+  return watchedSyncJobPromise;
+}
+
+function resumeCloudAssetSyncJob(job: DashboardCloudAssetSyncJob) {
+  if (watchedSyncJobId === job.id) return;
+  activeSyncJob.value = job;
+  void monitorCloudAssetSyncJob(job.id)
+    .then(async (completedJob) => {
+      if (!completedJob) return;
+      activeSyncJob.value = null;
+      markRecentSync();
+      await loadData();
+    })
+    .catch((error: any) => {
+      logCloudSyncConsole('resume-job-error', error, true);
+      message.error(error?.message || '后台同步任务轮询失败');
+    });
+}
+
 function handleRiskStatusChange() {
-  groupPagination.page = 1;
+  resetListPages();
   clearSelectedRows();
   loadData();
 }
@@ -1106,7 +1208,7 @@ async function loadData() {
   loadProgress.total = 0;
   loadProgress.pageSize = grouped.value
     ? groupPagination.pageSize
-    : ASSET_PAGE_SIZE;
+    : assetPagination.pageSize;
   try {
     const keywordText = keyword.value.trim();
     const sortParams = totalSortParams();
@@ -1117,14 +1219,16 @@ async function loadData() {
           page: groupPagination.page,
           page_size: groupPagination.pageSize,
           risk_status: riskStatus.value,
+          show_deleted: showDeletedAssets.value ? 1 : 0,
           ...sortParams,
         })
       : getDashboardCloudAssetsPageApi({
           group_by: groupMode.value,
           keyword: keywordText,
-          page: 1,
-          page_size: ASSET_PAGE_SIZE,
+          page: assetPagination.page,
+          page_size: assetPagination.pageSize,
           risk_status: riskStatus.value,
+          show_deleted: showDeletedAssets.value ? 1 : 0,
           ...sortParams,
         });
     const [syncStatus, firstPage] = await Promise.all([
@@ -1142,9 +1246,21 @@ async function loadData() {
     awsExistingCount.value = syncStatus.aws_existing_count || 0;
     aliyunExistingCount.value = syncStatus.aliyun_existing_count || 0;
     unattachedIpCount.value = syncStatus.unattached_ip_count || 0;
-    lastSyncTasks.value = syncStatus.recent_syncs?.[0]?.tasks || [];
+    const latestCompletedJob = syncStatus.recent_jobs?.find(
+      (job) => job.is_terminal,
+    );
+    lastSyncTasks.value =
+      latestCompletedJob?.tasks || syncStatus.recent_syncs?.[0]?.tasks || [];
     lastSkippedSyncTasks.value =
-      syncStatus.recent_syncs?.[0]?.skipped_tasks || [];
+      latestCompletedJob?.skipped_tasks ||
+      syncStatus.recent_syncs?.[0]?.skipped_tasks ||
+      [];
+    const activeJob = syncStatus.active_jobs?.[0];
+    if (activeJob) {
+      resumeCloudAssetSyncJob(activeJob);
+    } else if (!watchedSyncJobId) {
+      activeSyncJob.value = null;
+    }
 
     const nextRiskCounts = firstPage.risk_counts || {};
     riskCounts.value = nextRiskCounts;
@@ -1169,30 +1285,12 @@ async function loadData() {
     }
 
     loadProgress.loaded = items.value.length;
+    assetPagination.page = firstPage.page || assetPagination.page;
+    assetPagination.pageSize =
+      firstPage.page_size || assetPagination.pageSize;
+    assetPagination.total = firstPage.total || 0;
     groups.value = [];
     expandedGroupKeys.value = [];
-    loading.value = false;
-
-    const totalPages =
-      firstPage.total_pages || Math.ceil(loadProgress.total / ASSET_PAGE_SIZE);
-    loadingMore.value = totalPages > 1;
-    for (let page = 2; page <= totalPages; page += 1) {
-      const response = await getDashboardCloudAssetsPageApi({
-        group_by: groupMode.value,
-        keyword: keywordText,
-        page,
-        page_size: ASSET_PAGE_SIZE,
-        risk_status: riskStatus.value,
-        ...sortParams,
-      });
-      if (sequence !== loadSequence) return;
-      items.value = sortAssets([...items.value, ...(response.items || [])]);
-      loadProgress.total = response.total || loadProgress.total;
-      loadProgress.loaded = items.value.length;
-      if (hasRiskCountBreakdown(response.risk_counts)) {
-        riskCounts.value = response.risk_counts || riskCounts.value;
-      }
-    }
     loadProgress.done = true;
   } finally {
     if (sequence === loadSequence) {
@@ -1206,7 +1304,7 @@ async function loadData() {
 }
 
 function handleSearch() {
-  groupPagination.page = 1;
+  resetListPages();
   clearSelectedRows();
   loadData();
 }
@@ -1215,7 +1313,7 @@ function resetSearch() {
   keyword.value = '';
   riskStatus.value = 'all';
   clearSelectedRows();
-  groupPagination.page = 1;
+  resetListPages();
   loadData();
 }
 
@@ -1335,9 +1433,21 @@ async function batchSyncSelectedAssets() {
       asset_ids: assetIds,
       selected_count: selectedAssets.value.length,
     });
-    const result = await syncDashboardCloudAssetsApi('cn-hongkong', 'all', {
-      asset_ids: assetIds,
-    });
+    const queuedResult = await syncDashboardCloudAssetsApi(
+      'cn-hongkong',
+      'all',
+      {
+        asset_ids: assetIds,
+      },
+    );
+    if (queuedResult.queued && queuedResult.job_id) {
+      message.info('选中代理已加入后台同步队列');
+    }
+    const completedJob = queuedResult.job_id
+      ? await monitorCloudAssetSyncJob(queuedResult.job_id)
+      : null;
+    const result = completedJob?.result || queuedResult;
+    activeSyncJob.value = null;
     logCloudSyncConsole('batch-result', result, result?.ok === false);
     await loadData();
     lastSyncTasks.value = result.tasks || [];
@@ -1381,10 +1491,22 @@ async function syncAssets() {
       providers,
       asset_ids: assetIds,
     });
-    const result = await syncDashboardCloudAssetsApi('cn-hongkong', 'all', {
-      providers,
-      asset_ids: assetIds,
-    });
+    const queuedResult = await syncDashboardCloudAssetsApi(
+      'cn-hongkong',
+      'all',
+      {
+        providers,
+        asset_ids: assetIds,
+      },
+    );
+    if (queuedResult.queued && queuedResult.job_id) {
+      message.info('代理同步已加入后台队列');
+    }
+    const completedJob = queuedResult.job_id
+      ? await monitorCloudAssetSyncJob(queuedResult.job_id)
+      : null;
+    const result = completedJob?.result || queuedResult;
+    activeSyncJob.value = null;
     logCloudSyncConsole('all-result', result, result?.ok === false);
     markRecentSync();
     await loadData();
@@ -1635,6 +1757,7 @@ function removeAssetFromList(assetId: number) {
   items.value = items.value.filter((item) => item.id !== assetId);
   loadProgress.loaded = items.value.length;
   loadProgress.total = Math.max(0, loadProgress.total - 1);
+  assetPagination.total = Math.max(0, assetPagination.total - 1);
   if (grouped.value) {
     refreshGroupedItems(displayedItems.value);
   }
@@ -1794,7 +1917,13 @@ onBeforeUnmount(() => {
           <Tag v-if="selectedAssets.length > 0" color="geekblue">
             已选 {{ selectedAssets.length }} 条
           </Tag>
-          <Tag v-if="syncing" color="processing">同步中…</Tag>
+          <Tag v-if="activeSyncJob" color="processing">
+            {{ activeSyncJob.status_label || '同步中' }}
+            {{ activeSyncJob.progress_current || 0 }}/{{
+              activeSyncJob.progress_total || 0
+            }}
+          </Tag>
+          <Tag v-else-if="syncing" color="processing">同步中…</Tag>
           <Tag v-if="lastSyncTasks.length > 0" color="cyan">
             最近同步 {{ lastSyncTasks.length }} 个账号
           </Tag>
@@ -2331,7 +2460,13 @@ onBeforeUnmount(() => {
         :columns="assetTableColumns"
         :data-source="displayedItems"
         :loading="loading"
-        :pagination="{ pageSize: ASSET_PAGE_SIZE }"
+        :pagination="{
+          current: assetPagination.page,
+          pageSize: assetPagination.pageSize,
+          showSizeChanger: true,
+          total: assetPagination.total,
+          showTotal: (total: number) => `共 ${total} 条代理`,
+        }"
         :row-selection="rowSelection"
         row-key="id"
         :scroll="{ x: 2380 }"

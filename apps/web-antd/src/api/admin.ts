@@ -10,6 +10,7 @@ interface DashboardListQuery {
   paginated?: 0 | 1;
   risk_status?: string;
   scope?: 'accounts' | 'chats' | 'users';
+  show_deleted?: 0 | 1;
   sort_by?: 'actual_expires_at' | 'days_left' | 'expires_at' | 'remaining_days';
   sort_order?: 'asc' | 'desc';
 }
@@ -1524,10 +1525,16 @@ export interface DashboardCloudAssetsSyncResult {
   aws_region?: string;
   aws_regions?: string[];
   errors?: string[];
+  job?: DashboardCloudAssetSyncJob;
+  job_id?: number;
   logs?: string[];
+  message?: string;
   ok?: boolean;
   providers?: string[];
+  queued?: boolean;
+  run_id?: string;
   skipped_tasks?: DashboardCloudAssetSyncTask[];
+  status?: string;
   synced?: Record<string, boolean>;
   tasks?: DashboardCloudAssetSyncTask[];
   warnings?: string[];
@@ -1548,6 +1555,34 @@ export interface DashboardCloudAssetSyncTask {
   summary?: Record<string, any>;
 }
 
+export interface DashboardCloudAssetSyncJob {
+  account_ids?: number[];
+  asset_ids?: number[];
+  created_at?: null | string;
+  current_task?: string;
+  errors?: string[];
+  finished_at?: null | string;
+  id: number;
+  is_terminal?: boolean;
+  job_id: number;
+  logs?: string[];
+  ok?: boolean;
+  progress_current?: number;
+  progress_percent?: number;
+  progress_total?: number;
+  providers?: string[];
+  result?: DashboardCloudAssetsSyncResult;
+  run_id: string;
+  scope?: Record<string, any>;
+  skipped_tasks?: DashboardCloudAssetSyncTask[];
+  started_at?: null | string;
+  status: string;
+  status_label?: string;
+  tasks?: DashboardCloudAssetSyncTask[];
+  updated_at?: null | string;
+  warnings?: string[];
+}
+
 export async function syncDashboardCloudAssetsApi(
   region = 'cn-hongkong',
   awsRegion = 'all',
@@ -1565,11 +1600,13 @@ export async function syncDashboardCloudAssetsApi(
 }
 
 export interface DashboardCloudAssetsSyncStatus {
+  active_jobs?: DashboardCloudAssetSyncJob[];
   accounts?: DashboardCloudAssetsSyncResult['accounts'];
   aliyun_existing_count: number;
   auto_sync_every_seconds: number;
   aws_existing_count: number;
   last_synced_at: null | string;
+  recent_jobs?: DashboardCloudAssetSyncJob[];
   recent_syncs?: Array<{
     created_at?: null | string;
     error_message?: string;
@@ -1606,6 +1643,12 @@ export interface DashboardCloudAssetSyncResult {
 export async function getDashboardCloudAssetsSyncStatusApi() {
   return requestClient.get<DashboardCloudAssetsSyncStatus>(
     '/admin/cloud-assets/sync-status/',
+  );
+}
+
+export async function getDashboardCloudAssetSyncJobApi(jobId: number) {
+  return requestClient.get<DashboardCloudAssetSyncJob>(
+    `/admin/cloud-assets/sync-jobs/${jobId}/`,
   );
 }
 
