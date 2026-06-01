@@ -7,6 +7,7 @@ import type {
   DashboardCloudAssetGroupedResponse,
   DashboardCloudAssetItem,
   DashboardCloudAssetSyncJob,
+  DashboardCloudAssetSyncJobEvent,
   DashboardCloudAssetUpdatePayload,
   DashboardCloudOrderSummaryItem,
   DashboardTelegramGroupFilterItem,
@@ -51,6 +52,7 @@ import {
   getDashboardCloudAssetsPageApi,
   getDashboardCloudAssetsSyncStatusApi,
   getDashboardTelegramGroupsApi,
+  cancelDashboardCloudAssetSyncJobApi,
   retryDashboardCloudAssetSyncJobApi,
   syncDashboardCloudAssetsApi,
   syncDashboardCloudAssetStatusApi,
@@ -75,7 +77,10 @@ const activeSyncJob = ref<DashboardCloudAssetSyncJob | null>(null);
 const syncJobsOpen = ref(false);
 const syncJobsLoading = ref(false);
 const syncJobs = ref<DashboardCloudAssetSyncJob[]>([]);
+const syncJobsStatusFilter = ref('all');
+const syncJobsFailedOnly = ref(false);
 const syncJobRetryingIds = ref<number[]>([]);
+const syncJobCancellingIds = ref<number[]>([]);
 const assetSyncingIds = ref<number[]>([]);
 const autoRenewSavingIds = ref<number[]>([]);
 const keyword = ref('');
@@ -1007,20 +1012,43 @@ const syncJobTableColumns = computed<TableColumnsType<DashboardCloudAssetSyncJob
     { dataIndex: 'status', key: 'status', title: '状态', width: 130 },
     { dataIndex: 'scope', key: 'scope', title: '范围', width: 260 },
     { dataIndex: 'progress', key: 'progress', title: '进度', width: 140 },
-    { dataIndex: 'created_at', key: 'created_at', title: '时间', width: 210 },
+    { dataIndex: 'created_at', key: 'created_at', title: '时间/Worker', width: 240 },
     { dataIndex: 'errors', key: 'errors', title: '结果', width: 260 },
-    { key: 'actions', title: '操作', width: 120 },
+    { key: 'actions', title: '操作', width: 160 },
   ],
 );
 
 type SyncJobTableRecord = Partial<DashboardCloudAssetSyncJob> &
   Record<string, any>;
 
+const syncJobStatusFilterOptions = [
+  { label: '全部任务', value: 'all' },
+  { label: '活动中', value: 'active' },
+  { label: '排队中', value: 'queued' },
+  { label: '运行中', value: 'running' },
+  { label: '已完成', value: 'succeeded' },
+  { label: '部分完成', value: 'partial' },
+  { label: '失败', value: 'failed' },
+  { label: '已取消', value: 'cancelled' },
+  { label: '终态', value: 'terminal' },
+];
+
 function syncJobStatusColor(status?: string) {
   if (status === 'succeeded') return 'green';
   if (status === 'failed') return 'red';
   if (status === 'partial') return 'orange';
   if (status === 'running') return 'processing';
+  if (status === 'cancelled') return 'default';
+  if (status === 'queued') return 'blue';
+  return 'default';
+}
+
+function syncJobEventColor(eventType?: string) {
+  if (eventType === 'error') return 'red';
+  if (eventType === 'warning' || eventType === 'cancel') return 'orange';
+  if (eventType === 'progress' || eventType === 'task') return 'blue';
+  if (eventType === 'claimed' || eventType === 'heartbeat') return 'cyan';
+  if (eventType === 'retry') return 'purple';
   return 'default';
 }
 
@@ -1043,13 +1071,45 @@ function syncJobResultLabel(job: SyncJobTableRecord) {
   const warnings = job.warnings || job.result?.warnings || [];
   if (errors.length > 0) return errors.slice(0, 2).join('；');
   if (warnings.length > 0) return warnings.slice(0, 2).join('；');
+  if (job.cancelled || job.status === 'cancelled') return '已取消';
   if (job.is_terminal) return '完成';
   return job.current_task || '等待执行';
+}
+
+function syncJobWorkerLabel(job: SyncJobTableRecord) {
+  const worker = job.worker_id || job.scope?.worker_id || '';
+  const heartbeat = job.worker_heartbeat_at
+    ? formatTime(job.worker_heartbeat_at)
+    : '-';
+  if (!worker && heartbeat === '-') return 'worker: -';
+  return `${worker || 'worker'} · ${heartbeat}`;
+}
+
+function syncJobEventSummary(event: DashboardCloudAssetSyncJobEvent) {
+  if (event.message) return event.message;
+  if (event.event_type_label) return event.event_type_label;
+  return event.event_type;
 }
 
 function isSyncJobRetrying(jobId?: number | string) {
   const parsedId = Number(jobId || 0);
   return parsedId > 0 && syncJobRetryingIds.value.includes(parsedId);
+}
+
+function isSyncJobCancelling(jobId?: number | string) {
+  const parsedId = Number(jobId || 0);
+  return parsedId > 0 && syncJobCancellingIds.value.includes(parsedId);
+}
+
+function compactJson(value: unknown) {
+  if (!value || (typeof value === 'object' && Object.keys(value).length === 0)) {
+    return '';
+  }
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
 }
 
 function handleAssetTableChange(
@@ -1265,9 +1325,15 @@ function resumeCloudAssetSyncJob(job: DashboardCloudAssetSyncJob) {
 async function loadSyncJobs(page = syncJobsPagination.page) {
   syncJobsLoading.value = true;
   try {
+    const status =
+      syncJobsStatusFilter.value === 'all'
+        ? undefined
+        : syncJobsStatusFilter.value;
     const response = await getDashboardCloudAssetSyncJobsApi({
+      failed_only: syncJobsFailedOnly.value ? 1 : undefined,
       page,
       page_size: syncJobsPagination.pageSize,
+      status,
     });
     syncJobs.value = response.items || [];
     syncJobsPagination.page = response.page || page;
@@ -1281,6 +1347,11 @@ async function loadSyncJobs(page = syncJobsPagination.page) {
 
 function openSyncJobs() {
   syncJobsOpen.value = true;
+  loadSyncJobs(1);
+}
+
+function handleSyncJobsFilterChange() {
+  syncJobsPagination.page = 1;
   loadSyncJobs(1);
 }
 
@@ -1312,6 +1383,30 @@ async function retrySyncJob(job: SyncJobTableRecord) {
     message.error(error?.message || '重试同步任务失败');
   } finally {
     syncJobRetryingIds.value = syncJobRetryingIds.value.filter(
+      (id) => id !== jobId,
+    );
+  }
+}
+
+async function cancelSyncJob(job: SyncJobTableRecord) {
+  if (!requireCloudDangerPermission('取消同步任务')) return;
+  const jobId = Number(job.id || 0);
+  if (!jobId) {
+    message.error('同步任务 ID 无效');
+    return;
+  }
+  syncJobCancellingIds.value = [...syncJobCancellingIds.value, jobId];
+  try {
+    const result = await cancelDashboardCloudAssetSyncJobApi(jobId);
+    if (result.job) {
+      upsertSyncJobStatus(result.job);
+    }
+    message.success(result.message || '取消请求已提交');
+    await loadSyncJobs(syncJobsPagination.page);
+  } catch (error: any) {
+    message.error(error?.message || '取消同步任务失败');
+  } finally {
+    syncJobCancellingIds.value = syncJobCancellingIds.value.filter(
       (id) => id !== jobId,
     );
   }
@@ -3057,6 +3152,19 @@ onBeforeUnmount(() => {
       width="min(860px, 100vw)"
     >
       <Space class="mb-3" wrap>
+        <Select
+          v-model:value="syncJobsStatusFilter"
+          size="small"
+          style="width: 132px"
+          :options="syncJobStatusFilterOptions"
+          @change="handleSyncJobsFilterChange"
+        />
+        <Switch
+          v-model:checked="syncJobsFailedOnly"
+          checked-children="仅失败"
+          un-checked-children="全部"
+          @change="handleSyncJobsFilterChange"
+        />
         <Button size="small" :loading="syncJobsLoading" @click="loadSyncJobs()">
           刷新
         </Button>
@@ -3119,6 +3227,9 @@ onBeforeUnmount(() => {
               <span class="text-xs text-gray-500">
                 {{ formatTime(record.finished_at || record.updated_at) }}
               </span>
+              <span class="text-xs text-gray-500">
+                {{ syncJobWorkerLabel(record) }}
+              </span>
             </Space>
           </template>
           <template v-else-if="column.key === 'errors'">
@@ -3131,6 +3242,19 @@ onBeforeUnmount(() => {
           </template>
           <template v-else-if="column.key === 'actions'">
             <Space :size="4">
+              <Popconfirm
+                title="确认取消这个同步任务？运行中的任务会在当前子任务结束后停止。"
+                @confirm="cancelSyncJob(record)"
+              >
+                <Button
+                  danger
+                  size="small"
+                  :disabled="!record.can_cancel || !canRunCloudDanger"
+                  :loading="isSyncJobCancelling(record.id)"
+                >
+                  取消
+                </Button>
+              </Popconfirm>
               <Button
                 size="small"
                 :disabled="!record.is_terminal || !canRunCloudDanger"
@@ -3175,11 +3299,38 @@ onBeforeUnmount(() => {
             </TypographyParagraph>
             <TypographyParagraph
               v-if="(record.logs || []).length > 0"
-              class="!mb-0 whitespace-pre-wrap break-all font-mono text-xs leading-5"
+              class="!mb-2 whitespace-pre-wrap break-all font-mono text-xs leading-5"
               :ellipsis="{ rows: 8, expandable: true, symbol: '展开日志' }"
             >
               {{ (record.logs || []).join('\n') }}
             </TypographyParagraph>
+            <div v-if="(record.events || []).length > 0" class="sync-job-events">
+              <div
+                v-for="event in record.events || []"
+                :key="`${record.id}-event-${event.id}`"
+                class="sync-job-event-row"
+              >
+                <Tag :color="syncJobEventColor(event.event_type)">
+                  {{ event.event_type_label || event.event_type }}
+                </Tag>
+                <span class="sync-job-event-time">
+                  {{ formatTime(event.created_at) }}
+                </span>
+                <span class="sync-job-event-message">
+                  {{ syncJobEventSummary(event) }}
+                </span>
+                <span v-if="event.worker_id" class="sync-job-event-worker">
+                  {{ event.worker_id }}
+                </span>
+                <TypographyParagraph
+                  v-if="compactJson(event.payload)"
+                  class="!mb-0 ml-1 max-w-full whitespace-pre-wrap break-all font-mono text-xs leading-5"
+                  :ellipsis="{ rows: 3, expandable: true, symbol: '展开载荷' }"
+                >
+                  {{ compactJson(event.payload) }}
+                </TypographyParagraph>
+              </div>
+            </div>
           </div>
         </template>
       </Table>

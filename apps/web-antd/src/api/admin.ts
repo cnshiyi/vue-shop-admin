@@ -1524,6 +1524,7 @@ export interface DashboardCloudAssetsSyncResult {
   aliyun_region?: string;
   aws_region?: string;
   aws_regions?: string[];
+  cancelled?: boolean;
   errors?: string[];
   job?: DashboardCloudAssetSyncJob;
   job_id?: number;
@@ -1558,9 +1559,14 @@ export interface DashboardCloudAssetSyncTask {
 export interface DashboardCloudAssetSyncJob {
   account_ids?: number[];
   asset_ids?: number[];
+  can_cancel?: boolean;
+  cancel_requested_at?: null | string;
+  cancel_requested_by_id?: null | number;
+  cancelled?: boolean;
   created_at?: null | string;
   current_task?: string;
   errors?: string[];
+  events?: DashboardCloudAssetSyncJobEvent[];
   finished_at?: null | string;
   id: number;
   is_terminal?: boolean;
@@ -1581,6 +1587,21 @@ export interface DashboardCloudAssetSyncJob {
   tasks?: DashboardCloudAssetSyncTask[];
   updated_at?: null | string;
   warnings?: string[];
+  worker_heartbeat_at?: null | string;
+  worker_id?: string;
+}
+
+export interface DashboardCloudAssetSyncJobEvent {
+  actor_id?: null | number;
+  created_at?: null | string;
+  event_type: string;
+  event_type_label?: string;
+  id: number;
+  message?: string;
+  payload?: Record<string, any>;
+  status_from?: string;
+  status_to?: string;
+  worker_id?: string;
 }
 
 export async function syncDashboardCloudAssetsApi(
@@ -1654,6 +1675,7 @@ export async function getDashboardCloudAssetSyncJobApi(jobId: number) {
 
 export async function getDashboardCloudAssetSyncJobsApi(
   params: Pick<DashboardListQuery, 'page' | 'page_size'> & {
+    failed_only?: boolean | number | string;
     status?: string;
   } = {},
 ) {
@@ -1664,6 +1686,12 @@ export async function getDashboardCloudAssetSyncJobsApi(
     total: number;
     total_pages?: number;
   }>('/admin/cloud-assets/sync-jobs/', { params });
+}
+
+export async function cancelDashboardCloudAssetSyncJobApi(jobId: number) {
+  return requestClient.post<DashboardCloudAssetsSyncResult>(
+    `/admin/cloud-assets/sync-jobs/${jobId}/cancel/`,
+  );
 }
 
 export async function retryDashboardCloudAssetSyncJobApi(jobId: number) {
