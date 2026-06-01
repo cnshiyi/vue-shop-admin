@@ -1127,10 +1127,9 @@ async function loadData() {
           risk_status: riskStatus.value,
           ...sortParams,
         });
-    const [syncStatus, firstPage, riskSummary] = await Promise.all([
+    const [syncStatus, firstPage] = await Promise.all([
       getDashboardCloudAssetsSyncStatusApi(),
       assetRequest,
-      getDashboardCloudAssetRiskSummaryApi({ keyword: keywordText }),
     ]);
     if (sequence !== loadSequence) return;
     autoSyncEverySeconds.value = normalizedIntervalSeconds(
@@ -1147,8 +1146,7 @@ async function loadData() {
     lastSkippedSyncTasks.value =
       syncStatus.recent_syncs?.[0]?.skipped_tasks || [];
 
-    const nextRiskCounts =
-      riskSummary.risk_counts || firstPage.risk_counts || {};
+    const nextRiskCounts = firstPage.risk_counts || {};
     riskCounts.value = nextRiskCounts;
     if (!hasRiskCountBreakdown(nextRiskCounts)) {
       await refreshGlobalRiskCounts(keywordText);
