@@ -8,6 +8,7 @@ import type {
   DashboardCloudAssetItem,
   DashboardCloudAssetSyncJob,
   DashboardCloudAssetSyncJobEvent,
+  DashboardCloudAssetSyncJobsMetrics,
   DashboardCloudAssetUpdatePayload,
   DashboardCloudOrderSummaryItem,
   DashboardTelegramGroupFilterItem,
@@ -47,6 +48,7 @@ import {
   getDashboardCloudAssetDetailApi,
   getDashboardCloudAssetRiskSummaryApi,
   getDashboardCloudAssetSyncJobApi,
+  getDashboardCloudAssetSyncJobMetricsApi,
   getDashboardCloudAssetSyncJobsApi,
   getDashboardCloudAssetsGroupedPageApi,
   getDashboardCloudAssetsPageApi,
@@ -77,6 +79,8 @@ const activeSyncJob = ref<DashboardCloudAssetSyncJob | null>(null);
 const syncJobsOpen = ref(false);
 const syncJobsLoading = ref(false);
 const syncJobs = ref<DashboardCloudAssetSyncJob[]>([]);
+const syncJobMetrics = ref<DashboardCloudAssetSyncJobsMetrics | null>(null);
+const syncJobMetricsLoading = ref(false);
 const syncJobsStatusFilter = ref('all');
 const syncJobsFailedOnly = ref(false);
 const syncJobRetryingIds = ref<number[]>([]);
@@ -1091,6 +1095,20 @@ function syncJobEventSummary(event: DashboardCloudAssetSyncJobEvent) {
   return event.event_type;
 }
 
+function formatSyncMetricSeconds(seconds?: number) {
+  const value = Number(seconds || 0);
+  if (!Number.isFinite(value) || value <= 0) return '-';
+  if (value >= 3600) return `${(value / 3600).toFixed(1)}h`;
+  if (value >= 60) return `${(value / 60).toFixed(1)}m`;
+  return `${Math.round(value)}s`;
+}
+
+function formatSyncFailureRate(value?: number) {
+  const rate = Number(value || 0);
+  if (!Number.isFinite(rate) || rate <= 0) return '0%';
+  return `${(rate * 100).toFixed(1)}%`;
+}
+
 function isSyncJobRetrying(jobId?: number | string) {
   const parsedId = Number(jobId || 0);
   return parsedId > 0 && syncJobRetryingIds.value.includes(parsedId);
@@ -1345,14 +1363,30 @@ async function loadSyncJobs(page = syncJobsPagination.page) {
   }
 }
 
+async function loadSyncJobMetrics() {
+  syncJobMetricsLoading.value = true;
+  try {
+    syncJobMetrics.value = await getDashboardCloudAssetSyncJobMetricsApi();
+  } finally {
+    syncJobMetricsLoading.value = false;
+  }
+}
+
 function openSyncJobs() {
   syncJobsOpen.value = true;
   loadSyncJobs(1);
+  loadSyncJobMetrics();
 }
 
 function handleSyncJobsFilterChange() {
   syncJobsPagination.page = 1;
   loadSyncJobs(1);
+}
+
+function openSyncJobDetail(jobId?: number | string) {
+  const parsedId = Number(jobId || 0);
+  if (!parsedId) return;
+  router.push(`/admin/cloud-sync-jobs/${parsedId}`).catch(() => {});
 }
 
 function handleSyncJobsTableChange(pagination: any) {
@@ -1377,6 +1411,7 @@ async function retrySyncJob(job: SyncJobTableRecord) {
       message.success('同步任务已重新入队');
       upsertSyncJobStatus(result.job || null);
       await loadSyncJobs(1);
+      await loadSyncJobMetrics();
       void monitorCloudAssetSyncJob(result.job_id);
     }
   } catch (error: any) {
@@ -1403,6 +1438,7 @@ async function cancelSyncJob(job: SyncJobTableRecord) {
     }
     message.success(result.message || '取消请求已提交');
     await loadSyncJobs(syncJobsPagination.page);
+    await loadSyncJobMetrics();
   } catch (error: any) {
     message.error(error?.message || '取消同步任务失败');
   } finally {
@@ -1477,6 +1513,9 @@ async function loadData() {
     awsExistingCount.value = syncStatus.aws_existing_count || 0;
     aliyunExistingCount.value = syncStatus.aliyun_existing_count || 0;
     unattachedIpCount.value = syncStatus.unattached_ip_count || 0;
+    if (syncStatus.metrics) {
+      syncJobMetrics.value = syncStatus.metrics;
+    }
     const latestCompletedJob = syncStatus.recent_jobs?.find(
       (job) => job.is_terminal,
     );
@@ -3151,6 +3190,39 @@ onBeforeUnmount(() => {
       title="同步任务"
       width="min(860px, 100vw)"
     >
+      <div class="sync-job-metrics">
+        <div class="sync-job-metric">
+          <span>活动</span>
+          <strong>{{ syncJobMetrics?.active_count ?? 0 }}</strong>
+        </div>
+        <div class="sync-job-metric">
+          <span>排队/运行</span>
+          <strong>
+            {{ syncJobMetrics?.queued_count ?? 0 }}/{{
+              syncJobMetrics?.running_count ?? 0
+            }}
+          </strong>
+        </div>
+        <div class="sync-job-metric">
+          <span>近24h失败</span>
+          <strong>
+            {{ syncJobMetrics?.recent_failed ?? 0 }}/{{
+              syncJobMetrics?.recent_total ?? 0
+            }}
+          </strong>
+          <small>{{ formatSyncFailureRate(syncJobMetrics?.recent_failure_rate) }}</small>
+        </div>
+        <div class="sync-job-metric">
+          <span>P95耗时</span>
+          <strong>{{
+            formatSyncMetricSeconds(syncJobMetrics?.p95_duration_seconds)
+          }}</strong>
+        </div>
+        <div class="sync-job-metric">
+          <span>卡住</span>
+          <strong>{{ syncJobMetrics?.stale_running_count ?? 0 }}</strong>
+        </div>
+      </div>
       <Space class="mb-3" wrap>
         <Select
           v-model:value="syncJobsStatusFilter"
@@ -3167,6 +3239,13 @@ onBeforeUnmount(() => {
         />
         <Button size="small" :loading="syncJobsLoading" @click="loadSyncJobs()">
           刷新
+        </Button>
+        <Button
+          size="small"
+          :loading="syncJobMetricsLoading"
+          @click="loadSyncJobMetrics()"
+        >
+          刷新指标
         </Button>
       </Space>
       <Table
@@ -3242,6 +3321,9 @@ onBeforeUnmount(() => {
           </template>
           <template v-else-if="column.key === 'actions'">
             <Space :size="4">
+              <Button size="small" @click="openSyncJobDetail(record.id)">
+                详情
+              </Button>
               <Popconfirm
                 title="确认取消这个同步任务？运行中的任务会在当前子任务结束后停止。"
                 @confirm="cancelSyncJob(record)"
@@ -3806,6 +3888,36 @@ onBeforeUnmount(() => {
   padding: 8px 12px !important;
 }
 
+.sync-job-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.sync-job-metric {
+  min-width: 0;
+  padding: 8px 10px;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.sync-job-metric span,
+.sync-job-metric small {
+  display: block;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.sync-job-metric strong {
+  display: block;
+  color: #111827;
+  font-size: 18px;
+  line-height: 24px;
+}
+
 .detail-log-list {
   border-top: 1px solid #f0f0f0;
 }
@@ -3820,6 +3932,12 @@ onBeforeUnmount(() => {
   background: #fafafa;
   border: 1px solid #f0f0f0;
   border-radius: 6px;
+}
+
+@media (max-width: 900px) {
+  .sync-job-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .collapsed-note {

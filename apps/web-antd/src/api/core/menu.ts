@@ -7,6 +7,8 @@ const routeComponentMap: Record<string, string> = {
   DashboardCloudAssetDetail: '/views/dashboard/cloud-assets/detail.vue',
   DashboardCloudAssets: '/views/dashboard/cloud-assets/index.vue',
   DashboardCloudAccounts: '/views/dashboard/settings/cloud-accounts.vue',
+  DashboardCloudSyncJobDetail:
+    '/views/dashboard/cloud-sync-jobs/detail.vue',
   DashboardCloudOrderDetail: '/views/dashboard/cloud-orders/detail.vue',
   DashboardCloudOrderRenewals: '/views/dashboard/tasks/auto-renew-detail.vue',
   DashboardCloudOrdersList: '/views/dashboard/cloud-orders/index.vue',

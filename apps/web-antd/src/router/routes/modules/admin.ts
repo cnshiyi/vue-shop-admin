@@ -97,6 +97,15 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        name: 'DashboardCloudSyncJobDetail',
+        path: 'cloud-sync-jobs/:id',
+        component: () => import('#/views/dashboard/cloud-sync-jobs/detail.vue'),
+        meta: {
+          hideInMenu: true,
+          title: '同步任务详情',
+        },
+      },
+      {
         name: 'DashboardServers',
         path: 'servers',
         component: () => import('#/views/dashboard/servers/index.vue'),

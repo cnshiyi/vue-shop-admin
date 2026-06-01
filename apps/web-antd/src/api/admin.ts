@@ -1604,6 +1604,30 @@ export interface DashboardCloudAssetSyncJobEvent {
   worker_id?: string;
 }
 
+export interface DashboardCloudAssetSyncJobsMetrics {
+  active_count: number;
+  avg_duration_seconds: number;
+  cancelled_count: number;
+  duration_sample_size: number;
+  event_counts: Record<string, number>;
+  failed_count: number;
+  generated_at?: null | string;
+  latest_failed_job?: DashboardCloudAssetSyncJob | null;
+  max_duration_seconds: number;
+  p95_duration_seconds: number;
+  partial_count: number;
+  queued_count: number;
+  recent_failed: number;
+  recent_failure_rate: number;
+  recent_status_counts: Record<string, number>;
+  recent_total: number;
+  running_count: number;
+  stale_running_count: number;
+  status_counts: Record<string, number>;
+  succeeded_count: number;
+  window_hours: number;
+}
+
 export async function syncDashboardCloudAssetsApi(
   region = 'cn-hongkong',
   awsRegion = 'all',
@@ -1627,6 +1651,7 @@ export interface DashboardCloudAssetsSyncStatus {
   auto_sync_every_seconds: number;
   aws_existing_count: number;
   last_synced_at: null | string;
+  metrics?: DashboardCloudAssetSyncJobsMetrics;
   recent_jobs?: DashboardCloudAssetSyncJob[];
   recent_syncs?: Array<{
     created_at?: null | string;
@@ -1686,6 +1711,13 @@ export async function getDashboardCloudAssetSyncJobsApi(
     total: number;
     total_pages?: number;
   }>('/admin/cloud-assets/sync-jobs/', { params });
+}
+
+export async function getDashboardCloudAssetSyncJobMetricsApi(params = {}) {
+  return requestClient.get<DashboardCloudAssetSyncJobsMetrics>(
+    '/admin/cloud-assets/sync-jobs/metrics/',
+    { params },
+  );
 }
 
 export async function cancelDashboardCloudAssetSyncJobApi(jobId: number) {
