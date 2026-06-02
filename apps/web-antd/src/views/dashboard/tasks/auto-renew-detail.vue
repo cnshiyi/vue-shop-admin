@@ -61,8 +61,8 @@ const dueColumns = [
   { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 190 },
   {
     title: '到期时间',
-    dataIndex: 'service_expires_at',
-    key: 'service_expires_at',
+    dataIndex: 'actual_expires_at',
+    key: 'actual_expires_at',
     width: 180,
   },
   {
@@ -123,8 +123,8 @@ const historyColumns = [
   },
   {
     title: '续费后到期',
-    dataIndex: 'service_expires_at',
-    key: 'service_expires_at',
+    dataIndex: 'actual_expires_at',
+    key: 'actual_expires_at',
     width: 180,
   },
   { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 180 },
@@ -184,7 +184,7 @@ function normalizeDueItem(
       item.related_path,
       orderId ? `/admin/cloud-orders/${orderId}` : '',
     ),
-    service_expires_at: item.service_expires_at || null,
+    actual_expires_at: item.actual_expires_at || null,
     status: asText(item.status),
     status_label: asText(item.status_label, '-'),
     suspend_at: item.suspend_at || null,
@@ -223,7 +223,7 @@ function normalizeHistoryItem(
       orderId ? `/admin/cloud-orders/${orderId}` : '',
     ),
     result_label: asText(item.result_label, item.is_success ? '成功' : '失败'),
-    service_expires_at: item.service_expires_at || null,
+    actual_expires_at: item.actual_expires_at || null,
     tg_user_id: Number(item.tg_user_id || 0) || null,
     user_display_name: asText(item.user_display_name, '未绑定用户'),
     user_id: Number(item.user_id || 0) || null,
@@ -681,10 +681,10 @@ onMounted(loadData);
               {{ fmtValue((record as DashboardAutoRenewTaskDueItem).balance) }}
               USDT
             </template>
-            <template v-else-if="column.key === 'service_expires_at'">
+            <template v-else-if="column.key === 'actual_expires_at'">
               {{
                 fmtTime(
-                  (record as DashboardAutoRenewTaskDueItem).service_expires_at,
+                  (record as DashboardAutoRenewTaskDueItem).actual_expires_at,
                 )
               }}
             </template>
@@ -788,10 +788,10 @@ onMounted(loadData);
               {{ fmtValue((record as DashboardAutoRenewTaskDueItem).balance) }}
               USDT
             </template>
-            <template v-else-if="column.key === 'service_expires_at'">
+            <template v-else-if="column.key === 'actual_expires_at'">
               {{
                 fmtTime(
-                  (record as DashboardAutoRenewTaskDueItem).service_expires_at,
+                  (record as DashboardAutoRenewTaskDueItem).actual_expires_at,
                 )
               }}
             </template>
@@ -876,11 +876,11 @@ onMounted(loadData);
                 fmtBalanceChange(record as DashboardAutoRenewTaskHistoryItem)
               }}</span>
             </template>
-            <template v-else-if="column.key === 'service_expires_at'">
+            <template v-else-if="column.key === 'actual_expires_at'">
               {{
                 fmtTime(
                   (record as DashboardAutoRenewTaskHistoryItem)
-                    .service_expires_at,
+                    .actual_expires_at,
                 )
               }}
             </template>

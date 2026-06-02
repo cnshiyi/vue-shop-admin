@@ -90,8 +90,8 @@ const dueColumns = [
   { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 190 },
   {
     title: '服务到期',
-    dataIndex: 'service_expires_at',
-    key: 'service_expires_at',
+    dataIndex: 'actual_expires_at',
+    key: 'actual_expires_at',
     width: 180,
   },
   { title: '关机时间', dataIndex: 'suspend_at', key: 'suspend_at', width: 180 },
@@ -280,7 +280,7 @@ function planTimeValue(record: any) {
     record?.delete_at ||
     record?.next_run_at ||
     record?.suspend_at ||
-    record?.service_expires_at ||
+    record?.actual_expires_at ||
     record?.logged_at ||
     '';
   const parsed = dayjs(raw);
@@ -292,7 +292,7 @@ function planTimeBucket(record: any) {
     record?.delete_at ||
     record?.next_run_at ||
     record?.suspend_at ||
-    record?.service_expires_at ||
+    record?.actual_expires_at ||
     '';
   const parsed = dayjs(raw);
   return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm') : '';
@@ -815,7 +815,7 @@ onMounted(() => {
             </template>
             <template
               v-else-if="
-                ['service_expires_at', 'suspend_at', 'delete_at'].includes(
+                ['actual_expires_at', 'suspend_at', 'delete_at'].includes(
                   String(column.key),
                 )
               "
@@ -1321,7 +1321,7 @@ onMounted(() => {
             </template>
             <template
               v-else-if="
-                ['executed_at', 'service_expires_at', 'suspend_at'].includes(
+                ['executed_at', 'actual_expires_at', 'suspend_at'].includes(
                   String(column.key),
                 )
               "

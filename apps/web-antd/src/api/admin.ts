@@ -78,7 +78,7 @@ export interface DashboardShutdownLog {
   account_label?: string;
   user_display_name?: string;
   username_label?: string;
-  service_expires_at: null | string;
+  actual_expires_at: null | string;
   status: string;
   status_label?: string;
   suspend_at: null | string;
@@ -119,7 +119,7 @@ export interface DashboardUnattachedIpDeletePlan {
   quality_label?: string;
   resource_state?: string;
   resource_state_label?: string;
-  service_expires_at?: null | string;
+  actual_expires_at?: null | string;
   shutdown_enabled?: boolean;
   should_execute?: boolean;
   state_summary?: string;
@@ -181,7 +181,7 @@ export interface DashboardCloudOrderItem {
   region_label?: string;
   region_name: string;
   server_name?: null | string;
-  service_expires_at?: null | string;
+  actual_expires_at?: null | string;
   status: string;
   status_label?: string;
   suspend_at?: null | string;
@@ -220,7 +220,7 @@ export interface DashboardCloudOrderDetail extends DashboardCloudOrderItem {
   region_label?: string;
   renew_grace_expires_at: null | string;
   server_name: null | string;
-  service_expires_at: null | string;
+  actual_expires_at: null | string;
   service_started_at: null | string;
   static_ip_name: null | string;
   suspend_at: null | string;
@@ -297,7 +297,7 @@ export interface DashboardCloudOrderSummaryItem {
   public_ip?: null | string;
   previous_public_ip?: null | string;
   replacement_for_id?: null | number;
-  service_expires_at?: null | string;
+  actual_expires_at?: null | string;
   service_started_at?: null | string;
   status: string;
   status_label?: string;
@@ -378,7 +378,6 @@ export interface DashboardCloudAssetDetail extends DashboardCloudAssetItem {
   provision_note?: null | string;
   related_order?: DashboardCloudOrderSummaryItem | null;
   renew_grace_expires_at?: null | string;
-  service_expires_at?: null | string;
   service_started_at?: null | string;
   suspend_at?: null | string;
 }
@@ -682,7 +681,7 @@ export interface DashboardNoticePlanItem {
   queue_status_label?: string;
   related_path: string;
   retry_label: string;
-  service_expires_at: null | string;
+  actual_expires_at: null | string;
   status: string;
   status_label?: string;
   suspend_at: null | string;
@@ -795,7 +794,7 @@ export interface DashboardAutoRenewTaskDueItem {
   queue_status?: string;
   queue_status_label?: string;
   related_path: string;
-  service_expires_at: null | string;
+  actual_expires_at: null | string;
   status: string;
   status_label?: string;
   suspend_at: null | string;
@@ -822,7 +821,7 @@ export interface DashboardAutoRenewTaskHistoryItem {
   provider_label?: string;
   related_path: string;
   result_label: string;
-  service_expires_at: null | string;
+  actual_expires_at: null | string;
   tg_user_id: null | number;
   user_display_name: string;
   user_id: null | number;
@@ -883,7 +882,7 @@ export interface DashboardShutdownPlanItem {
   related_path: string;
   resource_state?: string;
   resource_state_label?: string;
-  service_expires_at: null | string;
+  actual_expires_at: null | string;
   shutdown_enabled?: boolean;
   should_execute?: boolean;
   state_summary?: string;
@@ -912,7 +911,7 @@ export interface DashboardShutdownPlanHistoryItem {
   provider_label?: string;
   related_path: string;
   result_label: string;
-  service_expires_at: null | string;
+  actual_expires_at: null | string;
   suspend_at: null | string;
   tg_user_id: null | number;
   user_display_name: string;
@@ -1881,7 +1880,7 @@ export interface DashboardCloudOrderUpdatePayload {
   provision_note?: null | string;
   public_ip?: null | string;
   server_name?: null | string;
-  service_expires_at?: null | string;
+  actual_expires_at?: null | string;
   status?: string;
   suspend_at?: null | string;
   total_amount?: null | string;

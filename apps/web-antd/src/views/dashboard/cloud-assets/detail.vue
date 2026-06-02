@@ -494,7 +494,7 @@ onMounted(loadData);
                 {{ empty(detail.related_order.public_ip) }}
               </Descriptions.Item>
               <Descriptions.Item label="服务到期">
-                {{ formatExpiryTime(detail.related_order.service_expires_at) }}
+                {{ formatExpiryTime(detail.related_order.actual_expires_at) }}
               </Descriptions.Item>
             </Descriptions>
           </template>
@@ -537,7 +537,7 @@ onMounted(loadData);
               >
                 <div>公网 IP：{{ empty(item.public_ip) }}</div>
                 <div>IP 变更：{{ empty(historyOrderIpChange(item)) }}</div>
-                <div>到期：{{ formatExpiryTime(item.service_expires_at) }}</div>
+                <div>到期：{{ formatExpiryTime(item.actual_expires_at) }}</div>
                 <div>创建：{{ formatTime(item.created_at) }}</div>
               </div>
             </div>

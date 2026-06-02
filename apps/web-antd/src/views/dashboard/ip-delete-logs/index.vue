@@ -65,8 +65,8 @@ const columns: TableColumnsType<DashboardUnattachedIpDeletePlan> = [
   },
   {
     title: '服务到期/发现时间',
-    dataIndex: 'service_expires_at',
-    key: 'service_expires_at',
+    dataIndex: 'actual_expires_at',
+    key: 'actual_expires_at',
     width: 190,
   },
   { title: 'IP删除时间', dataIndex: 'delete_at', key: 'delete_at', width: 190 },
@@ -179,8 +179,8 @@ onMounted(loadData);
               {{ record.provider_status || '未附加IP' }}
             </Tag>
           </template>
-          <template v-else-if="column.key === 'service_expires_at'">
-            {{ formatTime(record.service_expires_at) }}
+          <template v-else-if="column.key === 'actual_expires_at'">
+            {{ formatTime(record.actual_expires_at) }}
           </template>
           <template v-else-if="column.key === 'delete_at'">
             <Tag :color="deleteColor(record)">

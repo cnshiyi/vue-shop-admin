@@ -370,7 +370,7 @@ onMounted(loadData);
             {{ empty(detail.service_started_at) }}
           </Descriptions.Item>
           <Descriptions.Item label="服务到期时间">
-            {{ empty(detail.service_expires_at) }}
+            {{ empty(detail.actual_expires_at) }}
           </Descriptions.Item>
           <Descriptions.Item label="续费宽限到期">
             {{ empty(detail.renew_grace_expires_at) }}

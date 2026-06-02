@@ -159,8 +159,8 @@ onMounted(loadOverview);
                 >
                   <span>
                     到期：
-                    <Tag :color="expiryColor(item.service_expires_at)">
-                      {{ formatTime(item.service_expires_at) }}
+                    <Tag :color="expiryColor(item.actual_expires_at)">
+                      {{ formatTime(item.actual_expires_at) }}
                     </Tag>
                   </span>
                   <span>
@@ -214,8 +214,8 @@ onMounted(loadOverview);
                   class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm leading-8"
                 >
                   <span>过期时间：</span>
-                  <Tag :color="expiryColor(item.service_expires_at)">
-                    {{ formatTime(item.service_expires_at) }}
+                  <Tag :color="expiryColor(item.actual_expires_at)">
+                    {{ formatTime(item.actual_expires_at) }}
                   </Tag>
                   <span>删除时间：</span>
                   <Tag :color="expiryColor(item.delete_at)">

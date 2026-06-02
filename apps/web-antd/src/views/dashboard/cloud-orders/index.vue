@@ -46,7 +46,7 @@ const editForm = reactive({
   provision_note: '',
   public_ip: '',
   server_name: '',
-  service_expires_at: null as any,
+  actual_expires_at: null as any,
   status: '',
   suspend_at: null as any,
   total_amount: '',
@@ -212,8 +212,8 @@ function openEdit(record: DashboardCloudOrderItem) {
   editForm.total_amount = record.total_amount || '';
   editForm.pay_amount = record.pay_amount || '';
   editForm.status = record.status || '';
-  editForm.service_expires_at = (record as any).service_expires_at
-    ? dayjs((record as any).service_expires_at)
+  editForm.actual_expires_at = (record as any).actual_expires_at
+    ? dayjs((record as any).actual_expires_at)
     : null;
   editForm.suspend_at = (record as any).suspend_at
     ? dayjs((record as any).suspend_at)
@@ -236,8 +236,8 @@ async function saveEdit() {
       provision_note: editForm.provision_note || null,
       public_ip: editForm.public_ip || null,
       server_name: editForm.server_name || null,
-      service_expires_at: editForm.service_expires_at
-        ? editForm.service_expires_at.toISOString()
+      actual_expires_at: editForm.actual_expires_at
+        ? editForm.actual_expires_at.toISOString()
         : null,
       status: editForm.status,
       suspend_at: editForm.suspend_at
@@ -414,7 +414,7 @@ async function deleteOrder(record: DashboardCloudOrderItem) {
         </Form.Item>
         <Form.Item label="服务到期时间">
           <DatePicker
-            v-model:value="editForm.service_expires_at"
+            v-model:value="editForm.actual_expires_at"
             show-time
             class="w-full"
           />
