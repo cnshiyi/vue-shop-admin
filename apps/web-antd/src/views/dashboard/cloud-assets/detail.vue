@@ -16,17 +16,22 @@ import {
   Empty,
   message,
   Space,
+  Switch,
   Table,
   Tag,
   Typography,
 } from 'ant-design-vue';
 import dayjs from 'dayjs';
 
-import { getDashboardCloudAssetDetailApi } from '#/api/admin';
+import {
+  getDashboardCloudAssetDetailApi,
+  updateDashboardCloudAssetApi,
+} from '#/api/admin';
 
 const route = useRoute();
 const router = useRouter();
 const loading = ref(false);
+const shutdownSaving = ref(false);
 const detail = ref<DashboardCloudAssetDetail | null>(null);
 const expandedLifecycleRows = ref<Record<string, boolean>>({});
 
@@ -123,6 +128,25 @@ async function loadData() {
 
 function goBack() {
   router.push('/admin/cloud-assets').catch(() => {});
+}
+
+async function toggleShutdownEnabled(checked: boolean) {
+  if (!detail.value || shutdownSaving.value) return;
+  shutdownSaving.value = true;
+  try {
+    const result = await updateDashboardCloudAssetApi(detail.value.id, {
+      shutdown_enabled: checked,
+    });
+    detail.value.shutdown_enabled = Boolean(result.shutdown_enabled);
+    detail.value.risk_status = result.risk_status;
+    detail.value.risk_statuses = result.risk_statuses;
+    detail.value.risk_reasons = result.risk_reasons;
+    message.success(`关机计划已${result.shutdown_enabled ? '开启' : '关闭'}`);
+  } catch (error: any) {
+    message.error(error?.message || '关机计划切换失败');
+  } finally {
+    shutdownSaving.value = false;
+  }
 }
 
 const canOpenOrder = Boolean;
@@ -360,6 +384,15 @@ onMounted(loadData);
           </Descriptions.Item>
           <Descriptions.Item label="到期时间">
             {{ formatExpiryTime(detail.actual_expires_at) }}
+          </Descriptions.Item>
+          <Descriptions.Item label="关机计划">
+            <Switch
+              :checked="detail.shutdown_enabled !== false"
+              :loading="shutdownSaving"
+              checked-children="开"
+              un-checked-children="关"
+              @change="(checked) => toggleShutdownEnabled(Boolean(checked))"
+            />
           </Descriptions.Item>
           <Descriptions.Item label="同步状态">
             {{ empty(detail.provider_status) }}

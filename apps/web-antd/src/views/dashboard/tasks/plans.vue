@@ -37,6 +37,7 @@ import {
   getDashboardSiteConfigGroupsApi,
   initDashboardSiteConfigsApi,
   refreshDashboardLifecyclePlansApi,
+  updateDashboardCloudAssetApi,
   updateDashboardLifecyclePlanNoteApi,
   updateDashboardSiteConfigApi,
 } from '#/api/admin';
@@ -64,6 +65,7 @@ const notePreviewTitle = ref('备注详情');
 const notePreviewValue = ref('');
 const actionSwitchItems = ref<DashboardCloudActionSwitchItem[]>([]);
 const actionSwitchSavingMap = reactive<Record<string, boolean>>({});
+const assetShutdownSavingMap = reactive<Record<string, boolean>>({});
 
 const CLOUD_ACTION_SWITCHES = [
   {
@@ -105,6 +107,12 @@ const dueColumns = [
     dataIndex: 'plan_state_label',
     key: 'plan_state_label',
     width: 160,
+  },
+  {
+    title: '关机计划',
+    dataIndex: 'shutdown_enabled',
+    key: 'shutdown_enabled',
+    width: 120,
   },
   {
     title: '执行状态',
@@ -203,6 +211,12 @@ const ipDeleteColumns = [
     dataIndex: 'plan_state_label',
     key: 'plan_state_label',
     width: 160,
+  },
+  {
+    title: '关机计划',
+    dataIndex: 'shutdown_enabled',
+    key: 'shutdown_enabled',
+    width: 120,
   },
   {
     title: '删除来源',
@@ -505,6 +519,32 @@ async function toggleActionSwitch(
     message.error(error?.message || `${item.label}切换失败`);
   } finally {
     actionSwitchSavingMap[item.key] = false;
+  }
+}
+
+async function toggleAssetShutdown(
+  record: DashboardShutdownPlanItem | DashboardUnattachedIpDeletePlan,
+  checked: boolean,
+) {
+  const assetId = Number((record as any).asset_id || (record as any).id || 0);
+  if (!assetId) {
+    message.error('缺少资产 ID，无法切换关机计划');
+    return;
+  }
+  const key = String(assetId);
+  assetShutdownSavingMap[key] = true;
+  try {
+    const result = await updateDashboardCloudAssetApi(assetId, {
+      shutdown_enabled: checked,
+    });
+    (record as any).shutdown_enabled = Boolean(result.shutdown_enabled);
+    message.success(`关机计划已${result.shutdown_enabled ? '开启' : '关闭'}`);
+    await loadData({ silent: true });
+  } catch (error: any) {
+    (record as any).shutdown_enabled = !checked;
+    message.error(error?.message || '关机计划切换失败');
+  } finally {
+    assetShutdownSavingMap[key] = false;
   }
 }
 
@@ -858,6 +898,28 @@ onMounted(() => {
                 </Button>
               </div>
             </template>
+            <template v-else-if="column.key === 'shutdown_enabled'">
+              <Switch
+                :checked="
+                  (record as DashboardShutdownPlanItem).shutdown_enabled !==
+                  false
+                "
+                :loading="
+                  assetShutdownSavingMap[
+                    String((record as DashboardShutdownPlanItem).asset_id || '')
+                  ]
+                "
+                checked-children="开"
+                un-checked-children="关"
+                @change="
+                  (checked) =>
+                    toggleAssetShutdown(
+                      record as DashboardShutdownPlanItem,
+                      Boolean(checked),
+                    )
+                "
+              />
+            </template>
             <template v-else-if="column.key === 'execution_status'">
               <div>
                 <TypographyParagraph
@@ -1076,6 +1138,32 @@ onMounted(() => {
                     .deletion_source_label || '-'
                 }}
               </Tag>
+            </template>
+            <template v-else-if="column.key === 'shutdown_enabled'">
+              <Switch
+                :checked="
+                  (record as DashboardUnattachedIpDeletePlan)
+                    .shutdown_enabled !== false
+                "
+                :loading="
+                  assetShutdownSavingMap[
+                    String(
+                      (record as DashboardUnattachedIpDeletePlan).asset_id ||
+                        (record as DashboardUnattachedIpDeletePlan).id ||
+                        '',
+                    )
+                  ]
+                "
+                checked-children="开"
+                un-checked-children="关"
+                @change="
+                  (checked) =>
+                    toggleAssetShutdown(
+                      record as DashboardUnattachedIpDeletePlan,
+                      Boolean(checked),
+                    )
+                "
+              />
             </template>
             <template v-else-if="column.key === 'delete_at'">
               <Tag

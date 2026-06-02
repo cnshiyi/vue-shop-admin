@@ -120,6 +120,7 @@ export interface DashboardUnattachedIpDeletePlan {
   resource_state?: string;
   resource_state_label?: string;
   service_expires_at?: null | string;
+  shutdown_enabled?: boolean;
   should_execute?: boolean;
   state_summary?: string;
   user_display_name?: string;
@@ -883,6 +884,7 @@ export interface DashboardShutdownPlanItem {
   resource_state?: string;
   resource_state_label?: string;
   service_expires_at: null | string;
+  shutdown_enabled?: boolean;
   should_execute?: boolean;
   state_summary?: string;
   status: string;
@@ -1803,6 +1805,7 @@ export interface DashboardCloudAssetUpdatePayload {
   note?: null | string;
   price?: null | string;
   public_ip?: null | string;
+  shutdown_enabled?: boolean;
   sort_order?: number;
   telegram_group_id?: null | number;
   telegram_group_query?: null | string;
