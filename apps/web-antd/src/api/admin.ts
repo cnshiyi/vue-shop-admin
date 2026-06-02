@@ -958,7 +958,6 @@ export interface DashboardCloudAccountConfigItem {
   external_account_id?: string;
   id: number;
   is_active: boolean;
-  shutdown_enabled: boolean;
   last_checked_at?: null | string;
   name: string;
   provider: string;
@@ -1026,7 +1025,6 @@ export interface DashboardCloudAccountCreatePayload {
   access_key: string;
   external_account_id?: string;
   is_active: boolean;
-  shutdown_enabled?: boolean;
   name: string;
   provider: string;
   region_hint?: null | string;
