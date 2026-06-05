@@ -153,7 +153,7 @@ const detailOpen = ref(false);
 const detailLoading = ref(false);
 const detailRow = ref<DashboardCloudAssetDetail | null>(null);
 const expandedLifecycleRows = ref<Record<string, boolean>>({});
-const columnView = ref<'cloud' | 'ip' | 'ops'>('cloud');
+const columnView = ref<'cloud' | 'ip' | 'ops'>('ip');
 const formState = reactive({
   actual_expires_at: null as any,
   is_active: true,

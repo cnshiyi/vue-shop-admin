@@ -1499,6 +1499,7 @@ export async function getDashboardCloudAssetsApi(
 ) {
   return requestClient.get<DashboardCloudAssetItem[]>('/admin/cloud-assets/', {
     params,
+    timeout: 120_000,
   });
 }
 
@@ -1509,6 +1510,7 @@ export async function getDashboardCloudAssetsPageApi(
     '/admin/cloud-assets/',
     {
       params: { ...params, paginated: 1 },
+      timeout: 120_000,
     },
   );
 }
@@ -1520,6 +1522,7 @@ export async function getDashboardCloudAssetsGroupedApi(
     '/admin/cloud-assets/',
     {
       params: { ...params, grouped: 1 },
+      timeout: 120_000,
     },
   );
 }
@@ -1531,6 +1534,7 @@ export async function getDashboardCloudAssetsGroupedPageApi(
     '/admin/cloud-assets/',
     {
       params: { ...params, grouped: 1, paginated: 1 },
+      timeout: 120_000,
     },
   );
 }

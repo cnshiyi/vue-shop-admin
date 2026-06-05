@@ -84,7 +84,7 @@ const CLOUD_ACTION_SWITCHES = [
 ];
 
 const fieldSwitchItems = [
-  { key: 'ip', label: 'IP' },
+  { key: 'ip', label: '服务器IP' },
   { key: 'public_ip', label: 'IP' },
   { key: 'asset_name', label: '固定IP/资产' },
   { key: 'user_display_name', label: '用户' },
