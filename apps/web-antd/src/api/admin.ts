@@ -2,6 +2,7 @@ import { requestClient } from '#/api/request';
 
 interface DashboardListQuery {
   archived?: 0 | 1;
+  compact?: 0 | 1;
   group_by?: 'telegram_group' | 'user';
   grouped?: 0 | 1;
   keyword?: string;
@@ -1268,14 +1269,13 @@ export async function getDashboardTasksApi() {
 }
 
 export async function getDashboardTaskCenterApi() {
-  return requestClient.get<DashboardTaskCenterOverview>(
-    '/admin/tasks/center/',
-  );
+  return requestClient.get<DashboardTaskCenterOverview>('/admin/tasks/center/');
 }
 
 export async function getDashboardNoticePlanApi(
   params: {
     compact?: 0 | 1;
+    fields?: string;
     future_limit?: number;
     future_offset?: number;
     history_limit?: number;
@@ -1343,7 +1343,7 @@ export async function getDashboardAutoRenewTaskDetailApi(
 }
 
 export async function getDashboardLifecyclePlansApi(
-  params: { compact?: 0 | 1; limit?: number } = {},
+  params: { compact?: 0 | 1; fields?: string; limit?: number } = {},
 ) {
   return requestClient.get<DashboardLifecyclePlansDetail>(
     '/admin/tasks/plans/',

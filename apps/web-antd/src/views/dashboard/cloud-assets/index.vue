@@ -44,17 +44,17 @@ import {
 import dayjs from 'dayjs';
 
 import {
+  cancelDashboardCloudAssetSyncJobApi,
   deleteDashboardCloudAssetApi,
   getDashboardCloudAssetDetailApi,
   getDashboardCloudAssetRiskSummaryApi,
-  getDashboardCloudAssetSyncJobApi,
-  getDashboardCloudAssetSyncJobMetricsApi,
-  getDashboardCloudAssetSyncJobsApi,
   getDashboardCloudAssetsGroupedPageApi,
   getDashboardCloudAssetsPageApi,
   getDashboardCloudAssetsSyncStatusApi,
+  getDashboardCloudAssetSyncJobApi,
+  getDashboardCloudAssetSyncJobMetricsApi,
+  getDashboardCloudAssetSyncJobsApi,
   getDashboardTelegramGroupsApi,
-  cancelDashboardCloudAssetSyncJobApi,
   retryDashboardCloudAssetSyncJobApi,
   syncDashboardCloudAssetsApi,
   syncDashboardCloudAssetStatusApi,
@@ -153,7 +153,7 @@ const detailOpen = ref(false);
 const detailLoading = ref(false);
 const detailRow = ref<DashboardCloudAssetDetail | null>(null);
 const expandedLifecycleRows = ref<Record<string, boolean>>({});
-const columnView = ref<'cloud' | 'ops'>('cloud');
+const columnView = ref<'cloud' | 'ip' | 'ops'>('cloud');
 const formState = reactive({
   actual_expires_at: null as any,
   is_active: true,
@@ -247,12 +247,11 @@ const displayedItems = computed(() =>
     ? items.value
     : items.value.filter((item) => !isDeletedAsset(item)),
 );
-const deletedAssetCount = computed(
-  () =>
-    Number(
-      riskCounts.value.deleted ??
-        items.value.filter((item) => isDeletedAsset(item)).length,
-    ),
+const deletedAssetCount = computed(() =>
+  Number(
+    riskCounts.value.deleted ??
+      items.value.filter((item) => isDeletedAsset(item)).length,
+  ),
 );
 
 function assetDisplayRank(record: DashboardCloudAssetItem) {
@@ -814,6 +813,14 @@ const rowSelection = computed(() => ({
   },
 }));
 
+const assetRowSelection = computed(() =>
+  columnView.value === 'ip' ? undefined : rowSelection.value,
+);
+
+const assetTableScroll = computed(() => ({
+  x: columnView.value === 'ip' ? 980 : 2380,
+}));
+
 function hasRiskCountBreakdown(counts?: Record<string, number>) {
   if (!counts || Number(counts.all || 0) <= 0) {
     return false;
@@ -839,7 +846,7 @@ const riskFilterOptions = computed(() => [
   },
   { label: `异常/待确认 (${riskCountLabel('abnormal')})`, value: 'abnormal' },
   {
-    label: `云账号已停用 (${riskCountLabel('account_disabled')})`,
+    label: `云账号异常 (${riskCountLabel('account_disabled')})`,
     value: 'account_disabled',
   },
   {
@@ -866,6 +873,18 @@ const columns = [
     dataIndex: 'cloud_user_summary',
     key: 'cloud_user_summary',
     width: 220,
+  },
+  {
+    title: '用户',
+    dataIndex: 'ip_user_summary',
+    key: 'ip_user_summary',
+    width: 170,
+  },
+  {
+    title: '分组',
+    dataIndex: 'telegram_group_summary',
+    key: 'telegram_group_summary',
+    width: 180,
   },
   {
     title: '用户',
@@ -942,6 +961,13 @@ const columns = [
     sorter: true,
     width: 130,
   },
+  {
+    title: '到期/剩余',
+    dataIndex: 'ip_expiry_summary',
+    key: 'ip_expiry_summary',
+    sorter: true,
+    width: 170,
+  },
   { title: '备注', dataIndex: 'note', key: 'note', width: 150 },
   {
     title: '自动续费',
@@ -950,12 +976,46 @@ const columns = [
     width: 130,
   },
   { title: '操作', key: 'actions', fixed: 'right' as const, width: 210 },
+  { title: '编辑', key: 'ip_actions', fixed: 'right' as const, width: 90 },
 ];
 
 const columnViewOptions = [
   { label: '操作视图', value: 'ops' },
   { label: '云资源视图', value: 'cloud' },
+  { label: 'IP视图', value: 'ip' },
 ];
+
+const assetColumnVisible = reactive<Record<string, boolean>>({});
+const assetColumnSwitchOptions = [
+  { key: 'cloud_user_summary', label: '用户' },
+  { key: 'ip_user_summary', label: '用户' },
+  { key: 'telegram_group_summary', label: '分组' },
+  { key: 'user_display_name', label: '用户' },
+  { key: 'username_label', label: '用户名' },
+  { key: 'cloud_resource_summary', label: '资源信息' },
+  { key: 'asset_name', label: '资产名称' },
+  { key: 'provider_label', label: '云厂商' },
+  { key: 'instance_id', label: '实例ID' },
+  { key: 'sort_order', label: '排序' },
+  { key: 'region_label', label: '地区' },
+  { key: 'cloud_ip_price', label: 'IP/价格' },
+  { key: 'public_ip', label: '公网IP' },
+  { key: 'price', label: '价格' },
+  { key: 'mtproxy_link', label: '代理链接' },
+  { key: 'status', label: '状态' },
+  { key: 'provider_status', label: '云上状态' },
+  { key: 'status_countdown', label: '剩余天数' },
+  { key: 'actual_expires_at', label: '到期时间' },
+  { key: 'ip_expiry_summary', label: '到期/剩余' },
+  { key: 'note', label: '备注' },
+  { key: 'auto_renew_enabled', label: '自动续费' },
+  { key: 'actions', label: '操作' },
+  { key: 'ip_actions', label: '编辑' },
+] as const;
+
+assetColumnSwitchOptions.forEach((item) => {
+  assetColumnVisible[item.key] = true;
+});
 
 const syncScopeOptions = [
   { label: '同步全部', value: 'all' },
@@ -976,51 +1036,86 @@ function tableColumnSortOrder(key: string): 'ascend' | 'descend' | undefined {
   return undefined;
 }
 
+const assetTableBaseColumns = computed<
+  TableColumnsType<DashboardCloudAssetItem>
+>(() => {
+  const mappedColumns = columns.map((column) => ({
+    ...column,
+    sortOrder: tableColumnSortOrder(column.key),
+  }));
+  const filteredByView = mappedColumns.filter((column) => {
+    if (columnView.value === 'ip') {
+      return [
+        'cloud_ip_price',
+        'ip_actions',
+        'ip_expiry_summary',
+        'ip_user_summary',
+        'telegram_group_summary',
+      ].includes(column.key);
+    }
+    if (columnView.value === 'cloud') {
+      return [
+        'actions',
+        'actual_expires_at',
+        'auto_renew_enabled',
+        'cloud_ip_price',
+        'cloud_resource_summary',
+        'cloud_user_summary',
+        'note',
+        'provider_status',
+        'status',
+        'status_countdown',
+      ].includes(column.key);
+    }
+    if (
+      grouped.value &&
+      groupMode.value === 'telegram_group' &&
+      ['user_display_name', 'username_label'].includes(column.key)
+    ) {
+      return false;
+    }
+    return true;
+  });
+  return filteredByView;
+});
+
+const assetColumnSwitches = computed(() => {
+  const seen = new Set<string>();
+  const keys = new Set(
+    assetTableBaseColumns.value
+      .map((column) => String(column.key || ''))
+      .filter((key) => {
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }),
+  );
+  return assetColumnSwitchOptions.filter((item) => keys.has(item.key));
+});
+
 const assetTableColumns = computed<TableColumnsType<DashboardCloudAssetItem>>(
-  () => {
-    const mappedColumns = columns.map((column) => ({
-      ...column,
-      sortOrder: tableColumnSortOrder(column.key),
-    }));
-    const filteredByView = mappedColumns.filter((column) => {
-      if (columnView.value === 'cloud') {
-        return [
-          'actions',
-          'actual_expires_at',
-          'auto_renew_enabled',
-          'cloud_ip_price',
-          'cloud_resource_summary',
-          'cloud_user_summary',
-          'note',
-          'provider_status',
-          'status',
-          'status_countdown',
-        ].includes(column.key);
-      }
-      if (
-        grouped.value &&
-        groupMode.value === 'telegram_group' &&
-        ['user_display_name', 'username_label'].includes(column.key)
-      ) {
-        return false;
-      }
-      return true;
-    });
-    return filteredByView;
-  },
+  () =>
+    assetTableBaseColumns.value.filter(
+      (column) => assetColumnVisible[String(column.key || '')] !== false,
+    ),
 );
 
-const syncJobTableColumns = computed<TableColumnsType<DashboardCloudAssetSyncJob>>(
-  () => [
-    { dataIndex: 'id', key: 'id', title: '任务', width: 110 },
-    { dataIndex: 'status', key: 'status', title: '状态', width: 130 },
-    { dataIndex: 'scope', key: 'scope', title: '范围', width: 260 },
-    { dataIndex: 'progress', key: 'progress', title: '进度', width: 140 },
-    { dataIndex: 'created_at', key: 'created_at', title: '时间/Worker', width: 240 },
-    { dataIndex: 'errors', key: 'errors', title: '结果', width: 260 },
-    { key: 'actions', title: '操作', width: 160 },
-  ],
-);
+const syncJobTableColumns = computed<
+  TableColumnsType<DashboardCloudAssetSyncJob>
+>(() => [
+  { dataIndex: 'id', key: 'id', title: '任务', width: 110 },
+  { dataIndex: 'status', key: 'status', title: '状态', width: 130 },
+  { dataIndex: 'scope', key: 'scope', title: '范围', width: 260 },
+  { dataIndex: 'progress', key: 'progress', title: '进度', width: 140 },
+  {
+    dataIndex: 'created_at',
+    key: 'created_at',
+    title: '时间/Worker',
+    width: 240,
+  },
+  { dataIndex: 'errors', key: 'errors', title: '结果', width: 260 },
+  { key: 'actions', title: '操作', width: 160 },
+]);
 
 type SyncJobTableRecord = Partial<DashboardCloudAssetSyncJob> &
   Record<string, any>;
@@ -1060,10 +1155,14 @@ function syncJobScopeLabel(job: SyncJobTableRecord) {
   const scope = job.scope || {};
   const providerItems = Array.isArray(job.providers)
     ? job.providers
-    : (Array.isArray(scope.providers) ? scope.providers : []);
+    : (Array.isArray(scope.providers)
+      ? scope.providers
+      : []);
   const providers = providerItems.join(' / ') || 'all';
   const assets = job.asset_ids?.length ? `${job.asset_ids.length} 条代理` : '';
-  const accounts = job.account_ids?.length ? `${job.account_ids.length} 个账号` : '';
+  const accounts = job.account_ids?.length
+    ? `${job.account_ids.length} 个账号`
+    : '';
   const regions = [scope.aliyun_region, scope.aws_region]
     .filter(Boolean)
     .join(' / ');
@@ -1120,7 +1219,10 @@ function isSyncJobCancelling(jobId?: number | string) {
 }
 
 function compactJson(value: unknown) {
-  if (!value || (typeof value === 'object' && Object.keys(value).length === 0)) {
+  if (
+    !value ||
+    (typeof value === 'object' && Object.keys(value).length === 0)
+  ) {
     return '';
   }
   try {
@@ -1276,7 +1378,7 @@ function applySyncJobSummary(job: DashboardCloudAssetSyncJob | null) {
 function upsertSyncJobStatus(job: DashboardCloudAssetSyncJob | null) {
   if (!job?.id) return;
   const index = syncJobs.value.findIndex((item) => item.id === job.id);
-  if (index >= 0) {
+  if (index !== -1) {
     syncJobs.value = [
       ...syncJobs.value.slice(0, index),
       job,
@@ -1305,7 +1407,7 @@ async function pollCloudAssetSyncJob(jobId: number) {
       applySyncJobSummary(job);
       return job;
     }
-    await delay(2_000);
+    await delay(2000);
   }
   throw new Error('同步任务等待超时，请稍后刷新查看结果');
 }
@@ -1463,6 +1565,8 @@ function setRiskStatus(status: string) {
 }
 
 function handleColumnViewChange() {
+  resetListPages();
+  clearSelectedRows();
   loadData();
 }
 
@@ -1479,8 +1583,11 @@ async function loadData() {
   try {
     const keywordText = keyword.value.trim();
     const sortParams = totalSortParams();
+    const compactParams =
+      columnView.value === 'ip' ? { compact: 1 as const } : {};
     const assetRequest = grouped.value
       ? getDashboardCloudAssetsGroupedPageApi({
+          ...compactParams,
           group_by: groupMode.value,
           keyword: keywordText,
           page: groupPagination.page,
@@ -1490,6 +1597,7 @@ async function loadData() {
           ...sortParams,
         })
       : getDashboardCloudAssetsPageApi({
+          ...compactParams,
           group_by: groupMode.value,
           keyword: keywordText,
           page: assetPagination.page,
@@ -1559,8 +1667,7 @@ async function loadData() {
 
     loadProgress.loaded = items.value.length;
     assetPagination.page = firstPage.page || assetPagination.page;
-    assetPagination.pageSize =
-      firstPage.page_size || assetPagination.pageSize;
+    assetPagination.pageSize = firstPage.page_size || assetPagination.pageSize;
     assetPagination.total = firstPage.total || 0;
     groups.value = [];
     expandedGroupKeys.value = [];
@@ -1751,9 +1858,7 @@ async function batchSyncSelectedAssets() {
       message.warning('选中代理同步完成，但存在错误，请查看同步摘要');
       return;
     }
-    message.success(
-      `已按选中代理涉及账号同步 ${selectedCount} 条`,
-    );
+    message.success(`已按选中代理涉及账号同步 ${selectedCount} 条`);
     clearSelectedRows();
   } catch (error: any) {
     logCloudSyncConsole('batch-error', error, true);
@@ -2312,6 +2417,27 @@ onBeforeUnmount(() => {
         </Space>
       </template>
 
+      <div class="asset-field-switches">
+        <span class="asset-field-switch-label">显示列：</span>
+        <Space wrap>
+          <Tag
+            v-for="item in assetColumnSwitches"
+            :key="item.key"
+            :color="assetColumnVisible[item.key] ? 'processing' : 'default'"
+            class="asset-field-switch-tag"
+          >
+            <span>{{ item.label }}</span>
+            <Switch
+              size="small"
+              :checked="assetColumnVisible[item.key]"
+              @change="
+                (checked) => (assetColumnVisible[item.key] = Boolean(checked))
+              "
+            />
+          </Tag>
+        </Space>
+      </div>
+
       <div class="cloud-assets-status-shortcuts">
         <Button
           v-for="option in riskFilterOptions"
@@ -2354,9 +2480,9 @@ onBeforeUnmount(() => {
             :data-source="group.items"
             :loading="loading"
             :pagination="false"
-            :row-selection="rowSelection"
+            :row-selection="assetRowSelection"
             row-key="id"
-            :scroll="{ x: 2380 }"
+            :scroll="assetTableScroll"
             size="small"
             @change="handleAssetTableChange"
           >
@@ -2379,6 +2505,26 @@ onBeforeUnmount(() => {
                   >
                     {{ usernamePipeLabel(asDashboardCloudAssetItem(record)) }}
                   </TypographyParagraph>
+                </Space>
+              </template>
+              <template v-else-if="column.key === 'ip_user_summary'">
+                <Space direction="vertical" :size="2">
+                  <span>{{ record.user_display_name || '未绑定用户' }}</span>
+                  <span class="text-xs text-muted-foreground">
+                    {{ usernamePipeLabel(asDashboardCloudAssetItem(record)) }}
+                  </span>
+                </Space>
+              </template>
+              <template v-else-if="column.key === 'telegram_group_summary'">
+                <Space direction="vertical" :size="2">
+                  <span>{{ record.telegram_group_title || '未绑定群组' }}</span>
+                  <span class="text-xs text-muted-foreground">
+                    {{
+                      record.telegram_group_username
+                        ? `@${record.telegram_group_username}`
+                        : record.telegram_group_chat_id || '-'
+                    }}
+                  </span>
                 </Space>
               </template>
               <template v-else-if="column.key === 'cloud_resource_summary'">
@@ -2651,6 +2797,30 @@ onBeforeUnmount(() => {
                     : '-'
                 }}</span>
               </template>
+              <template v-else-if="column.key === 'ip_expiry_summary'">
+                <Space direction="vertical" :size="2">
+                  <span>
+                    {{
+                      record.actual_expires_at
+                        ? dayjs(record.actual_expires_at).format('YYYY-MM-DD')
+                        : '-'
+                    }}
+                  </span>
+                  <Tag
+                    :color="
+                      countdownTagColor(
+                        record.status_countdown ||
+                          record.provider_status ||
+                          '-',
+                      )
+                    "
+                  >
+                    {{
+                      record.status_countdown || record.provider_status || '-'
+                    }}
+                  </Tag>
+                </Space>
+              </template>
               <template v-else-if="column.key === 'note'">
                 <div v-if="record.note" class="max-w-full overflow-hidden">
                   <TypographyParagraph
@@ -2758,6 +2928,15 @@ onBeforeUnmount(() => {
                   </Popconfirm>
                 </Space>
               </template>
+              <template v-else-if="column.key === 'ip_actions'">
+                <Button
+                  type="link"
+                  :disabled="!canRunCloudDanger"
+                  @click="openEdit(asDashboardCloudAssetItem(record))"
+                >
+                  编辑
+                </Button>
+              </template>
             </template>
           </Table>
         </Collapse.Panel>
@@ -2787,9 +2966,9 @@ onBeforeUnmount(() => {
           total: assetPagination.total,
           showTotal: (total: number) => `共 ${total} 条代理`,
         }"
-        :row-selection="rowSelection"
+        :row-selection="assetRowSelection"
         row-key="id"
-        :scroll="{ x: 2380 }"
+        :scroll="assetTableScroll"
         size="small"
         @change="handleAssetTableChange"
       >
@@ -2809,6 +2988,26 @@ onBeforeUnmount(() => {
               >
                 {{ usernamePipeLabel(record as DashboardCloudAssetItem) }}
               </TypographyParagraph>
+            </Space>
+          </template>
+          <template v-else-if="column.key === 'ip_user_summary'">
+            <Space direction="vertical" :size="2">
+              <span>{{ record.user_display_name || '未绑定用户' }}</span>
+              <span class="text-xs text-muted-foreground">
+                {{ usernamePipeLabel(asDashboardCloudAssetItem(record)) }}
+              </span>
+            </Space>
+          </template>
+          <template v-else-if="column.key === 'telegram_group_summary'">
+            <Space direction="vertical" :size="2">
+              <span>{{ record.telegram_group_title || '未绑定群组' }}</span>
+              <span class="text-xs text-muted-foreground">
+                {{
+                  record.telegram_group_username
+                    ? `@${record.telegram_group_username}`
+                    : record.telegram_group_chat_id || '-'
+                }}
+              </span>
             </Space>
           </template>
           <template v-else-if="column.key === 'cloud_resource_summary'">
@@ -3073,6 +3272,26 @@ onBeforeUnmount(() => {
                 : '-'
             }}</span>
           </template>
+          <template v-else-if="column.key === 'ip_expiry_summary'">
+            <Space direction="vertical" :size="2">
+              <span>
+                {{
+                  record.actual_expires_at
+                    ? dayjs(record.actual_expires_at).format('YYYY-MM-DD')
+                    : '-'
+                }}
+              </span>
+              <Tag
+                :color="
+                  countdownTagColor(
+                    record.status_countdown || record.provider_status || '-',
+                  )
+                "
+              >
+                {{ record.status_countdown || record.provider_status || '-' }}
+              </Tag>
+            </Space>
+          </template>
           <template v-else-if="column.key === 'note'">
             <div v-if="record.note" class="max-w-full overflow-hidden">
               <TypographyParagraph
@@ -3180,6 +3399,15 @@ onBeforeUnmount(() => {
               </Popconfirm>
             </Space>
           </template>
+          <template v-else-if="column.key === 'ip_actions'">
+            <Button
+              type="link"
+              :disabled="!canRunCloudDanger"
+              @click="openEdit(record as DashboardCloudAssetItem)"
+            >
+              编辑
+            </Button>
+          </template>
         </template>
       </Table>
     </Card>
@@ -3210,7 +3438,9 @@ onBeforeUnmount(() => {
               syncJobMetrics?.recent_total ?? 0
             }}
           </strong>
-          <small>{{ formatSyncFailureRate(syncJobMetrics?.recent_failure_rate) }}</small>
+          <small>{{
+            formatSyncFailureRate(syncJobMetrics?.recent_failure_rate)
+          }}</small>
         </div>
         <div class="sync-job-metric">
           <span>P95耗时</span>
@@ -3386,7 +3616,10 @@ onBeforeUnmount(() => {
             >
               {{ (record.logs || []).join('\n') }}
             </TypographyParagraph>
-            <div v-if="(record.events || []).length > 0" class="sync-job-events">
+            <div
+              v-if="(record.events || []).length > 0"
+              class="sync-job-events"
+            >
               <div
                 v-for="event in record.events || []"
                 :key="`${record.id}-event-${event.id}`"
@@ -3880,6 +4113,26 @@ onBeforeUnmount(() => {
   overflow-wrap: anywhere;
 }
 
+.asset-field-switches {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.asset-field-switch-label {
+  font-size: 13px;
+  color: var(--ant-color-text-secondary);
+  white-space: nowrap;
+}
+
+.asset-field-switch-tag {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 8px;
+}
+
 .compact-cloud-assets :deep(.ant-collapse-header) {
   padding: 6px 12px !important;
 }
@@ -3906,16 +4159,16 @@ onBeforeUnmount(() => {
 .sync-job-metric span,
 .sync-job-metric small {
   display: block;
-  color: #6b7280;
   font-size: 12px;
   line-height: 18px;
+  color: #6b7280;
 }
 
 .sync-job-metric strong {
   display: block;
-  color: #111827;
   font-size: 18px;
   line-height: 24px;
+  color: #111827;
 }
 
 .detail-log-list {

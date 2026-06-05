@@ -7,7 +7,7 @@ import type {
   DashboardNoticeUserSummaryItem,
 } from '#/api/admin';
 
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
@@ -54,56 +54,79 @@ const noticePage = ref(1);
 const noticeLimit = ref(10);
 const historyPage = ref(1);
 const historyLimit = ref(10);
+const visibleColumnState = reactive<Record<string, boolean>>({});
 
-const noticeBatchColumns: TableColumnsType<DashboardNoticeUserSummaryItem> = [
-  {
-    title: '用户',
-    dataIndex: 'user_display_name',
-    key: 'user_display_name',
-    width: 180,
-  },
-  {
-    title: '通知类型',
-    dataIndex: 'notice_type_label',
-    key: 'notice_type_label',
-    width: 150,
-  },
-  {
-    title: '计划范围',
-    dataIndex: 'plan_scope_label',
-    key: 'plan_scope_label',
-    width: 110,
-  },
-  {
-    title: '通知渠道',
-    dataIndex: 'notice_channel_label',
-    key: 'notice_channel_label',
-    width: 210,
-  },
-  { title: 'IP数量', dataIndex: 'ip_count', key: 'ip_count', width: 90 },
-  { title: 'IP列表', dataIndex: 'ips', key: 'ips', width: 340 },
-  {
-    title: '通知文案',
-    dataIndex: 'notice_text_preview',
-    key: 'notice_text_preview',
-    width: 460,
-  },
-  {
-    title: '通知时间',
-    dataIndex: 'next_notice_at',
-    key: 'next_notice_at',
-    width: 180,
-  },
-  {
-    title: '失败重试',
-    dataIndex: 'failed_retry_count',
-    key: 'failed_retry_count',
-    width: 100,
-  },
-  { title: '操作', key: 'actions', width: 100, fixed: 'right' },
-];
+const fieldSwitchItems = [
+  { key: 'created_at', label: '发送时间' },
+  { key: 'user_display_name', label: '用户' },
+  { key: 'notice_type_label', label: '通知类型' },
+  { key: 'notice_status_label', label: '通知状态' },
+  { key: 'plan_scope_label', label: '计划范围' },
+  { key: 'ips', label: 'IP列表' },
+  { key: 'ip_count', label: 'IP数量' },
+  { key: 'next_notice_at', label: '通知时间' },
+  { key: 'text', label: '通知文案' },
+  { key: 'channels', label: '通知渠道' },
+  { key: 'retry', label: '重试说明' },
+  { key: 'actions', label: '操作' },
+] as const;
 
-const historyColumns: TableColumnsType<DashboardNoticePlanHistoryItem> = [
+fieldSwitchItems.forEach((item) => {
+  visibleColumnState[item.key] = !['channels', 'ips', 'retry', 'text'].includes(
+    item.key,
+  );
+});
+
+const noticeBatchColumnsAll: TableColumnsType<DashboardNoticeUserSummaryItem> =
+  [
+    {
+      title: '用户',
+      dataIndex: 'user_display_name',
+      key: 'user_display_name',
+      width: 180,
+    },
+    {
+      title: '通知类型',
+      dataIndex: 'notice_type_label',
+      key: 'notice_type_label',
+      width: 150,
+    },
+    {
+      title: '计划范围',
+      dataIndex: 'plan_scope_label',
+      key: 'plan_scope_label',
+      width: 110,
+    },
+    {
+      title: '通知渠道',
+      dataIndex: 'notice_channel_label',
+      key: 'notice_channel_label',
+      width: 210,
+    },
+    { title: 'IP数量', dataIndex: 'ip_count', key: 'ip_count', width: 90 },
+    { title: 'IP列表', dataIndex: 'ips', key: 'ips', width: 340 },
+    {
+      title: '通知文案',
+      dataIndex: 'notice_text_preview',
+      key: 'notice_text_preview',
+      width: 460,
+    },
+    {
+      title: '通知时间',
+      dataIndex: 'next_notice_at',
+      key: 'next_notice_at',
+      width: 180,
+    },
+    {
+      title: '失败重试',
+      dataIndex: 'failed_retry_count',
+      key: 'failed_retry_count',
+      width: 100,
+    },
+    { title: '操作', key: 'actions', width: 100, fixed: 'right' },
+  ];
+
+const historyColumnsAll: TableColumnsType<DashboardNoticePlanHistoryItem> = [
   { title: '发送时间', dataIndex: 'created_at', key: 'created_at', width: 180 },
   {
     title: '通知类型',
@@ -145,6 +168,57 @@ const historyColumns: TableColumnsType<DashboardNoticePlanHistoryItem> = [
   },
   { title: '操作', key: 'actions', width: 100, fixed: 'right' },
 ];
+
+function filterNoticeColumns<T>(columns: TableColumnsType<T>) {
+  return columns.filter((column) => {
+    const key = String(column.key || '');
+    if (key === 'ips') return visibleColumnState.ips;
+    if (key === 'notice_text_preview') return visibleColumnState.text;
+    if (key === 'notice_channel_label') return visibleColumnState.channels;
+    if (['failed_retry_count', 'retry_label'].includes(key)) {
+      return visibleColumnState.retry;
+    }
+    return visibleColumnState[key] !== false;
+  });
+}
+
+const noticeBatchColumns = computed(() =>
+  filterNoticeColumns(noticeBatchColumnsAll),
+);
+const historyColumns = computed(() => filterNoticeColumns(historyColumnsAll));
+const visibleFieldState = computed(() => ({
+  channels: visibleColumnState.channels !== false,
+  ips: visibleColumnState.ips !== false,
+  retry: visibleColumnState.retry !== false,
+  text: visibleColumnState.text !== false,
+}));
+const noticeFields = computed(() =>
+  [
+    'basic',
+    visibleFieldState.value.ips ? 'ips' : '',
+    visibleFieldState.value.text ? 'text' : '',
+    visibleFieldState.value.channels ? 'channels' : '',
+    visibleFieldState.value.retry ? 'retry' : '',
+  ]
+    .filter(Boolean)
+    .join(','),
+);
+const noticeTableScroll = computed(() => ({
+  x:
+    910 +
+    (visibleFieldState.value.ips ? 340 : 0) +
+    (visibleFieldState.value.text ? 460 : 0) +
+    (visibleFieldState.value.channels ? 210 : 0) +
+    (visibleFieldState.value.retry ? 100 : 0),
+}));
+const historyTableScroll = computed(() => ({
+  x:
+    950 +
+    (visibleFieldState.value.ips ? 320 : 0) +
+    (visibleFieldState.value.text ? 500 : 0) +
+    (visibleFieldState.value.channels ? 210 : 0) +
+    (visibleFieldState.value.retry ? 300 : 0),
+}));
 
 const dueBatchItems = computed(
   () =>
@@ -212,6 +286,11 @@ function displayUser(record: {
   return username ? `${name} ${username}` : name;
 }
 
+function ipListText(record: { ip?: string; ips?: string[] }) {
+  const ips = Array.isArray(record.ips) ? record.ips : [];
+  return ips.length > 0 ? ips.join('\n') : record.ip || '-';
+}
+
 function openOrder(path?: string) {
   if (!path) return;
   router.push(path).catch(() => {});
@@ -222,6 +301,7 @@ async function loadData() {
   try {
     detail.value = await getDashboardNoticePlanApi({
       compact: 1,
+      fields: noticeFields.value,
       future_limit: noticeLimit.value,
       future_offset: (noticePage.value - 1) * noticeLimit.value,
       history_limit: historyLimit.value,
@@ -234,6 +314,11 @@ async function loadData() {
   } finally {
     loading.value = false;
   }
+}
+
+async function toggleVisibleField(key: string, checked: boolean) {
+  visibleColumnState[key] = checked;
+  await loadData();
 }
 
 async function changeNoticePage(page: number, pageSize: number) {
@@ -437,6 +522,26 @@ onMounted(loadData);
           :message="`当前每页显示 ${noticeLimit} 组通知计划 / ${historyLimit} 条历史，支持翻页，并压缩长文案预览。`"
           style="margin-bottom: 12px"
         />
+        <div class="notice-field-switches">
+          <span class="notice-field-switch-label">显示列：</span>
+          <Space wrap>
+            <Tag
+              v-for="item in fieldSwitchItems"
+              :key="item.key"
+              :color="visibleColumnState[item.key] ? 'processing' : 'default'"
+              class="notice-field-switch-tag"
+            >
+              <span>{{ item.label }}</span>
+              <Switch
+                size="small"
+                :checked="visibleColumnState[item.key]"
+                @change="
+                  (checked) => toggleVisibleField(item.key, Boolean(checked))
+                "
+              />
+            </Tag>
+          </Space>
+        </div>
         <Descriptions bordered :column="2" size="small">
           <Descriptions.Item label="任务名称">
             {{ detail?.task_label || '-' }}
@@ -537,7 +642,7 @@ onMounted(loadData);
             onChange: changeNoticePage,
           }"
           :row-key="batchRowKey"
-          :scroll="{ x: 1820 }"
+          :scroll="noticeTableScroll"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'user_display_name'">
@@ -597,19 +702,13 @@ onMounted(loadData);
             </template>
             <template v-else-if="column.key === 'ips'">
               <TypographyParagraph
+                :content="ipListText(record as DashboardNoticeUserSummaryItem)"
                 :ellipsis="{
                   rows: 2,
-                  tooltip: (record as DashboardNoticeUserSummaryItem).ips.join(
-                    '\n',
-                  ),
+                  tooltip: ipListText(record as DashboardNoticeUserSummaryItem),
                 }"
                 class="mb-0 whitespace-pre-line break-all text-sm leading-6"
-              >
-                {{
-                  (record as DashboardNoticeUserSummaryItem).ips.join('\n') ||
-                  '-'
-                }}
-              </TypographyParagraph>
+              />
             </template>
             <template v-else-if="column.key === 'notice_text_preview'">
               <div>
@@ -639,6 +738,7 @@ onMounted(loadData);
                 </div>
                 <Space size="small">
                   <Button
+                    v-if="visibleColumnState.text"
                     type="link"
                     size="small"
                     :disabled="!canRunCloudDanger"
@@ -720,7 +820,7 @@ onMounted(loadData);
             onChange: changeHistoryPage,
           }"
           :row-key="historyRowKey"
-          :scroll="{ x: 2290 }"
+          :scroll="historyTableScroll"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'user_display_name'">
@@ -783,20 +883,13 @@ onMounted(loadData);
             </template>
             <template v-else-if="column.key === 'ips'">
               <TypographyParagraph
+                :content="ipListText(record as DashboardNoticePlanHistoryItem)"
                 :ellipsis="{
                   rows: 2,
-                  tooltip: (record as DashboardNoticePlanHistoryItem).ips.join(
-                    '\n',
-                  ),
+                  tooltip: ipListText(record as DashboardNoticePlanHistoryItem),
                 }"
                 class="mb-0 whitespace-pre-line break-all text-sm leading-6"
-              >
-                {{
-                  (record as DashboardNoticePlanHistoryItem).ips.join('\n') ||
-                  (record as DashboardNoticePlanHistoryItem).ip ||
-                  '-'
-                }}
-              </TypographyParagraph>
+              />
             </template>
             <template v-else-if="column.key === 'notice_text_preview'">
               <div>
@@ -905,3 +998,25 @@ onMounted(loadData);
     </Modal>
   </Page>
 </template>
+
+<style scoped>
+.notice-field-switches {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.notice-field-switch-label {
+  font-size: 13px;
+  color: var(--ant-color-text-secondary);
+  white-space: nowrap;
+}
+
+.notice-field-switch-tag {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 8px;
+}
+</style>
