@@ -3,6 +3,7 @@ import { requestClient } from '#/api/request';
 interface DashboardListQuery {
   archived?: 0 | 1;
   compact?: 0 | 1;
+  dedup?: 0 | 1;
   group_by?: 'telegram_group' | 'user';
   grouped?: 0 | 1;
   keyword?: string;
@@ -488,6 +489,14 @@ export interface DashboardServerItem {
   user_display_name: string;
   user_id: null | number;
   username_label: string;
+}
+
+export interface DashboardServersResponse {
+  items: DashboardServerItem[];
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages?: number;
 }
 
 export interface DashboardCloudPlanItem {
@@ -1933,6 +1942,14 @@ export async function deleteDashboardCloudOrderApi(orderId: number) {
 export async function getDashboardServersApi(params: DashboardListQuery = {}) {
   return requestClient.get<DashboardServerItem[]>('/admin/servers/', {
     params,
+  });
+}
+
+export async function getDashboardServersPageApi(
+  params: DashboardListQuery = {},
+) {
+  return requestClient.get<DashboardServersResponse>('/admin/servers/', {
+    params: { ...params, paginated: 1 },
   });
 }
 

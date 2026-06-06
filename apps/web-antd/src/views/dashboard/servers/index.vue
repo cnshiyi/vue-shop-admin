@@ -3,7 +3,7 @@ import type { TableColumnsType } from 'ant-design-vue';
 
 import type { DashboardServerItem } from '#/api/admin';
 
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
@@ -19,7 +19,10 @@ import {
 } from 'ant-design-vue';
 import dayjs from 'dayjs';
 
-import { getDashboardServersApi, syncDashboardServersApi } from '#/api/admin';
+import {
+  getDashboardServersPageApi,
+  syncDashboardServersApi,
+} from '#/api/admin';
 import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const loading = ref(false);
@@ -33,6 +36,11 @@ const totalSortMode = ref<
   | 'remaining_desc'
 >('default');
 const items = ref<DashboardServerItem[]>([]);
+const pagination = reactive({
+  current: 1,
+  pageSize: 50,
+  total: 0,
+});
 const router = useRouter();
 const { canRunCloudDanger, requireCloudDangerPermission } =
   useDashboardPermissions();
@@ -95,58 +103,6 @@ const columns = computed<TableColumnsType<DashboardServerItem>>(() => [
   { title: '更新时间', dataIndex: 'updated_at', key: 'updated_at', width: 200 },
 ]);
 
-function getSortWeight(record: DashboardServerItem) {
-  const status = (record.status || '').toLowerCase();
-  if (['deleted', 'terminated'].includes(status)) {
-    return 3;
-  }
-
-  const expireTime = record.expires_at ? dayjs(record.expires_at) : null;
-  const now = dayjs();
-  if (expireTime?.isValid()) {
-    if (expireTime.isBefore(now)) {
-      return 0;
-    }
-    if (expireTime.isSame(now, 'day')) {
-      return 1;
-    }
-  }
-
-  if (!record.is_active) {
-    return 2;
-  }
-  return 2;
-}
-
-function getExpireSortValue(expiresAt: null | string) {
-  if (!expiresAt) {
-    return Number.POSITIVE_INFINITY;
-  }
-  const expireTime = dayjs(expiresAt);
-  if (!expireTime.isValid()) {
-    return Number.POSITIVE_INFINITY;
-  }
-  return expireTime.valueOf();
-}
-
-function sortServerItems(records: DashboardServerItem[]) {
-  return [...records].toSorted((left, right) => {
-    const weightDiff = getSortWeight(left) - getSortWeight(right);
-    if (weightDiff !== 0) {
-      return weightDiff;
-    }
-
-    const expireDiff =
-      getExpireSortValue(left.expires_at) -
-      getExpireSortValue(right.expires_at);
-    if (expireDiff !== 0) {
-      return expireDiff;
-    }
-
-    return dayjs(right.updated_at).valueOf() - dayjs(left.updated_at).valueOf();
-  });
-}
-
 function totalSortParams() {
   if (totalSortMode.value === 'expires_asc') {
     return { sort_by: 'expires_at' as const, sort_order: 'asc' as const };
@@ -164,16 +120,23 @@ function totalSortParams() {
 }
 
 function handleServerTableChange(
-  _pagination: unknown,
+  tablePagination: any,
   _filters: unknown,
   sorter: any,
 ) {
+  const nextPage = Number(tablePagination?.current || pagination.current || 1);
+  const nextPageSize = Number(
+    tablePagination?.pageSize || pagination.pageSize || 50,
+  );
   const activeSorter = Array.isArray(sorter)
     ? sorter.find((item) => item.order)
     : sorter;
   const key = activeSorter?.columnKey || activeSorter?.field;
   const order = activeSorter?.order;
   if (!['expires_at', 'status_countdown'].includes(key)) {
+    pagination.current = nextPage;
+    pagination.pageSize = nextPageSize;
+    loadData();
     return;
   }
   if (!order) {
@@ -184,20 +147,25 @@ function handleServerTableChange(
     totalSortMode.value =
       order === 'ascend' ? 'remaining_asc' : 'remaining_desc';
   }
+  pagination.current = nextPage;
+  pagination.pageSize = nextPageSize;
   loadData();
 }
 
 async function loadData() {
   loading.value = true;
   try {
-    const records = await getDashboardServersApi({
+    const response = await getDashboardServersPageApi({
+      dedup: 0,
       keyword: keyword.value.trim(),
-      page_size: 500,
-      paginated: 0,
+      page: pagination.current,
+      page_size: pagination.pageSize,
       ...totalSortParams(),
     });
-    items.value =
-      totalSortMode.value === 'default' ? sortServerItems(records) : records;
+    items.value = response.items || [];
+    pagination.current = response.page || pagination.current;
+    pagination.pageSize = response.page_size || pagination.pageSize;
+    pagination.total = response.total || 0;
   } finally {
     loading.value = false;
   }
@@ -205,6 +173,7 @@ async function loadData() {
 
 function resetSearch() {
   keyword.value = '';
+  pagination.current = 1;
   loadData();
 }
 
@@ -273,7 +242,12 @@ onMounted(loadData);
             enter-button="搜索"
             placeholder="搜索服务器名、实例 ID、资源 ID、IP、订单号"
             style="width: 380px"
-            @search="loadData"
+            @search="
+              () => {
+                pagination.current = 1;
+                loadData();
+              }
+            "
           />
           <Button
             size="small"
@@ -292,9 +266,11 @@ onMounted(loadData);
         :data-source="items"
         :loading="loading"
         :pagination="{
-          pageSize: 50,
+          current: pagination.current,
+          pageSize: pagination.pageSize,
           showSizeChanger: true,
           pageSizeOptions: [10, 20, 50, 100],
+          total: pagination.total,
           showTotal: (total) => `共 ${total} 条`,
         }"
         row-key="id"
