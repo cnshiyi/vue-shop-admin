@@ -361,13 +361,13 @@ const serverPlanSections = computed(() => [
     columns: dueColumns.value,
     items: shutdownPlanItems.value,
     key: 'shutdown',
-    title: `关机计划（${shutdownPlanItems.value.length}）`,
+    title: `关机计划（${summary.value?.shutdown_plan_count ?? shutdownPlanItems.value.length}）`,
   },
   {
     columns: serverDeleteColumns.value,
     items: serverDeletePlanItems.value,
     key: 'server-delete',
-    title: `删除计划（${serverDeletePlanItems.value.length}）`,
+    title: `删除计划（${summary.value?.server_delete_count ?? serverDeletePlanItems.value.length}）`,
   },
 ]);
 const historyItems = computed(() =>
@@ -1247,7 +1247,7 @@ onMounted(() => {
         </Table>
       </Card>
 
-      <Card :title="`IP删除计划（${ipDeletePlanItems.length}）`">
+      <Card :title="`IP删除计划（${summary?.ip_delete_count ?? ipDeletePlanItems.length}）`">
         <Table
           class="plans-compact-table"
           size="small"
