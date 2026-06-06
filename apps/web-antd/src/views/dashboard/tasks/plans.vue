@@ -1247,7 +1247,9 @@ onMounted(() => {
         </Table>
       </Card>
 
-      <Card :title="`IP删除计划（${summary?.ip_delete_count ?? ipDeletePlanItems.length}）`">
+      <Card
+        :title="`IP删除计划（${summary?.ip_delete_count ?? ipDeletePlanItems.length}）`"
+      >
         <Table
           class="plans-compact-table"
           size="small"
