@@ -379,16 +379,20 @@ const historyItems = computed(() =>
 );
 const ipDeleteItems = computed(() => summary.value?.ip_delete_items || []);
 const ipDeletePlanItems = computed(() =>
-  sortActivePlans(ipDeleteItems.value.filter((item: any) => !item.is_history)),
+  sortActivePlans(
+    summary.value?.ip_delete_plan_items ||
+      ipDeleteItems.value.filter((item: any) => !item.is_history),
+  ),
 );
 const ipDeleteHistoryItems = computed(() =>
-  ipDeleteItems.value
-    .filter((item: any) => item.is_history)
-    .toSorted(
-      (left: any, right: any) =>
-        dayjs(right.logged_at || right.delete_at || 0).valueOf() -
-        dayjs(left.logged_at || left.delete_at || 0).valueOf(),
-    ),
+  (
+    summary.value?.ip_delete_history_items ||
+    ipDeleteItems.value.filter((item: any) => item.is_history)
+  ).toSorted(
+    (left: any, right: any) =>
+      dayjs(right.logged_at || right.delete_at || 0).valueOf() -
+      dayjs(left.logged_at || left.delete_at || 0).valueOf(),
+  ),
 );
 const lastRunFailures = computed(() =>
   (lastRunResult.value?.items || []).filter((item) => !item.ok),

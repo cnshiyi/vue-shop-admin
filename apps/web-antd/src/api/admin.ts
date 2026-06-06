@@ -936,6 +936,8 @@ export interface DashboardLifecyclePlansDetail {
   ip_delete_due_count: number;
   ip_delete_history_count?: number;
   ip_delete_items: DashboardUnattachedIpDeletePlan[];
+  ip_delete_plan_items?: DashboardUnattachedIpDeletePlan[];
+  ip_delete_history_items?: DashboardUnattachedIpDeletePlan[];
   last_run_at: null | string;
   last_refresh_at?: null | string;
   missing_expiry_count?: number;
