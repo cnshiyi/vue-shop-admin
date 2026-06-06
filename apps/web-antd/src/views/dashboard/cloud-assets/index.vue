@@ -2296,13 +2296,13 @@ onBeforeUnmount(() => {
           />
           <Select
             v-model:value="columnView"
-            style="width: 120px"
+            class="cloud-assets-select"
             :options="columnViewOptions"
             @change="handleColumnViewChange"
           />
           <Select
             v-model:value="syncScope"
-            style="width: 120px"
+            class="cloud-assets-select"
             :options="syncScopeOptions"
           />
           <Button
@@ -2387,7 +2387,7 @@ onBeforeUnmount(() => {
           <Select
             v-if="grouped"
             v-model:value="groupMode"
-            style="width: 130px"
+            class="cloud-assets-group-select"
             :options="[
               { label: '按群组分区', value: 'telegram_group' },
               { label: '按用户分区', value: 'user' },
@@ -2419,7 +2419,7 @@ onBeforeUnmount(() => {
 
       <div class="asset-field-switches">
         <span class="asset-field-switch-label">显示列：</span>
-        <Space wrap>
+        <Space class="asset-field-switch-list" wrap>
           <Tag
             v-for="item in assetColumnSwitches"
             :key="item.key"
@@ -2942,10 +2942,11 @@ onBeforeUnmount(() => {
         </Collapse.Panel>
       </Collapse>
 
-      <div v-if="grouped" class="mt-4 flex justify-end">
+      <div v-if="grouped" class="cloud-assets-pagination mt-4">
         <Pagination
           v-model:current="groupPagination.page"
           v-model:page-size="groupPagination.pageSize"
+          :responsive="true"
           show-less-items
           :show-total="(total: number) => `共 ${total} 个用户/分组`"
           :total="groupPagination.total"
@@ -2962,6 +2963,7 @@ onBeforeUnmount(() => {
         :pagination="{
           current: assetPagination.page,
           pageSize: assetPagination.pageSize,
+          responsive: true,
           showSizeChanger: true,
           total: assetPagination.total,
           showTotal: (total: number) => `共 ${total} 条代理`,
@@ -4064,8 +4066,19 @@ onBeforeUnmount(() => {
 }
 
 .cloud-assets-search {
-  width: min(360px, 100%);
-  min-width: 180px;
+  flex: 1 1 320px;
+  width: min(420px, 100%);
+  min-width: 220px;
+}
+
+.cloud-assets-select {
+  flex: 0 0 120px;
+  width: 120px;
+}
+
+.cloud-assets-group-select {
+  flex: 0 0 130px;
+  width: 130px;
 }
 
 .cloud-assets-status-shortcuts {
@@ -4096,6 +4109,7 @@ onBeforeUnmount(() => {
 
 :deep(.ant-table-wrapper) {
   max-width: 100%;
+  overflow: hidden;
 }
 
 .cloud-assets-table :deep(.ant-table) {
@@ -4117,13 +4131,19 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 10px;
   align-items: center;
+  min-width: 0;
   margin-bottom: 12px;
 }
 
 .asset-field-switch-label {
+  flex: 0 0 auto;
   font-size: 13px;
   color: var(--ant-color-text-secondary);
   white-space: nowrap;
+}
+
+.asset-field-switch-list {
+  min-width: 0;
 }
 
 .asset-field-switch-tag {
@@ -4131,6 +4151,13 @@ onBeforeUnmount(() => {
   gap: 8px;
   align-items: center;
   padding: 4px 8px;
+}
+
+.cloud-assets-pagination {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .compact-cloud-assets :deep(.ant-collapse-header) {
@@ -4162,6 +4189,77 @@ onBeforeUnmount(() => {
   font-size: 12px;
   line-height: 18px;
   color: #6b7280;
+}
+
+@media (max-width: 767px) {
+  :deep(.ant-card-body) {
+    padding: 12px;
+  }
+
+  :deep(.ant-card-head) {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .cloud-assets-toolbar {
+    align-items: stretch;
+  }
+
+  .cloud-assets-toolbar :deep(.ant-space-item) {
+    max-width: 100%;
+  }
+
+  .cloud-assets-search,
+  .cloud-assets-select,
+  .cloud-assets-group-select {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .cloud-assets-toolbar :deep(.ant-btn) {
+    min-width: 72px;
+  }
+
+  .asset-field-switches {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .asset-field-switch-tag {
+    padding: 3px 6px;
+  }
+
+  .cloud-assets-status-shortcuts {
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    overflow-x: auto;
+  }
+
+  .cloud-assets-status-shortcuts .ant-btn {
+    flex: 0 0 auto;
+  }
+
+  .compact-cloud-assets :deep(.ant-collapse-header) {
+    padding: 6px 8px !important;
+  }
+
+  .compact-cloud-assets :deep(.ant-collapse-content-box) {
+    padding: 8px 0 !important;
+  }
+
+  .cloud-assets-table :deep(.ant-table-cell) {
+    padding: 8px 6px !important;
+  }
+
+  .cloud-assets-actions :deep(.ant-btn) {
+    padding-right: 4px;
+    padding-left: 4px;
+  }
+
+  .cloud-assets-pagination {
+    justify-content: flex-start;
+  }
 }
 
 .sync-job-metric strong {
