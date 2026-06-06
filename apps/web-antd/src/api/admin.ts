@@ -121,6 +121,7 @@ export interface DashboardUnattachedIpDeletePlan {
   resource_state?: string;
   resource_state_label?: string;
   actual_expires_at?: null | string;
+  ip_delete_enabled?: boolean;
   shutdown_enabled?: boolean;
   should_execute?: boolean;
   state_summary?: string;
@@ -874,8 +875,10 @@ export interface DashboardShutdownPlanItem {
   next_run_at?: null | string;
   order_id: null | number;
   order_no: string;
+  plan_kind?: 'server_delete' | 'server_shutdown' | string;
   plan_state?: string;
   plan_state_label?: string;
+  plan_stage?: 'delete' | 'shutdown' | string;
   provider: string;
   provider_label?: string;
   queue_status?: string;
@@ -884,6 +887,8 @@ export interface DashboardShutdownPlanItem {
   resource_state?: string;
   resource_state_label?: string;
   actual_expires_at: null | string;
+  ip_delete_enabled?: boolean;
+  server_delete_enabled?: boolean;
   shutdown_enabled?: boolean;
   should_execute?: boolean;
   state_summary?: string;
@@ -940,10 +945,16 @@ export interface DashboardLifecyclePlansDetail {
   recent_success_count: number;
   refreshed?: boolean;
   server_delete_history_count?: number;
+  server_delete_count?: number;
+  server_delete_due_count?: number;
+  server_delete_items?: DashboardShutdownPlanItem[];
   server_asset_count?: number;
   shutdown_count: number;
   shutdown_due_count: number;
   shutdown_items: DashboardShutdownPlanItem[];
+  shutdown_plan_count?: number;
+  shutdown_plan_due_count?: number;
+  shutdown_plan_items?: DashboardShutdownPlanItem[];
   source_asset_count?: number;
   status_label: string;
   task_key: string;
@@ -1806,6 +1817,8 @@ export interface DashboardCloudAssetUpdatePayload {
   note?: null | string;
   price?: null | string;
   public_ip?: null | string;
+  ip_delete_enabled?: boolean;
+  server_delete_enabled?: boolean;
   shutdown_enabled?: boolean;
   sort_order?: number;
   telegram_group_id?: null | number;

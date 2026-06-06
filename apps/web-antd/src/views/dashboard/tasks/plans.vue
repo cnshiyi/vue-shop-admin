@@ -95,7 +95,9 @@ const fieldSwitchItems = [
   { key: 'delete_at', label: '删除/释放时间' },
   { key: 'resource_state_label', label: '真实状态' },
   { key: 'plan_state_label', label: '计划状态' },
-  { key: 'shutdown_enabled', label: '单项开关' },
+  { key: 'shutdown_enabled', label: '关机开关' },
+  { key: 'server_delete_enabled', label: '删机开关' },
+  { key: 'ip_delete_enabled', label: 'IP删除开关' },
   { key: 'execution_status', label: '执行状态' },
   { key: 'provider_label', label: '云厂商' },
   { key: 'provider_status', label: '云上状态' },
@@ -170,6 +172,17 @@ const dueColumnsAll = [
   },
   { title: '操作', key: 'actions', width: 180, fixed: 'right' as const },
 ];
+
+const serverDeleteColumnsAll = dueColumnsAll.map((column) =>
+  column.key === 'shutdown_enabled'
+    ? {
+        ...column,
+        dataIndex: 'server_delete_enabled',
+        key: 'server_delete_enabled',
+        title: '删除计划',
+      }
+    : column,
+);
 
 const historyColumnsAll = [
   {
@@ -256,8 +269,8 @@ const ipDeleteColumnsAll = [
   },
   {
     title: 'IP删除计划',
-    dataIndex: 'shutdown_enabled',
-    key: 'shutdown_enabled',
+    dataIndex: 'ip_delete_enabled',
+    key: 'ip_delete_enabled',
     width: 120,
   },
   {
@@ -284,6 +297,9 @@ function filterPlanColumns(columns: any[]) {
 }
 
 const dueColumns = computed(() => filterPlanColumns(dueColumnsAll));
+const serverDeleteColumns = computed(() =>
+  filterPlanColumns(serverDeleteColumnsAll),
+);
 const historyColumns = computed(() => filterPlanColumns(historyColumnsAll));
 const ipDeleteColumns = computed(() => filterPlanColumns(ipDeleteColumnsAll));
 const lastRunFailureColumns = computed(() => filterPlanColumns(failureColumns));
@@ -333,8 +349,27 @@ const historyTableScroll = computed(() => ({
 
 const summary = computed(() => detail.value);
 const shutdownPlanItems = computed(() =>
-  sortActivePlans(summary.value?.shutdown_items || []),
+  sortActivePlans(summary.value?.shutdown_plan_items || []),
 );
+const serverDeletePlanItems = computed(() =>
+  sortActivePlans(
+    summary.value?.server_delete_items || summary.value?.shutdown_items || [],
+  ),
+);
+const serverPlanSections = computed(() => [
+  {
+    columns: dueColumns.value,
+    items: shutdownPlanItems.value,
+    key: 'shutdown',
+    title: `关机计划（${shutdownPlanItems.value.length}）`,
+  },
+  {
+    columns: serverDeleteColumns.value,
+    items: serverDeletePlanItems.value,
+    key: 'server-delete',
+    title: `删除计划（${serverDeletePlanItems.value.length}）`,
+  },
+]);
 const historyItems = computed(() =>
   (summary.value?.history_items || []).toSorted(
     (left, right) =>
@@ -496,11 +531,28 @@ function resourceStateColor(state?: string) {
 
 function planStateColor(state?: string) {
   if (String(state || '') === 'completed') return 'success';
-  if (['blocked', 'shutdown_disabled'].includes(String(state || '')))
+  if (
+    [
+      'blocked',
+      'ip_delete_disabled',
+      'server_delete_disabled',
+      'shutdown_disabled',
+    ].includes(String(state || ''))
+  )
     return 'warning';
   if (String(state || '') === 'scheduled') return 'processing';
   if (String(state || '') === 'pending') return 'error';
   return 'default';
+}
+
+function serverPlanSwitchField(key: unknown) {
+  return String(key) === 'server_delete_enabled'
+    ? 'server_delete_enabled'
+    : 'shutdown_enabled';
+}
+
+function serverPlanSwitchLabel(key: unknown) {
+  return String(key) === 'server_delete_enabled' ? '删除计划' : '关机计划';
 }
 
 function executionText(record: { execution_status?: string; note?: string }) {
@@ -575,13 +627,6 @@ function actionSwitchLabel(key: string) {
   return CLOUD_ACTION_SWITCHES.find((item) => item.key === key)?.label || key;
 }
 
-function isIpDeleteRecord(record: unknown) {
-  return Boolean(
-    (record as DashboardUnattachedIpDeletePlan)?.public_ip ||
-    (record as any)?.plan_kind === 'unattached_ip_delete',
-  );
-}
-
 function toActionSwitchItem(item: DashboardSiteConfigGroupItem) {
   const label = actionSwitchLabel(item.key);
   return {
@@ -639,29 +684,30 @@ async function toggleActionSwitch(
   }
 }
 
-async function toggleAssetShutdown(
+async function toggleAssetPlanSwitch(
   record: DashboardShutdownPlanItem | DashboardUnattachedIpDeletePlan,
   checked: boolean,
+  field: 'ip_delete_enabled' | 'server_delete_enabled' | 'shutdown_enabled',
+  switchLabel: string,
 ) {
   const assetId = Number((record as any).asset_id || (record as any).id || 0);
-  const switchLabel = isIpDeleteRecord(record) ? 'IP删除计划' : '关机计划';
   if (!assetId) {
     message.error(`缺少资产 ID，无法切换${switchLabel}`);
     return;
   }
-  const key = String(assetId);
+  const key = `${assetId}:${field}`;
   assetShutdownSavingMap[key] = true;
   try {
     const result = await updateDashboardCloudAssetApi(assetId, {
-      shutdown_enabled: checked,
+      [field]: checked,
     });
-    (record as any).shutdown_enabled = Boolean(result.shutdown_enabled);
+    (record as any)[field] = Boolean((result as any)[field]);
     message.success(
-      `${switchLabel}已${result.shutdown_enabled ? '开启' : '关闭'}`,
+      `${switchLabel}已${(result as any)[field] ? '开启' : '关闭'}`,
     );
     await loadData({ silent: true });
   } catch (error: any) {
-    (record as any).shutdown_enabled = !checked;
+    (record as any)[field] = !checked;
     message.error(error?.message || `${switchLabel}切换失败`);
   } finally {
     assetShutdownSavingMap[key] = false;
@@ -751,10 +797,10 @@ async function refreshPlanTable() {
       result.source_asset_count ??
       result.shutdown_count ??
       result.due_count + result.future_count;
-    message.success(`删除计划已刷新：${activeCount} 条`);
+    message.success(`计划已刷新：${activeCount} 条`);
     await loadData({ silent: true });
   } catch (error: any) {
-    message.error(error?.message || '刷新删机计划失败');
+    message.error(error?.message || '刷新计划失败');
   } finally {
     refreshingPlanTable.value = false;
   }
@@ -763,7 +809,7 @@ async function refreshPlanTable() {
 onMounted(() => {
   loadData();
   loadActionSwitches().catch((error: any) => {
-    message.error(error?.message || '删除开关加载失败');
+    message.error(error?.message || '计划开关加载失败');
   });
 });
 </script>
@@ -771,8 +817,8 @@ onMounted(() => {
 <template>
   <Page
     class="plans-page"
-    description="按代理列表资产生成统一删除计划，并查看执行历史"
-    title="删除计划"
+    description="按代理列表资产生成关机、删除和 IP 删除计划，并查看执行历史"
+    title="计划"
   >
     <Space direction="vertical" style="width: 100%" :size="16">
       <Card :loading="loading">
@@ -792,7 +838,7 @@ onMounted(() => {
             <Button size="small" :loading="loading" @click="loadMorePlans">
               加载更多
             </Button>
-            <span>{{ summary?.task_label || '删除计划' }}</span>
+            <span>{{ summary?.task_label || '计划' }}</span>
             <Tag color="processing">
               {{ summary?.status_label || '独立计划页' }}
             </Tag>
@@ -866,7 +912,7 @@ onMounted(() => {
               {{ refreshingPlanTable ? '刷新中' : '空闲' }}
             </Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="当前删除计划">
+          <Descriptions.Item label="当前计划资产">
             {{ summary?.source_asset_count ?? 0 }} 条
           </Descriptions.Item>
           <Descriptions.Item label="缺少到期时间">
@@ -936,12 +982,16 @@ onMounted(() => {
         </Table>
       </Card>
 
-      <Card :title="`服务器删机计划（${shutdownPlanItems.length}）`">
+      <Card
+        v-for="section in serverPlanSections"
+        :key="section.key"
+        :title="section.title"
+      >
         <Table
           class="plans-compact-table"
           size="small"
-          :columns="dueColumns"
-          :data-source="shutdownPlanItems"
+          :columns="section.columns"
+          :data-source="section.items"
           :loading="loading"
           :pagination="tablePagination"
           :row-key="rowKey"
@@ -1046,24 +1096,29 @@ onMounted(() => {
                 </Button>
               </div>
             </template>
-            <template v-else-if="column.key === 'shutdown_enabled'">
+            <template
+              v-else-if="
+                ['shutdown_enabled', 'server_delete_enabled'].includes(
+                  String(column.key),
+                )
+              "
+            >
               <Switch
-                :checked="
-                  (record as DashboardShutdownPlanItem).shutdown_enabled !==
-                  false
-                "
+                :checked="(record as any)[String(column.key)] !== false"
                 :loading="
                   assetShutdownSavingMap[
-                    String((record as DashboardShutdownPlanItem).asset_id || '')
+                    `${(record as DashboardShutdownPlanItem).asset_id || ''}:${String(column.key)}`
                   ]
                 "
                 checked-children="开"
                 un-checked-children="关"
                 @change="
                   (checked) =>
-                    toggleAssetShutdown(
+                    toggleAssetPlanSwitch(
                       record as DashboardShutdownPlanItem,
                       Boolean(checked),
+                      serverPlanSwitchField(column.key),
+                      serverPlanSwitchLabel(column.key),
                     )
                 "
               />
@@ -1282,28 +1337,30 @@ onMounted(() => {
                 }}
               </Tag>
             </template>
-            <template v-else-if="column.key === 'shutdown_enabled'">
+            <template v-else-if="column.key === 'ip_delete_enabled'">
               <Switch
                 :checked="
                   (record as DashboardUnattachedIpDeletePlan)
-                    .shutdown_enabled !== false
+                    .ip_delete_enabled !== false
                 "
                 :loading="
                   assetShutdownSavingMap[
-                    String(
+                    `${String(
                       (record as DashboardUnattachedIpDeletePlan).asset_id ||
                         (record as DashboardUnattachedIpDeletePlan).id ||
                         '',
-                    )
+                    )}:ip_delete_enabled`
                   ]
                 "
                 checked-children="开"
                 un-checked-children="关"
                 @change="
                   (checked) =>
-                    toggleAssetShutdown(
+                    toggleAssetPlanSwitch(
                       record as DashboardUnattachedIpDeletePlan,
                       Boolean(checked),
+                      'ip_delete_enabled',
+                      'IP删除计划',
                     )
                 "
               />
@@ -1418,94 +1475,6 @@ onMounted(() => {
           v-if="ipDeletePlanItems.length === 0 && !loading"
           description="当前没有 IP 删除计划"
         />
-      </Card>
-
-      <Card title="服务器删除历史记录">
-        <Table
-          class="plans-compact-table"
-          size="small"
-          :columns="historyColumns"
-          :data-source="historyItems"
-          :loading="loading"
-          :pagination="tablePagination"
-          :row-key="rowKey"
-          :scroll="historyTableScroll"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'result_label'">
-              <Tag
-                :color="resultColor(record as DashboardShutdownPlanHistoryItem)"
-              >
-                {{ (record as DashboardShutdownPlanHistoryItem).result_label }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'user_display_name'">
-              <div>
-                <div>{{ (record as any).user_display_name || '-' }}</div>
-                <div
-                  v-if="(record as any).username_label"
-                  style="color: var(--color-text-secondary)"
-                  class="text-xs"
-                >
-                  {{ (record as any).username_label }}
-                </div>
-              </div>
-            </template>
-            <template v-else-if="column.key === 'deletion_source_label'">
-              <Tag color="blue">
-                {{
-                  (record as DashboardShutdownPlanHistoryItem)
-                    .deletion_source_label || '-'
-                }}
-              </Tag>
-            </template>
-            <template
-              v-else-if="
-                ['executed_at', 'actual_expires_at', 'suspend_at'].includes(
-                  String(column.key),
-                )
-              "
-            >
-              <Tag :color="recordTimeColor(record, column.key)">
-                {{ fmtRecordTime(record, column.key) }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'failure_reason'">
-              <TypographyParagraph
-                v-if="
-                  !(record as DashboardShutdownPlanHistoryItem).is_success &&
-                  (record as DashboardShutdownPlanHistoryItem).failure_reason
-                "
-                :content="
-                  (record as DashboardShutdownPlanHistoryItem).failure_reason ||
-                  '-'
-                "
-                class="mb-0 break-all text-xs leading-5"
-                :ellipsis="{
-                  rows: 2,
-                  tooltip: (record as DashboardShutdownPlanHistoryItem)
-                    .failure_reason,
-                }"
-              />
-              <span v-else>-</span>
-            </template>
-            <template v-else-if="column.key === 'actions'">
-              <Button
-                v-if="(record as DashboardShutdownPlanHistoryItem).related_path"
-                type="link"
-                size="small"
-                @click="
-                  openPath(
-                    (record as DashboardShutdownPlanHistoryItem).related_path,
-                  )
-                "
-              >
-                详情
-              </Button>
-              <span v-else>-</span>
-            </template>
-          </template>
-        </Table>
       </Card>
 
       <Card :title="`IP删除历史记录（${ipDeleteHistoryItems.length}）`">
@@ -1743,6 +1712,94 @@ onMounted(() => {
           v-if="ipDeleteHistoryItems.length === 0 && !loading"
           description="当前没有 IP 删除历史记录"
         />
+      </Card>
+
+      <Card title="服务器删除历史记录">
+        <Table
+          class="plans-compact-table"
+          size="small"
+          :columns="historyColumns"
+          :data-source="historyItems"
+          :loading="loading"
+          :pagination="tablePagination"
+          :row-key="rowKey"
+          :scroll="historyTableScroll"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'result_label'">
+              <Tag
+                :color="resultColor(record as DashboardShutdownPlanHistoryItem)"
+              >
+                {{ (record as DashboardShutdownPlanHistoryItem).result_label }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'user_display_name'">
+              <div>
+                <div>{{ (record as any).user_display_name || '-' }}</div>
+                <div
+                  v-if="(record as any).username_label"
+                  style="color: var(--color-text-secondary)"
+                  class="text-xs"
+                >
+                  {{ (record as any).username_label }}
+                </div>
+              </div>
+            </template>
+            <template v-else-if="column.key === 'deletion_source_label'">
+              <Tag color="blue">
+                {{
+                  (record as DashboardShutdownPlanHistoryItem)
+                    .deletion_source_label || '-'
+                }}
+              </Tag>
+            </template>
+            <template
+              v-else-if="
+                ['executed_at', 'actual_expires_at', 'suspend_at'].includes(
+                  String(column.key),
+                )
+              "
+            >
+              <Tag :color="recordTimeColor(record, column.key)">
+                {{ fmtRecordTime(record, column.key) }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'failure_reason'">
+              <TypographyParagraph
+                v-if="
+                  !(record as DashboardShutdownPlanHistoryItem).is_success &&
+                  (record as DashboardShutdownPlanHistoryItem).failure_reason
+                "
+                :content="
+                  (record as DashboardShutdownPlanHistoryItem).failure_reason ||
+                  '-'
+                "
+                class="mb-0 break-all text-xs leading-5"
+                :ellipsis="{
+                  rows: 2,
+                  tooltip: (record as DashboardShutdownPlanHistoryItem)
+                    .failure_reason,
+                }"
+              />
+              <span v-else>-</span>
+            </template>
+            <template v-else-if="column.key === 'actions'">
+              <Button
+                v-if="(record as DashboardShutdownPlanHistoryItem).related_path"
+                type="link"
+                size="small"
+                @click="
+                  openPath(
+                    (record as DashboardShutdownPlanHistoryItem).related_path,
+                  )
+                "
+              >
+                详情
+              </Button>
+              <span v-else>-</span>
+            </template>
+          </template>
+        </Table>
       </Card>
     </Space>
     <Modal
