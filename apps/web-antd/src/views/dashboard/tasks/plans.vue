@@ -53,7 +53,11 @@ const detail = ref<DashboardLifecyclePlansDetail | null>(null);
 const lastRunResult = ref<DashboardShutdownPlanRunResult | null>(null);
 const failurePanelOpen = ref(false);
 const expandedKeys = reactive<Record<string, boolean>>({});
-const tablePagination = { defaultPageSize: 20, showSizeChanger: true };
+const tablePagination = {
+  defaultPageSize: 20,
+  showSizeChanger: true,
+  showTotal: (total: number) => `已加载 ${total} 条`,
+};
 const noteModalOpen = ref(false);
 const noteSaving = ref(false);
 const noteValue = ref('');
@@ -361,13 +365,21 @@ const serverPlanSections = computed(() => [
     columns: dueColumns.value,
     items: shutdownPlanItems.value,
     key: 'shutdown',
-    title: `关机计划（${summary.value?.shutdown_plan_count ?? shutdownPlanItems.value.length}）`,
+    title: countTitle(
+      '关机计划',
+      shutdownPlanItems.value.length,
+      summary.value?.shutdown_plan_count,
+    ),
   },
   {
     columns: serverDeleteColumns.value,
     items: serverDeletePlanItems.value,
     key: 'server-delete',
-    title: `删除计划（${summary.value?.server_delete_count ?? serverDeletePlanItems.value.length}）`,
+    title: countTitle(
+      '删除计划',
+      serverDeletePlanItems.value.length,
+      summary.value?.server_delete_count,
+    ),
   },
 ]);
 const historyItems = computed(() =>
@@ -405,6 +417,13 @@ const lastRunFailureText = computed(() =>
     )
     .join('\n'),
 );
+
+function countTitle(label: string, loaded: number, total?: number) {
+  if (typeof total === 'number' && total > loaded) {
+    return `${label}（已加载 ${loaded} / 总 ${total}）`;
+  }
+  return `${label}（${total ?? loaded}）`;
+}
 
 function fmtTime(value?: null | string) {
   return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
@@ -1248,7 +1267,13 @@ onMounted(() => {
       </Card>
 
       <Card
-        :title="`IP删除计划（${summary?.ip_delete_count ?? ipDeletePlanItems.length}）`"
+        :title="
+          countTitle(
+            'IP删除计划',
+            ipDeletePlanItems.length,
+            summary?.ip_delete_count,
+          )
+        "
       >
         <Table
           class="plans-compact-table"
@@ -1483,7 +1508,15 @@ onMounted(() => {
         />
       </Card>
 
-      <Card :title="`IP删除历史记录（${ipDeleteHistoryItems.length}）`">
+      <Card
+        :title="
+          countTitle(
+            'IP删除历史记录',
+            ipDeleteHistoryItems.length,
+            summary?.ip_delete_history_count,
+          )
+        "
+      >
         <Table
           class="plans-compact-table"
           size="small"
