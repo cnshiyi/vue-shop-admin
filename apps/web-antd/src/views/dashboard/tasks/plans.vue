@@ -84,6 +84,10 @@ const actionSwitchItems = ref<DashboardCloudActionSwitchItem[]>([]);
 const actionSwitchSavingMap = reactive<Record<string, boolean>>({});
 const assetShutdownSavingMap = reactive<Record<string, boolean>>({});
 const visibleColumnState = reactive<Record<string, boolean>>({});
+type LifecyclePlanSwitchField =
+  | 'ip_delete_enabled'
+  | 'server_delete_enabled'
+  | 'shutdown_enabled';
 
 const CLOUD_ACTION_SWITCHES = [
   {
@@ -294,6 +298,11 @@ const visibleFieldState = computed(() => ({
     visibleColumnState.provider_label !== false ||
     visibleColumnState.provider_status !== false,
 }));
+const actionSwitchEnabledMap = computed(() =>
+  Object.fromEntries(
+    actionSwitchItems.value.map((item) => [item.key, item.enabled]),
+  ) as Record<string, boolean>,
+);
 const lifecycleFields = computed(() =>
   [
     'basic',
@@ -496,6 +505,84 @@ function planStateColor(state?: string) {
   return 'default';
 }
 
+function globalActionSwitchKey(field: LifecyclePlanSwitchField) {
+  if (field === 'shutdown_enabled') return 'cloud_server_shutdown_enabled';
+  if (field === 'server_delete_enabled') return 'cloud_server_delete_enabled';
+  return 'cloud_ip_delete_enabled';
+}
+
+function globalActionSwitchLabel(field: LifecyclePlanSwitchField) {
+  if (field === 'shutdown_enabled') return '关机服务器';
+  if (field === 'server_delete_enabled') return '删除服务器';
+  return '删除IP';
+}
+
+function isGlobalActionEnabled(field: LifecyclePlanSwitchField) {
+  return actionSwitchEnabledMap.value[globalActionSwitchKey(field)] !== false;
+}
+
+function disabledPlanStateKey(field: LifecyclePlanSwitchField) {
+  if (field === 'shutdown_enabled') return 'shutdown_disabled';
+  if (field === 'server_delete_enabled') return 'server_delete_disabled';
+  return 'ip_delete_disabled';
+}
+
+function disabledPlanStateLabel(field: LifecyclePlanSwitchField) {
+  if (field === 'shutdown_enabled') return '总开关关闭';
+  if (field === 'server_delete_enabled') return '删机总开关关闭';
+  return 'IP删除总开关关闭';
+}
+
+function disabledExecutionStatus(field: LifecyclePlanSwitchField) {
+  if (field === 'shutdown_enabled') {
+    return '关机服务器总开关关闭，当前只保留计划展示，不允许真实关机';
+  }
+  if (field === 'server_delete_enabled') {
+    return '删除服务器总开关关闭，当前只保留计划展示，不允许真实删机';
+  }
+  return '删除IP总开关关闭，当前只保留计划展示，不允许真实释放 IP';
+}
+
+function effectivePlanState(
+  record: DashboardShutdownPlanItem | DashboardUnattachedIpDeletePlan,
+  field: LifecyclePlanSwitchField,
+) {
+  return isGlobalActionEnabled(field)
+    ? record.plan_state
+    : disabledPlanStateKey(field);
+}
+
+function effectivePlanStateLabel(
+  record: DashboardShutdownPlanItem | DashboardUnattachedIpDeletePlan,
+  field: LifecyclePlanSwitchField,
+) {
+  return isGlobalActionEnabled(field)
+    ? record.plan_state_label || '-'
+    : disabledPlanStateLabel(field);
+}
+
+function effectiveBlockedReason(
+  record: DashboardShutdownPlanItem | DashboardUnattachedIpDeletePlan,
+  field: LifecyclePlanSwitchField,
+) {
+  return isGlobalActionEnabled(field)
+    ? record.blocked_reason
+    : `${globalActionSwitchLabel(field)}总开关当前为关闭状态，需先开启总开关后再执行单项计划。`;
+}
+
+function effectiveExecutionText(
+  record: DashboardShutdownPlanItem | DashboardUnattachedIpDeletePlan,
+  field: LifecyclePlanSwitchField,
+) {
+  return isGlobalActionEnabled(field)
+    ? executionText(record)
+    : disabledExecutionStatus(field);
+}
+
+function assetPlanSwitchDisabled(field: LifecyclePlanSwitchField) {
+  return !canRunCloudDanger.value || !isGlobalActionEnabled(field);
+}
+
 function serverPlanSwitchField(key: unknown) {
   return String(key) === 'server_delete_enabled'
     ? 'server_delete_enabled'
@@ -506,7 +593,10 @@ function serverPlanSwitchLabel(key: unknown) {
   return String(key) === 'server_delete_enabled' ? '删除计划' : '关机计划';
 }
 
-function executionText(record: { execution_status?: string; note?: string }) {
+function executionText(record: {
+  execution_status?: null | string;
+  note?: null | string;
+}) {
   return record.execution_status || record.note || '-';
 }
 
@@ -1017,19 +1107,32 @@ onMounted(() => {
                 <Tag
                   :color="
                     planStateColor(
-                      (record as DashboardShutdownPlanItem).plan_state,
+                      effectivePlanState(
+                        record as DashboardShutdownPlanItem,
+                        serverPlanSwitchField(column.key),
+                      ),
                     )
                   "
                 >
                   {{
-                    (record as DashboardShutdownPlanItem).plan_state_label ||
-                    '-'
+                    effectivePlanStateLabel(
+                      record as DashboardShutdownPlanItem,
+                      serverPlanSwitchField(column.key),
+                    )
                   }}
                 </Tag>
                 <TypographyParagraph
-                  v-if="(record as DashboardShutdownPlanItem).blocked_reason"
+                  v-if="
+                    effectiveBlockedReason(
+                      record as DashboardShutdownPlanItem,
+                      serverPlanSwitchField(column.key),
+                    )
+                  "
                   :content="
-                    (record as DashboardShutdownPlanItem).blocked_reason || '-'
+                    effectiveBlockedReason(
+                      record as DashboardShutdownPlanItem,
+                      serverPlanSwitchField(column.key),
+                    ) || '-'
                   "
                   class="mb-0 mt-1 break-all text-xs leading-5"
                   style="color: var(--color-text-secondary)"
@@ -1037,7 +1140,10 @@ onMounted(() => {
                     cellEllipsis(
                       'shutdown-plan-state',
                       record as DashboardShutdownPlanItem,
-                      (record as DashboardShutdownPlanItem).blocked_reason,
+                      effectiveBlockedReason(
+                        record as DashboardShutdownPlanItem,
+                        serverPlanSwitchField(column.key),
+                      ),
                       2,
                     )
                   "
@@ -1045,7 +1151,10 @@ onMounted(() => {
                 <Button
                   v-if="
                     shouldShowCellExpand(
-                      (record as DashboardShutdownPlanItem).blocked_reason,
+                      effectiveBlockedReason(
+                        record as DashboardShutdownPlanItem,
+                        serverPlanSwitchField(column.key),
+                      ),
                     )
                   "
                   type="link"
@@ -1082,6 +1191,7 @@ onMounted(() => {
             >
               <Switch
                 :checked="(record as any)[String(column.key)] !== false"
+                :disabled="assetPlanSwitchDisabled(serverPlanSwitchField(column.key))"
                 :loading="
                   assetShutdownSavingMap[
                     `${(record as DashboardShutdownPlanItem).asset_id || ''}:${String(column.key)}`
@@ -1104,16 +1214,20 @@ onMounted(() => {
               <div>
                 <TypographyParagraph
                   :content="
-                    (record as DashboardShutdownPlanItem).execution_status ||
-                    '-'
+                    effectiveExecutionText(
+                      record as DashboardShutdownPlanItem,
+                      serverPlanSwitchField(column.key),
+                    )
                   "
                   class="mb-0 break-all text-xs leading-5"
                   :ellipsis="
                     cellEllipsis(
                       'shutdown-exec',
                       record as DashboardShutdownPlanItem,
-                      (record as DashboardShutdownPlanItem).execution_status ||
-                        '-',
+                      effectiveExecutionText(
+                        record as DashboardShutdownPlanItem,
+                        serverPlanSwitchField(column.key),
+                      ),
                     )
                   "
                 />
@@ -1291,34 +1405,46 @@ onMounted(() => {
             </template>
             <template v-else-if="column.key === 'plan_state_label'">
               <div>
-                <Tag
-                  :color="
-                    planStateColor(
-                      (record as DashboardUnattachedIpDeletePlan).plan_state,
+              <Tag
+                :color="
+                  planStateColor(
+                      effectivePlanState(
+                        record as DashboardUnattachedIpDeletePlan,
+                        'ip_delete_enabled',
+                      ),
                     )
                   "
                 >
                   {{
-                    (record as DashboardUnattachedIpDeletePlan)
-                      .plan_state_label || '-'
+                    effectivePlanStateLabel(
+                      record as DashboardUnattachedIpDeletePlan,
+                      'ip_delete_enabled',
+                    )
                   }}
                 </Tag>
                 <TypographyParagraph
                   v-if="
-                    (record as DashboardUnattachedIpDeletePlan).blocked_reason
+                    effectiveBlockedReason(
+                      record as DashboardUnattachedIpDeletePlan,
+                      'ip_delete_enabled',
+                    )
                   "
                   :content="
                     compactCellText(
-                      (record as DashboardUnattachedIpDeletePlan)
-                        .blocked_reason,
+                      effectiveBlockedReason(
+                        record as DashboardUnattachedIpDeletePlan,
+                        'ip_delete_enabled',
+                      ),
                     )
                   "
                   class="mb-0 break-all text-xs leading-5"
                   style="color: var(--color-text-secondary)"
                   :ellipsis="{
                     rows: 1,
-                    tooltip: (record as DashboardUnattachedIpDeletePlan)
-                      .blocked_reason,
+                    tooltip: effectiveBlockedReason(
+                      record as DashboardUnattachedIpDeletePlan,
+                      'ip_delete_enabled',
+                    ),
                   }"
                 />
               </div>
@@ -1337,6 +1463,7 @@ onMounted(() => {
                   (record as DashboardUnattachedIpDeletePlan)
                     .ip_delete_enabled !== false
                 "
+                :disabled="assetPlanSwitchDisabled('ip_delete_enabled')"
                 :loading="
                   assetShutdownSavingMap[
                     `${String(
@@ -1381,13 +1508,19 @@ onMounted(() => {
               <div>
                 <TypographyParagraph
                   :content="
-                    executionText(record as DashboardUnattachedIpDeletePlan)
+                    effectiveExecutionText(
+                      record as DashboardUnattachedIpDeletePlan,
+                      'ip_delete_enabled',
+                    )
                   "
                   :ellipsis="
                     cellEllipsis(
                       'ip-plan-exec',
                       record as DashboardUnattachedIpDeletePlan,
-                      executionText(record as DashboardUnattachedIpDeletePlan),
+                      effectiveExecutionText(
+                        record as DashboardUnattachedIpDeletePlan,
+                        'ip_delete_enabled',
+                      ),
                     )
                   "
                   class="mb-0 break-all text-xs leading-5"

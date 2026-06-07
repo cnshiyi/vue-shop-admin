@@ -264,7 +264,7 @@ onMounted(loadData);
           <Descriptions.Item label="支付方式">
             {{ empty(detail.pay_method) }}
           </Descriptions.Item>
-          <Descriptions.Item label="交易哈希">
+          <Descriptions.Item label="交易哈希" :span="2">
             {{ empty(detail.tx_hash) }}
           </Descriptions.Item>
         </Descriptions>
@@ -315,7 +315,7 @@ onMounted(loadData);
           <Descriptions.Item label="MTProxy 端口">
             {{ empty(detail.mtproxy_port) }}
           </Descriptions.Item>
-          <Descriptions.Item label="MTProxy 密钥">
+          <Descriptions.Item label="MTProxy 密钥" :span="2">
             {{ empty(detail.mtproxy_secret) }}
           </Descriptions.Item>
           <Descriptions.Item label="MTProxy 链接" :span="2">
@@ -396,7 +396,7 @@ onMounted(loadData);
           <Descriptions.Item label="过期时间">
             {{ empty(detail.expired_at) }}
           </Descriptions.Item>
-          <Descriptions.Item label="更新时间">
+          <Descriptions.Item label="更新时间" :span="2">
             {{ empty(detail.updated_at) }}
           </Descriptions.Item>
         </Descriptions>
