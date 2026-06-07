@@ -100,7 +100,7 @@ export interface DashboardUnattachedIpDeletePlan {
   display_note?: string;
   execution_plan?: string;
   execution_status?: string;
-  id: number | string;
+  id: null | number;
   is_history?: boolean;
   is_overdue?: boolean;
   logged_at?: null | string;
@@ -112,7 +112,10 @@ export interface DashboardUnattachedIpDeletePlan {
   missing_confirm_remaining?: number;
   missing_confirm_threshold?: number;
   note: string;
+  plan_item_key: string;
   source_note?: string;
+  source_id: null | number;
+  source_kind: 'asset' | 'ip_log' | 'order' | string;
   plan_state?: string;
   plan_state_label?: string;
   provider_status: string;
@@ -875,7 +878,7 @@ export interface DashboardShutdownPlanItem {
   delete_next_attempt?: null | number;
   execution_plan?: null | string;
   execution_status?: null | string;
-  id: number | string;
+  id: null | number;
   ip: string;
   note?: null | string;
   ip_recycle_at: null | string;
@@ -884,6 +887,7 @@ export interface DashboardShutdownPlanItem {
   next_run_at?: null | string;
   order_id: null | number;
   order_no: string;
+  plan_item_key: string;
   plan_kind?: 'server_delete' | 'server_shutdown' | string;
   plan_state?: string;
   plan_state_label?: string;
@@ -896,6 +900,8 @@ export interface DashboardShutdownPlanItem {
   resource_state?: string;
   resource_state_label?: string;
   actual_expires_at: null | string;
+  source_id?: null | number;
+  source_kind?: 'asset' | 'ip_log' | 'order' | string;
   ip_delete_enabled?: boolean;
   server_delete_enabled?: boolean;
   shutdown_enabled?: boolean;

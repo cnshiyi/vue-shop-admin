@@ -18,6 +18,28 @@ const unattachedIpDeletePlans = computed(
   () => overview.value?.unattached_ip_delete_plans || [],
 );
 
+function planItemKey(item: {
+  asset_id?: null | number;
+  asset_name?: null | string;
+  id?: null | number;
+  plan_item_key?: null | string;
+  public_ip?: null | string;
+  source_id?: null | number;
+  source_kind?: null | string;
+}) {
+  return (
+    item.plan_item_key ||
+    (item.source_kind && item.source_id
+      ? `${item.source_kind}:${item.source_id}`
+      : '') ||
+    item.asset_id ||
+    item.id ||
+    item.public_ip ||
+    item.asset_name ||
+    'unknown'
+  );
+}
+
 function formatTime(value?: null | string) {
   return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
 }
@@ -186,7 +208,7 @@ onMounted(loadOverview);
             <div v-if="unattachedIpDeletePlans.length > 0" class="space-y-4">
               <div
                 v-for="item in unattachedIpDeletePlans"
-                :key="item.id"
+                :key="planItemKey(item)"
                 class="rounded-lg border border-[var(--ant-color-border-secondary)] p-4"
               >
                 <div class="flex flex-wrap items-center justify-between gap-3">

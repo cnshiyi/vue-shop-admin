@@ -416,16 +416,22 @@ function recordTimeColor(record: any, key: unknown) {
 function rowKey(record: {
   asset_id?: null | number | string;
   asset_name?: null | string;
-  id?: number | string;
+  id?: null | number | string;
   ip?: null | string;
   order_id?: null | number | string;
   order_no?: null | string;
+  plan_item_key?: null | string;
   public_ip?: null | string;
+  source_id?: null | number | string;
+  source_kind?: null | string;
 }) {
   return String(
-    record.id ||
-      record.order_id ||
+    record.plan_item_key ||
+      (record.source_kind && record.source_id
+        ? `${record.source_kind}:${record.source_id}`
+        : '') ||
       record.asset_id ||
+      record.order_id ||
       record.order_no ||
       record.public_ip ||
       record.ip ||
@@ -525,14 +531,22 @@ function compactCellText(text?: null | string) {
 
 function expandedCellKey(
   prefix: string,
-  record: { id: number | string; order_id?: null | number },
+  record: {
+    id: null | number;
+    order_id?: null | number;
+    plan_item_key?: string;
+  },
 ) {
   return `${prefix}-${rowKey(record)}`;
 }
 
 function cellEllipsis(
   prefix: string,
-  record: { id: number | string; order_id?: null | number },
+  record: {
+    id: null | number;
+    order_id?: null | number;
+    plan_item_key?: string;
+  },
   text?: null | string,
   rows = 2,
 ) {
@@ -635,7 +649,7 @@ async function toggleAssetPlanSwitch(
   field: 'ip_delete_enabled' | 'server_delete_enabled' | 'shutdown_enabled',
   switchLabel: string,
 ) {
-  const assetId = Number((record as any).asset_id || (record as any).id || 0);
+  const assetId = Number((record as any).asset_id || 0);
   if (!assetId) {
     message.error(`缺少资产 ID，无法切换${switchLabel}`);
     return;
@@ -664,7 +678,6 @@ async function savePlanNote() {
   if (!target || noteSaving.value) return;
   const payload: {
     asset_id?: number;
-    id?: number | string;
     item_type?: string;
     note: string;
     order_id?: number;
@@ -676,12 +689,7 @@ async function savePlanNote() {
   if (orderTarget.item_type === 'order') {
     payload.order_id = Number(orderTarget.order_id || 0);
   } else {
-    payload.asset_id = Number(
-      orderTarget.asset_id ||
-        (target as DashboardUnattachedIpDeletePlan).id ||
-        0,
-    );
-    payload.id = (target as DashboardUnattachedIpDeletePlan).id;
+    payload.asset_id = Number(orderTarget.asset_id || 0);
   }
   noteSaving.value = true;
   try {
@@ -1333,7 +1341,6 @@ onMounted(() => {
                   assetShutdownSavingMap[
                     `${String(
                       (record as DashboardUnattachedIpDeletePlan).asset_id ||
-                        (record as DashboardUnattachedIpDeletePlan).id ||
                         '',
                     )}:ip_delete_enabled`
                   ]
