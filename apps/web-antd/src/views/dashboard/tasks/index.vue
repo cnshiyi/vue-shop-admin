@@ -12,7 +12,15 @@ import { useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Card, Input, Space, Table, Tag, TypographyParagraph } from 'ant-design-vue';
+import {
+  Button,
+  Card,
+  Input,
+  Space,
+  Table,
+  Tag,
+  TypographyParagraph,
+} from 'ant-design-vue';
 import dayjs from 'dayjs';
 
 import { getDashboardTaskCenterApi, getDashboardTasksApi } from '#/api/admin';
@@ -40,7 +48,12 @@ const columns: TableColumnsType<DashboardTaskItem> = [
     key: 'execution_status',
     width: 150,
   },
-  { title: '下次运行', dataIndex: 'next_run_at', key: 'next_run_at', width: 170 },
+  {
+    title: '下次运行',
+    dataIndex: 'next_run_at',
+    key: 'next_run_at',
+    width: 170,
+  },
   { title: '更新时间', dataIndex: 'updated_at', key: 'updated_at', width: 170 },
   { title: '说明', dataIndex: 'note', key: 'note', width: 260 },
   { title: '操作', key: 'actions', width: 90, fixed: 'right' as const },
@@ -87,7 +100,11 @@ function healthColor(health?: string) {
 }
 
 function statusColor(status?: string) {
-  if (['active', 'auto_renew_success', 'completed', 'succeeded'].includes(status || '')) {
+  if (
+    ['active', 'auto_renew_success', 'completed', 'succeeded'].includes(
+      status || '',
+    )
+  ) {
     return 'success';
   }
   if (
@@ -109,9 +126,14 @@ function statusColor(status?: string) {
     return 'processing';
   }
   if (
-    ['auto_renew_failed', 'cancelled', 'deleted', 'expired', 'failed', 'partial'].includes(
-      status || '',
-    )
+    [
+      'auto_renew_failed',
+      'cancelled',
+      'deleted',
+      'expired',
+      'failed',
+      'partial',
+    ].includes(status || '')
   ) {
     return 'error';
   }
@@ -125,7 +147,10 @@ function formatTime(value?: null | string) {
 }
 
 function taskObjectLabel(item: DashboardTaskItem) {
-  return item.order_no || (item.order_id ? `订单 ${item.order_id}` : String(item.id || '-'));
+  return (
+    item.order_no ||
+    (item.order_id ? `订单 ${item.order_id}` : String(item.id || '-'))
+  );
 }
 
 async function loadData() {
@@ -143,12 +168,12 @@ async function loadData() {
 }
 
 function canOpenPath(path?: string) {
-  return Boolean(path);
+  return typeof path === 'string' && path.length > 0;
 }
 
 function openPath(path?: string) {
-  if (canOpenPath(path)) {
-    router.push(path!).catch(() => {});
+  if (path) {
+    router.push(path).catch(() => {});
   }
 }
 
@@ -171,7 +196,9 @@ onMounted(loadData);
     <div class="task-overview-grid">
       <Card class="task-total-card" :loading="loading">
         <div class="task-total-title">任务总量</div>
-        <div class="task-total-value">{{ overview?.totals.tasks ?? filteredItems.length }}</div>
+        <div class="task-total-value">
+          {{ overview?.totals.tasks ?? filteredItems.length }}
+        </div>
         <div class="task-total-meta">
           活动 {{ overview?.totals.active ?? 0 }} / 告警
           {{ overview?.totals.warning ?? 0 }} / 失败
@@ -187,11 +214,19 @@ onMounted(loadData);
       >
         <Space class="task-section-head" align="center">
           <Tag :color="healthColor(section.health)">
-            {{ section.health === 'error' ? '异常' : section.health === 'warning' ? '关注' : '正常' }}
+            {{
+              section.health === 'error'
+                ? '异常'
+                : section.health === 'warning'
+                  ? '关注'
+                  : '正常'
+            }}
           </Tag>
           <span>{{ section.title }}</span>
         </Space>
-        <div class="task-section-count">{{ section.active }}/{{ section.total }}</div>
+        <div class="task-section-count">
+          {{ section.active }}/{{ section.total }}
+        </div>
         <div class="task-section-meta">
           告警 {{ section.warning }} · 失败 {{ section.failed }}
         </div>
@@ -210,7 +245,9 @@ onMounted(loadData);
             style="width: min(360px, 100%)"
             @search="loadData"
           />
-          <Button size="small" :loading="loading" @click="loadData">刷新</Button>
+          <Button size="small" :loading="loading" @click="loadData">
+            刷新
+          </Button>
           <span class="text-xs text-gray-500">
             生成时间：{{ formatTime(overview?.generated_at) }}
           </span>
@@ -262,10 +299,12 @@ onMounted(loadData);
           <template v-else-if="column.key === 'note'">
             <TypographyParagraph
               class="!mb-0 max-w-full break-all text-xs leading-5"
-              :ellipsis="{ rows: 2, tooltip: asDashboardTaskItem(record).note || '' }"
-            >
-              {{ asDashboardTaskItem(record).note || '-' }}
-            </TypographyParagraph>
+              :content="asDashboardTaskItem(record).note || '-'"
+              :ellipsis="{
+                rows: 2,
+                tooltip: asDashboardTaskItem(record).note || '',
+              }"
+            />
           </template>
           <template v-else-if="column.key === 'actions'">
             <Button
@@ -316,23 +355,23 @@ onMounted(loadData);
 
 .task-total-title,
 .task-section-meta {
-  color: #6b7280;
   font-size: 12px;
+  color: #6b7280;
 }
 
 .task-total-value,
 .task-section-count {
   margin-top: 6px;
-  color: #111827;
   font-size: 24px;
   font-weight: 650;
   line-height: 30px;
+  color: #111827;
 }
 
 .task-total-meta {
   margin-top: 4px;
-  color: #4b5563;
   font-size: 12px;
+  color: #4b5563;
 }
 
 .task-section-head {
