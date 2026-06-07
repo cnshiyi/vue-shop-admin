@@ -221,11 +221,7 @@ const historyTableScroll = computed(() => ({
 }));
 
 const dueBatchItems = computed(
-  () =>
-    detail.value?.active_user_summary_items || [
-      ...(detail.value?.due_user_summary_items || []),
-      ...(detail.value?.future_user_summary_items || []),
-    ],
+  () => detail.value?.active_user_summary_items || [],
 );
 const historyItems = computed(() => detail.value?.history_items || []);
 
@@ -302,8 +298,6 @@ async function loadData() {
     detail.value = await getDashboardNoticePlanApi({
       compact: 1,
       fields: noticeFields.value,
-      future_limit: noticeLimit.value,
-      future_offset: (noticePage.value - 1) * noticeLimit.value,
       history_limit: historyLimit.value,
       history_offset: (historyPage.value - 1) * historyLimit.value,
       limit: noticeLimit.value,
@@ -338,7 +332,6 @@ async function refreshNoticePlan() {
   try {
     const result = await refreshDashboardNoticePlanApi({
       limit: noticeLimit.value,
-      future_limit: noticeLimit.value,
       history_limit: historyLimit.value,
     });
     message.success(

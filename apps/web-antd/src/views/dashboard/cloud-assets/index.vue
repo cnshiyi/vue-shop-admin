@@ -273,8 +273,11 @@ function compareByDisplayOrder(
   return (b.sort_order || 99) - (a.sort_order || 99);
 }
 
-function sortAssets(records: DashboardCloudAssetItem[]) {
-  if (totalSortMode.value !== 'default') {
+function sortAssets(
+  records: DashboardCloudAssetItem[],
+  preserveBackendOrder = false,
+) {
+  if (preserveBackendOrder || totalSortMode.value !== 'default') {
     return [...records];
   }
   return [...records].toSorted(compareByDisplayOrder);
@@ -343,9 +346,12 @@ function telegramGroupLabel(item: DashboardCloudAssetItem) {
     : String(item.telegram_group_chat_id || '-');
 }
 
-function buildAssetGroups(records: DashboardCloudAssetItem[]) {
+function buildAssetGroups(
+  records: DashboardCloudAssetItem[],
+  preserveBackendOrder = false,
+) {
   const groupMap = new Map<string, DashboardCloudAssetGroup>();
-  for (const item of sortAssets(records)) {
+  for (const item of sortAssets(records, preserveBackendOrder)) {
     const fallbackUserId = userGroupId(item);
     const useUserGroup = groupMode.value === 'user' || !item.telegram_group_id;
     const groupKey = useUserGroup
@@ -374,7 +380,7 @@ function buildAssetGroups(records: DashboardCloudAssetItem[]) {
     group.items.push(item);
     groupMap.set(groupKey, group);
   }
-  if (totalSortMode.value !== 'default') {
+  if (preserveBackendOrder || totalSortMode.value !== 'default') {
     return [...groupMap.values()];
   }
   return [...groupMap.values()].toSorted((a, b) => {
@@ -396,12 +402,22 @@ function buildAssetGroups(records: DashboardCloudAssetItem[]) {
 function refreshGroupedItems(
   records: DashboardCloudAssetItem[],
   resetExpanded = false,
+  preserveBackendOrder = false,
+) {
+  applyGroupedPage(
+    buildAssetGroups(records, preserveBackendOrder),
+    resetExpanded,
+  );
+}
+
+function applyGroupedPage(
+  nextGroups: DashboardCloudAssetGroup[],
+  resetExpanded = false,
 ) {
   const previousGroupKeys = new Set(
     groups.value.map((group) => group.user_key),
   );
   const previousExpandedKeys = new Set(expandedGroupKeys.value);
-  const nextGroups = buildAssetGroups(records);
 
   groups.value = nextGroups;
   expandedGroupKeys.value = nextGroups
@@ -1650,7 +1666,7 @@ async function loadData() {
       if (sequence !== loadSequence) return;
     }
 
-    items.value = sortAssets(firstPage.items || []);
+    items.value = firstPage.items || [];
     loadProgress.total = firstPage.total || items.value.length;
     if (grouped.value) {
       const groupedPage = firstPage as DashboardCloudAssetGroupedResponse;
@@ -1661,7 +1677,7 @@ async function loadData() {
       groupPagination.total =
         groupedPage.total || groupedPage.groups?.length || 0;
       loadProgress.total = groupPagination.total;
-      refreshGroupedItems(displayedItems.value, true);
+      applyGroupedPage(groupedPage.groups || [], true);
       return;
     }
 
@@ -2166,11 +2182,11 @@ function replaceAssetInList(asset: DashboardCloudAssetItem) {
   if (index === -1) {
     return;
   }
-  items.value = sortAssets([
+  items.value = [
     ...items.value.slice(0, index),
     asset,
     ...items.value.slice(index + 1),
-  ]);
+  ];
   if (grouped.value) {
     refreshGroupedItems(displayedItems.value);
   }

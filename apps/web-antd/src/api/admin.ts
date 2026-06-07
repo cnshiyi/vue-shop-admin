@@ -768,13 +768,9 @@ export interface DashboardNoticePlanDetail {
   active_user_count?: number;
   active_user_summary_items?: DashboardNoticeUserSummaryItem[];
   due_count: number;
-  due_items: DashboardNoticePlanItem[];
   due_user_count: number;
-  due_user_summary_items: DashboardNoticeUserSummaryItem[];
   future_count: number;
-  future_plan_items: DashboardNoticePlanItem[];
   future_user_count: number;
-  future_user_summary_items: DashboardNoticeUserSummaryItem[];
   history_count: number;
   history_items: DashboardNoticePlanHistoryItem[];
   interval_minutes: number;
@@ -1308,8 +1304,6 @@ export async function getDashboardNoticePlanApi(
   params: {
     compact?: 0 | 1;
     fields?: string;
-    future_limit?: number;
-    future_offset?: number;
     history_limit?: number;
     history_offset?: number;
     limit?: number;
@@ -1324,7 +1318,6 @@ export async function getDashboardNoticePlanApi(
 
 export async function refreshDashboardNoticePlanApi(
   payload: {
-    future_limit?: number;
     history_limit?: number;
     limit?: number;
   } = {},
