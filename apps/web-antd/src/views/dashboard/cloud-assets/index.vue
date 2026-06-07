@@ -89,7 +89,7 @@ const syncJobCancellingIds = ref<number[]>([]);
 const assetSyncingIds = ref<number[]>([]);
 const autoRenewSavingIds = ref<number[]>([]);
 const keyword = ref('');
-const grouped = ref(true);
+const grouped = ref(false);
 const showDeletedAssets = ref(false);
 const groupMode = ref<'telegram_group' | 'user'>('user');
 const totalSortMode = ref<
@@ -1584,6 +1584,11 @@ function setRiskStatus(status: string) {
 }
 
 function handleColumnViewChange() {
+  if (columnView.value === 'ip' && grouped.value) {
+    grouped.value = false;
+    groups.value = [];
+    expandedGroupKeys.value = [];
+  }
   resetListPages();
   clearSelectedRows();
   loadData();
