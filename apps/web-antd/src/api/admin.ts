@@ -361,6 +361,8 @@ export interface DashboardCloudAssetItem {
   risk_reasons?: string[];
   risk_status?: string;
   risk_statuses?: string[];
+  ip_delete_enabled?: boolean;
+  server_delete_enabled?: boolean;
   shutdown_enabled?: boolean;
   source: string;
   source_label?: string;

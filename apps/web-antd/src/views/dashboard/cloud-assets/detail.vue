@@ -31,7 +31,14 @@ import {
 const route = useRoute();
 const router = useRouter();
 const loading = ref(false);
-const shutdownSaving = ref(false);
+const lifecycleSwitchSaving = ref<
+  Partial<
+    Record<
+      'ip_delete_enabled' | 'server_delete_enabled' | 'shutdown_enabled',
+      boolean
+    >
+  >
+>({});
 const detail = ref<DashboardCloudAssetDetail | null>(null);
 const expandedLifecycleRows = ref<Record<string, boolean>>({});
 
@@ -130,22 +137,32 @@ function goBack() {
   router.push('/admin/cloud-assets').catch(() => {});
 }
 
-async function toggleShutdownEnabled(checked: boolean) {
-  if (!detail.value || shutdownSaving.value) return;
-  shutdownSaving.value = true;
+async function toggleLifecycleSwitch(
+  field: 'ip_delete_enabled' | 'server_delete_enabled' | 'shutdown_enabled',
+  label: string,
+  checked: boolean,
+) {
+  if (!detail.value || lifecycleSwitchSaving.value[field]) return;
+  lifecycleSwitchSaving.value = {
+    ...lifecycleSwitchSaving.value,
+    [field]: true,
+  };
   try {
     const result = await updateDashboardCloudAssetApi(detail.value.id, {
-      shutdown_enabled: checked,
+      [field]: checked,
     });
-    detail.value.shutdown_enabled = Boolean(result.shutdown_enabled);
+    detail.value[field] = result[field] !== false;
     detail.value.risk_status = result.risk_status;
     detail.value.risk_statuses = result.risk_statuses;
     detail.value.risk_reasons = result.risk_reasons;
-    message.success(`关机计划已${result.shutdown_enabled ? '开启' : '关闭'}`);
+    message.success(`${label}已${detail.value[field] ? '开启' : '关闭'}`);
   } catch (error: any) {
-    message.error(error?.message || '关机计划切换失败');
+    message.error(error?.message || `${label}切换失败`);
   } finally {
-    shutdownSaving.value = false;
+    lifecycleSwitchSaving.value = {
+      ...lifecycleSwitchSaving.value,
+      [field]: false,
+    };
   }
 }
 
@@ -388,10 +405,49 @@ onMounted(loadData);
           <Descriptions.Item label="关机计划">
             <Switch
               :checked="detail.shutdown_enabled !== false"
-              :loading="shutdownSaving"
+              :loading="lifecycleSwitchSaving.shutdown_enabled"
               checked-children="开"
               un-checked-children="关"
-              @change="(checked) => toggleShutdownEnabled(Boolean(checked))"
+              @change="
+                (checked) =>
+                  toggleLifecycleSwitch(
+                    'shutdown_enabled',
+                    '关机计划',
+                    Boolean(checked),
+                  )
+              "
+            />
+          </Descriptions.Item>
+          <Descriptions.Item label="删除计划">
+            <Switch
+              :checked="detail.server_delete_enabled !== false"
+              :loading="lifecycleSwitchSaving.server_delete_enabled"
+              checked-children="开"
+              un-checked-children="关"
+              @change="
+                (checked) =>
+                  toggleLifecycleSwitch(
+                    'server_delete_enabled',
+                    '删除计划',
+                    Boolean(checked),
+                  )
+              "
+            />
+          </Descriptions.Item>
+          <Descriptions.Item label="IP 删除计划">
+            <Switch
+              :checked="detail.ip_delete_enabled !== false"
+              :loading="lifecycleSwitchSaving.ip_delete_enabled"
+              checked-children="开"
+              un-checked-children="关"
+              @change="
+                (checked) =>
+                  toggleLifecycleSwitch(
+                    'ip_delete_enabled',
+                    'IP 删除计划',
+                    Boolean(checked),
+                  )
+              "
             />
           </Descriptions.Item>
           <Descriptions.Item label="同步状态">

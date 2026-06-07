@@ -1783,7 +1783,7 @@ onMounted(() => {
       <Card
         :title="
           countTitle(
-            'IP删除历史记录',
+            'IP 删除历史记录',
             ipDeleteHistoryItems.length,
             summary?.ip_delete_history_count,
           )
