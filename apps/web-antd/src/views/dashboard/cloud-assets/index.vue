@@ -468,8 +468,10 @@ function handleDeletedAssetsVisibleChange() {
 }
 
 function handleGroupPageChange(page: number, pageSize: number) {
-  groupPagination.page = page;
-  groupPagination.pageSize = pageSize;
+  const nextPageSize = Number(pageSize || groupPagination.pageSize);
+  const pageSizeChanged = nextPageSize !== groupPagination.pageSize;
+  groupPagination.page = pageSizeChanged ? 1 : Number(page || 1);
+  groupPagination.pageSize = nextPageSize;
   loadData();
 }
 

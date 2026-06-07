@@ -448,11 +448,12 @@ function planPagination(
 }
 
 async function handlePlanPageChange(key: PlanTableKey, pagination: any) {
-  const nextPage = Number(pagination?.current || 1);
   const nextPageSize = Number(
     pagination?.pageSize || planPageState[key].pageSize,
   );
-  planPageState[key].current = Math.max(nextPage, 1);
+  const pageSizeChanged = nextPageSize !== planPageState[key].pageSize;
+  const nextPage = Number(pagination?.current || 1);
+  planPageState[key].current = pageSizeChanged ? 1 : Math.max(nextPage, 1);
   planPageState[key].pageSize = Math.max(nextPageSize, 1);
   await loadData({ silent: true });
 }
