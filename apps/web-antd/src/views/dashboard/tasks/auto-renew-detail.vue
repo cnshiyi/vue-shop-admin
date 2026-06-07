@@ -267,22 +267,23 @@ function normalizeTaskDetail(value: unknown): DashboardAutoRenewTaskDetail {
   };
 }
 
-function renewRowKey(record: DashboardAutoRenewTaskDueItem, index?: number) {
-  return record.id || record.order_id || `${record.ip}-${index || 0}`;
+function renewRowKey(record: DashboardAutoRenewTaskDueItem) {
+  return (
+    record.id ||
+    record.order_id ||
+    `${record.ip || '-'}-${record.order_no || '-'}-${record.queue_status || '-'}`
+  );
 }
 
-function historyRowKey(
-  record: DashboardAutoRenewTaskHistoryItem,
-  index?: number,
-) {
-  return record.id || `${record.batch_id}-${record.order_no}-${index || 0}`;
+function historyRowKey(record: DashboardAutoRenewTaskHistoryItem) {
+  return (
+    record.id ||
+    `${record.batch_id || '-'}-${record.order_no || '-'}-${record.executed_at || '-'}`
+  );
 }
 
-function failureRowKey(
-  record: DashboardAutoRenewRunResultItem,
-  index?: number,
-) {
-  return `${record.order_id || 0}-${record.ip || record.order_no}-${index || 0}`;
+function failureRowKey(record: DashboardAutoRenewRunResultItem) {
+  return `${record.order_id || record.order_no || '-'}-${record.ip || '-'}-${record.queue_status || '-'}`;
 }
 
 function isExpanded(key: string) {
@@ -578,15 +579,14 @@ onMounted(loadData);
         >
           <div style="margin-bottom: 4px">最新失败 IP：</div>
           <TypographyParagraph
+            :content="latestFailedIpsText"
             :ellipsis="
               isExpanded('latest-failed-ips')
                 ? false
                 : { rows: 2, tooltip: latestFailedIpsText }
             "
             class="mb-0 break-all text-sm leading-6"
-          >
-            {{ latestFailedIpsText }}
-          </TypographyParagraph>
+          />
           <Button
             v-if="shouldShowExpand(latestFailedIpsText, 60)"
             type="link"
@@ -631,6 +631,10 @@ onMounted(loadData);
                   style="margin-top: 4px; color: var(--color-error)"
                 >
                   <TypographyParagraph
+                    :content="
+                      (record as DashboardAutoRenewTaskDueItem)
+                        .last_failure_reason || ''
+                    "
                     :ellipsis="
                       isExpanded(
                         `due-failure-${(record as DashboardAutoRenewTaskDueItem).id}`,
@@ -643,12 +647,7 @@ onMounted(loadData);
                           }
                     "
                     class="mb-0 break-all text-xs leading-5"
-                  >
-                    {{
-                      (record as DashboardAutoRenewTaskDueItem)
-                        .last_failure_reason
-                    }}
-                  </TypographyParagraph>
+                  />
                   <Button
                     v-if="
                       shouldShowExpand(
@@ -893,6 +892,10 @@ onMounted(loadData);
               >
                 <Tag color="error" style="margin-bottom: 4px">失败原因</Tag>
                 <TypographyParagraph
+                  :content="
+                    (record as DashboardAutoRenewTaskHistoryItem)
+                      .failure_reason || ''
+                  "
                   :ellipsis="
                     isExpanded(
                       `history-failure-${(record as DashboardAutoRenewTaskHistoryItem).id}`,
@@ -905,11 +908,7 @@ onMounted(loadData);
                         }
                   "
                   class="mb-0 break-all text-xs leading-5"
-                >
-                  {{
-                    (record as DashboardAutoRenewTaskHistoryItem).failure_reason
-                  }}
-                </TypographyParagraph>
+                />
                 <Button
                   v-if="
                     shouldShowExpand(
