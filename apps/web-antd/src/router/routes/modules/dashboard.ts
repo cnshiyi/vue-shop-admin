@@ -1,11 +1,13 @@
 import type { RouteRecordRaw } from 'vue-router';
 
+import { ChartArea, LayoutDashboard } from '@vben/icons';
+
 import { $t } from '#/locales';
 
 const routes: RouteRecordRaw[] = [
   {
     meta: {
-      icon: 'lucide:layout-dashboard',
+      icon: LayoutDashboard,
       order: -1,
       title: $t('page.dashboard.title'),
     },
@@ -18,7 +20,7 @@ const routes: RouteRecordRaw[] = [
         redirect: '/admin/analytics',
         meta: {
           affixTab: true,
-          icon: 'lucide:area-chart',
+          icon: ChartArea,
           title: $t('page.dashboard.analytics'),
         },
       },

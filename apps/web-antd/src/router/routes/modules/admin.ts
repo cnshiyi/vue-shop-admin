@@ -1,11 +1,31 @@
 import type { RouteRecordRaw } from 'vue-router';
 
+import {
+  BellRing,
+  Boxes,
+  CalendarClock,
+  ChartColumn,
+  ChartColumnIncreasing,
+  KeyRound,
+  LayoutDashboard,
+  ListTodo,
+  Logs,
+  MessageCircle,
+  MonitorSmartphone,
+  PackageSearch,
+  RotateCwSquare,
+  Server,
+  Settings2,
+  ShoppingCart,
+  Users,
+} from '@vben/icons';
+
 import { $t } from '#/locales';
 
 const routes: RouteRecordRaw[] = [
   {
     meta: {
-      icon: 'lucide:layout-dashboard',
+      icon: LayoutDashboard,
       order: -1,
       title: $t('page.dashboard.title'),
     },
@@ -18,7 +38,7 @@ const routes: RouteRecordRaw[] = [
         path: 'analytics',
         component: () => import('#/views/dashboard/analytics/index.vue'),
         meta: {
-          icon: 'lucide:chart-column',
+          icon: ChartColumn,
           title: '分析页',
         },
       },
@@ -27,7 +47,7 @@ const routes: RouteRecordRaw[] = [
         path: 'users',
         component: () => import('#/views/dashboard/users/index.vue'),
         meta: {
-          icon: 'lucide:users',
+          icon: Users,
           title: '用户列表',
         },
       },
@@ -36,7 +56,7 @@ const routes: RouteRecordRaw[] = [
         path: 'telegram-accounts',
         redirect: '/admin/telegram-accounts/accounts',
         meta: {
-          icon: 'lucide:message-circle',
+          icon: MessageCircle,
           title: '账号管理',
         },
         children: [
@@ -83,7 +103,7 @@ const routes: RouteRecordRaw[] = [
         path: 'cloud-assets',
         component: () => import('#/views/dashboard/cloud-assets/index.vue'),
         meta: {
-          icon: 'lucide:boxes',
+          icon: Boxes,
           title: '代理列表',
         },
       },
@@ -110,7 +130,7 @@ const routes: RouteRecordRaw[] = [
         path: 'servers',
         component: () => import('#/views/dashboard/servers/index.vue'),
         meta: {
-          icon: 'lucide:server',
+          icon: Server,
           title: '服务器表',
         },
       },
@@ -119,7 +139,7 @@ const routes: RouteRecordRaw[] = [
         path: 'tasks/plans',
         component: () => import('#/views/dashboard/tasks/plans.vue'),
         meta: {
-          icon: 'lucide:calendar-clock',
+          icon: CalendarClock,
           title: '计划',
         },
       },
@@ -128,7 +148,7 @@ const routes: RouteRecordRaw[] = [
         path: 'tasks/notices',
         component: () => import('#/views/dashboard/tasks/notices.vue'),
         meta: {
-          icon: 'lucide:bell-ring',
+          icon: BellRing,
           title: '通知计划',
         },
       },
@@ -138,7 +158,7 @@ const routes: RouteRecordRaw[] = [
         component: () =>
           import('#/views/dashboard/tasks/auto-renew-detail.vue'),
         meta: {
-          icon: 'lucide:rotate-cw-square',
+          icon: RotateCwSquare,
           title: '续费列表',
         },
       },
@@ -148,7 +168,7 @@ const routes: RouteRecordRaw[] = [
         component: () =>
           import('#/views/dashboard/settings/cloud-accounts.vue'),
         meta: {
-          icon: 'lucide:key-round',
+          icon: KeyRound,
           title: '云账号设置',
         },
       },
@@ -157,7 +177,7 @@ const routes: RouteRecordRaw[] = [
         path: 'tasks',
         component: () => import('#/views/dashboard/tasks/index.vue'),
         meta: {
-          icon: 'lucide:list-todo',
+          icon: ListTodo,
           title: '任务列表',
         },
       },
@@ -166,7 +186,7 @@ const routes: RouteRecordRaw[] = [
         path: 'cloud-plans',
         redirect: '/admin/cloud-plans/list',
         meta: {
-          icon: 'lucide:package-search',
+          icon: PackageSearch,
           title: '套餐设置',
         },
         children: [
@@ -194,7 +214,7 @@ const routes: RouteRecordRaw[] = [
         path: 'settings',
         redirect: '/admin/settings/system',
         meta: {
-          icon: 'lucide:settings-2',
+          icon: Settings2,
           title: '设置',
         },
         children: [
@@ -262,7 +282,7 @@ const routes: RouteRecordRaw[] = [
         component: () =>
           import('#/views/dashboard/server-statistics/index.vue'),
         meta: {
-          icon: 'lucide:chart-column-increasing',
+          icon: ChartColumnIncreasing,
           title: '服务器统计',
         },
       },
@@ -271,7 +291,7 @@ const routes: RouteRecordRaw[] = [
         path: 'cloud-orders',
         redirect: '/admin/cloud-orders/list',
         meta: {
-          icon: 'lucide:shopping-cart',
+          icon: ShoppingCart,
           title: '云订单',
         },
         children: [
@@ -327,7 +347,7 @@ const routes: RouteRecordRaw[] = [
         path: 'logs',
         redirect: '/admin/logs/servers',
         meta: {
-          icon: 'lucide:logs',
+          icon: Logs,
           title: '日志',
         },
         children: [
@@ -364,7 +384,7 @@ const routes: RouteRecordRaw[] = [
         path: 'monitors',
         component: () => import('#/views/dashboard/monitors/index.vue'),
         meta: {
-          icon: 'lucide:monitor-smartphone',
+          icon: MonitorSmartphone,
           title: '监控列表',
         },
       },
