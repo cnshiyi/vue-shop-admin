@@ -914,6 +914,7 @@ export interface DashboardShutdownPlanItem {
 
 export interface DashboardShutdownPlanHistoryItem {
   delete_at: null | string;
+  display_note?: null | string;
   detail_path: string;
   executed_at: null | string;
   deletion_source_label?: string;
@@ -929,6 +930,8 @@ export interface DashboardShutdownPlanHistoryItem {
   related_path: string;
   result_label: string;
   actual_expires_at: null | string;
+  note?: null | string;
+  source_note?: null | string;
   suspend_at: null | string;
   tg_user_id: null | number;
   user_display_name: string;
@@ -960,6 +963,7 @@ export interface DashboardLifecyclePlansDetail {
     ip_delete?: DashboardPlanPaginationItem;
     ip_delete_history?: DashboardPlanPaginationItem;
     server_delete?: DashboardPlanPaginationItem;
+    server_history?: DashboardPlanPaginationItem;
     shutdown_plan?: DashboardPlanPaginationItem;
   };
   recent_failure_count: number;
@@ -968,6 +972,8 @@ export interface DashboardLifecyclePlansDetail {
   server_delete_count?: number;
   server_delete_due_count?: number;
   server_delete_items: DashboardShutdownPlanItem[];
+  server_history_count?: number;
+  server_history_items: DashboardShutdownPlanHistoryItem[];
   server_asset_count?: number;
   shutdown_plan_count?: number;
   shutdown_plan_due_count?: number;
@@ -1378,6 +1384,8 @@ export async function getDashboardLifecyclePlansApi(
     limit?: number;
     server_delete_page?: number;
     server_delete_page_size?: number;
+    server_history_page?: number;
+    server_history_page_size?: number;
     shutdown_page?: number;
     shutdown_page_size?: number;
   } = {},
@@ -1399,11 +1407,13 @@ export async function refreshDashboardLifecyclePlansApi(
     loaded_ip_delete_count: number;
     loaded_ip_delete_history_count: number;
     loaded_server_delete_count: number;
+    loaded_server_history_count?: number;
     loaded_shutdown_plan_count: number;
     missing_expiry_count: number;
     refreshed: boolean;
     server_asset_count: number;
     server_delete_count: number;
+    server_history_count?: number;
     shutdown_plan_count: number;
     source_asset_count: number;
     unattached_ip_count: number;

@@ -2,6 +2,7 @@
 import type {
   DashboardCloudActionSwitchItem,
   DashboardLifecyclePlansDetail,
+  DashboardShutdownPlanHistoryItem,
   DashboardShutdownPlanItem,
   DashboardShutdownPlanRunResult,
   DashboardShutdownPlanRunResultItem,
@@ -56,6 +57,7 @@ type PlanTableKey =
   | 'ip_delete'
   | 'ip_delete_history'
   | 'server_delete'
+  | 'server_history'
   | 'shutdown_plan';
 const planPageState = reactive<
   Record<PlanTableKey, { current: number; pageSize: number }>
@@ -63,6 +65,7 @@ const planPageState = reactive<
   ip_delete: { current: 1, pageSize: 50 },
   ip_delete_history: { current: 1, pageSize: 50 },
   server_delete: { current: 1, pageSize: 50 },
+  server_history: { current: 1, pageSize: 50 },
   shutdown_plan: { current: 1, pageSize: 50 },
 });
 const tablePagination = {
@@ -205,6 +208,44 @@ const serverDeleteColumnsAll = dueColumnsAll.map((column) =>
     : column,
 );
 
+const serverHistoryColumnsAll = [
+  { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
+  {
+    title: '用户',
+    dataIndex: 'user_display_name',
+    key: 'user_display_name',
+    width: 180,
+  },
+  { title: '备注', dataIndex: 'note', key: 'note', width: 220 },
+  { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 190 },
+  { title: '结果', dataIndex: 'result_label', key: 'result_label', width: 120 },
+  {
+    title: '执行状态',
+    dataIndex: 'execution_status',
+    key: 'execution_status',
+    width: 260,
+  },
+  {
+    title: '删除来源',
+    dataIndex: 'deletion_source_label',
+    key: 'deletion_source_label',
+    width: 140,
+  },
+  {
+    title: '执行时间',
+    dataIndex: 'executed_at',
+    key: 'executed_at',
+    width: 180,
+  },
+  {
+    title: '云厂商',
+    dataIndex: 'provider_label',
+    key: 'provider_label',
+    width: 140,
+  },
+  { title: '操作', key: 'actions', width: 150, fixed: 'right' as const },
+];
+
 const failureColumns = [
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
   { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 190 },
@@ -283,6 +324,9 @@ const dueColumns = computed(() => filterPlanColumns(dueColumnsAll));
 const serverDeleteColumns = computed(() =>
   filterPlanColumns(serverDeleteColumnsAll),
 );
+const serverHistoryColumns = computed(() =>
+  filterPlanColumns(serverHistoryColumnsAll),
+);
 const ipDeleteColumns = computed(() => filterPlanColumns(ipDeleteColumnsAll));
 const lastRunFailureColumns = computed(() => filterPlanColumns(failureColumns));
 const visibleFieldState = computed(() => ({
@@ -334,6 +378,9 @@ const shutdownPlanItems = computed(
 );
 const serverDeletePlanItems = computed(
   () => summary.value?.server_delete_items || [],
+);
+const serverHistoryItems = computed(
+  () => summary.value?.server_history_items || [],
 );
 const serverPlanSections = computed(() => [
   {
@@ -812,6 +859,7 @@ async function loadData(options?: { silent?: boolean }) {
       planPageState.ip_delete.pageSize,
       planPageState.ip_delete_history.pageSize,
       planPageState.server_delete.pageSize,
+      planPageState.server_history.pageSize,
       planPageState.shutdown_plan.pageSize,
     );
     detail.value = await getDashboardLifecyclePlansApi({
@@ -824,6 +872,8 @@ async function loadData(options?: { silent?: boolean }) {
       limit: requestLimit,
       server_delete_page: planPageState.server_delete.current,
       server_delete_page_size: planPageState.server_delete.pageSize,
+      server_history_page: planPageState.server_history.current,
+      server_history_page_size: planPageState.server_history.pageSize,
       shutdown_page: planPageState.shutdown_plan.current,
       shutdown_page_size: planPageState.shutdown_plan.pageSize,
     });
@@ -996,6 +1046,9 @@ onMounted(() => {
           </Descriptions.Item>
           <Descriptions.Item label="服务器资产">
             {{ summary?.server_asset_count ?? 0 }} 条
+          </Descriptions.Item>
+          <Descriptions.Item label="服务器删除历史">
+            {{ summary?.server_history_count ?? 0 }} 条
           </Descriptions.Item>
           <Descriptions.Item label="最近24小时失败">
             <Tag
@@ -1335,6 +1388,127 @@ onMounted(() => {
             </template>
           </template>
         </Table>
+      </Card>
+
+      <Card
+        :title="
+          countTitle(
+            '服务器删除历史记录',
+            serverHistoryItems.length,
+            summary?.server_history_count,
+          )
+        "
+      >
+        <Table
+          class="plans-compact-table"
+          size="small"
+          :columns="serverHistoryColumns"
+          :data-source="serverHistoryItems"
+          :loading="loading"
+          :pagination="
+            planPagination(
+              'server_history',
+              serverHistoryItems.length,
+              summary?.server_history_count,
+            )
+          "
+          :row-key="rowKey"
+          :scroll="dueTableScroll"
+          @change="
+            (pagination) => handlePlanPageChange('server_history', pagination)
+          "
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'user_display_name'">
+              <div>
+                <div>{{ (record as any).user_display_name || '-' }}</div>
+                <div
+                  v-if="(record as any).username_label"
+                  style="color: var(--color-text-secondary)"
+                  class="text-xs"
+                >
+                  {{ (record as any).username_label }}
+                </div>
+              </div>
+            </template>
+            <template v-else-if="column.key === 'result_label'">
+              <Tag
+                :color="
+                  (record as DashboardShutdownPlanHistoryItem).is_success
+                    ? 'success'
+                    : 'error'
+                "
+              >
+                {{
+                  (record as DashboardShutdownPlanHistoryItem).result_label ||
+                  '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'deletion_source_label'">
+              <Tag color="blue">
+                {{
+                  (record as DashboardShutdownPlanHistoryItem)
+                    .deletion_source_label || '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'executed_at'">
+              {{
+                fmtTime(
+                  (record as DashboardShutdownPlanHistoryItem).executed_at,
+                )
+              }}
+            </template>
+            <template v-else-if="column.key === 'execution_status'">
+              <TypographyParagraph
+                :content="
+                  executionText(record as DashboardShutdownPlanHistoryItem)
+                "
+                class="mb-0 break-all text-xs leading-5"
+                :ellipsis="
+                  cellEllipsis(
+                    'server-history-exec',
+                    record as any,
+                    executionText(record as DashboardShutdownPlanHistoryItem),
+                  )
+                "
+              />
+            </template>
+            <template v-else-if="column.key === 'note'">
+              <TypographyParagraph
+                :content="planNote(record as DashboardShutdownPlanHistoryItem)"
+                class="note-cell-text mb-0 whitespace-pre-wrap break-all text-xs leading-5"
+                :ellipsis="
+                  cellEllipsis(
+                    'server-history-note',
+                    record as any,
+                    planNote(record as DashboardShutdownPlanHistoryItem),
+                    2,
+                  )
+                "
+              />
+            </template>
+            <template v-else-if="column.key === 'actions'">
+              <Button
+                type="link"
+                size="small"
+                @click="
+                  openPath(
+                    (record as DashboardShutdownPlanHistoryItem).detail_path ||
+                      (record as DashboardShutdownPlanHistoryItem).related_path,
+                  )
+                "
+              >
+                查看详情
+              </Button>
+            </template>
+          </template>
+        </Table>
+        <Empty
+          v-if="serverHistoryItems.length === 0 && !loading"
+          description="当前没有服务器删除历史记录"
+        />
       </Card>
 
       <Card
