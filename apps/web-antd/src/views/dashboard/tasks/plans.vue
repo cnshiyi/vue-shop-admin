@@ -298,10 +298,11 @@ const visibleFieldState = computed(() => ({
     visibleColumnState.provider_label !== false ||
     visibleColumnState.provider_status !== false,
 }));
-const actionSwitchEnabledMap = computed(() =>
-  Object.fromEntries(
-    actionSwitchItems.value.map((item) => [item.key, item.enabled]),
-  ) as Record<string, boolean>,
+const actionSwitchEnabledMap = computed(
+  () =>
+    Object.fromEntries(
+      actionSwitchItems.value.map((item) => [item.key, item.enabled]),
+    ) as Record<string, boolean>,
 );
 const lifecycleFields = computed(() =>
   [
@@ -1191,7 +1192,9 @@ onMounted(() => {
             >
               <Switch
                 :checked="(record as any)[String(column.key)] !== false"
-                :disabled="assetPlanSwitchDisabled(serverPlanSwitchField(column.key))"
+                :disabled="
+                  assetPlanSwitchDisabled(serverPlanSwitchField(column.key))
+                "
                 :loading="
                   assetShutdownSavingMap[
                     `${(record as DashboardShutdownPlanItem).asset_id || ''}:${String(column.key)}`
@@ -1405,9 +1408,9 @@ onMounted(() => {
             </template>
             <template v-else-if="column.key === 'plan_state_label'">
               <div>
-              <Tag
-                :color="
-                  planStateColor(
+                <Tag
+                  :color="
+                    planStateColor(
                       effectivePlanState(
                         record as DashboardUnattachedIpDeletePlan,
                         'ip_delete_enabled',
