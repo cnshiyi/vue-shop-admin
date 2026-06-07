@@ -53,10 +53,24 @@ const detail = ref<DashboardLifecyclePlansDetail | null>(null);
 const lastRunResult = ref<DashboardShutdownPlanRunResult | null>(null);
 const failurePanelOpen = ref(false);
 const expandedKeys = reactive<Record<string, boolean>>({});
+type PlanTableKey =
+  | 'ip_delete'
+  | 'ip_delete_history'
+  | 'server_delete'
+  | 'shutdown_plan';
+const planPageState = reactive<
+  Record<PlanTableKey, { current: number; pageSize: number }>
+>({
+  ip_delete: { current: 1, pageSize: 50 },
+  ip_delete_history: { current: 1, pageSize: 50 },
+  server_delete: { current: 1, pageSize: 50 },
+  shutdown_plan: { current: 1, pageSize: 50 },
+});
 const tablePagination = {
-  defaultPageSize: 20,
+  showQuickJumper: true,
   showSizeChanger: true,
-  showTotal: (total: number) => `已加载 ${total} 条`,
+  showTotal: (total: number, range: [number, number]) =>
+    `${range[0]}-${range[1]} / 共 ${total} 条`,
 };
 const noteModalOpen = ref(false);
 const noteSaving = ref(false);
@@ -352,19 +366,19 @@ const historyTableScroll = computed(() => ({
 }));
 
 const summary = computed(() => detail.value);
-const shutdownPlanItems = computed(() =>
-  sortActivePlans(summary.value?.shutdown_plan_items || []),
+const shutdownPlanItems = computed(
+  () => summary.value?.shutdown_plan_items || [],
 );
-const serverDeletePlanItems = computed(() =>
-  sortActivePlans(
+const serverDeletePlanItems = computed(
+  () =>
     summary.value?.server_delete_items || summary.value?.shutdown_items || [],
-  ),
 );
 const serverPlanSections = computed(() => [
   {
     columns: dueColumns.value,
     items: shutdownPlanItems.value,
     key: 'shutdown',
+    pageKey: 'shutdown_plan' as const,
     title: countTitle(
       '关机计划',
       shutdownPlanItems.value.length,
@@ -375,6 +389,7 @@ const serverPlanSections = computed(() => [
     columns: serverDeleteColumns.value,
     items: serverDeletePlanItems.value,
     key: 'server-delete',
+    pageKey: 'server_delete' as const,
     title: countTitle(
       '删除计划',
       serverDeletePlanItems.value.length,
@@ -390,21 +405,15 @@ const historyItems = computed(() =>
   ),
 );
 const ipDeleteItems = computed(() => summary.value?.ip_delete_items || []);
-const ipDeletePlanItems = computed(() =>
-  sortActivePlans(
+const ipDeletePlanItems = computed(
+  () =>
     summary.value?.ip_delete_plan_items ||
-      ipDeleteItems.value.filter((item: any) => !item.is_history),
-  ),
+    ipDeleteItems.value.filter((item: any) => !item.is_history),
 );
-const ipDeleteHistoryItems = computed(() =>
-  (
+const ipDeleteHistoryItems = computed(
+  () =>
     summary.value?.ip_delete_history_items ||
-    ipDeleteItems.value.filter((item: any) => item.is_history)
-  ).toSorted(
-    (left: any, right: any) =>
-      dayjs(right.logged_at || right.delete_at || 0).valueOf() -
-      dayjs(left.logged_at || left.delete_at || 0).valueOf(),
-  ),
+    ipDeleteItems.value.filter((item: any) => item.is_history),
 );
 const lastRunFailures = computed(() =>
   (lastRunResult.value?.items || []).filter((item) => !item.ok),
@@ -425,57 +434,34 @@ function countTitle(label: string, loaded: number, total?: number) {
   return `${label}（${total ?? loaded}）`;
 }
 
+function planPagination(
+  key: PlanTableKey,
+  loaded: number,
+  fallbackTotal?: number,
+) {
+  const state = planPageState[key];
+  const meta = summary.value?.pagination?.[key];
+  const total = meta?.total ?? fallbackTotal ?? loaded;
+  return {
+    ...tablePagination,
+    current: state.current,
+    pageSize: state.pageSize,
+    total,
+  };
+}
+
+async function handlePlanPageChange(key: PlanTableKey, pagination: any) {
+  const nextPage = Number(pagination?.current || 1);
+  const nextPageSize = Number(
+    pagination?.pageSize || planPageState[key].pageSize,
+  );
+  planPageState[key].current = Math.max(nextPage, 1);
+  planPageState[key].pageSize = Math.max(nextPageSize, 1);
+  await loadData({ silent: true });
+}
+
 function fmtTime(value?: null | string) {
   return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
-}
-
-function planTimeValue(record: any) {
-  const raw =
-    record?.delete_at ||
-    record?.next_run_at ||
-    record?.suspend_at ||
-    record?.actual_expires_at ||
-    record?.logged_at ||
-    '';
-  const parsed = dayjs(raw);
-  return parsed.isValid() ? parsed.valueOf() : Number.MAX_SAFE_INTEGER;
-}
-
-function planTimeBucket(record: any) {
-  const raw =
-    record?.delete_at ||
-    record?.next_run_at ||
-    record?.suspend_at ||
-    record?.actual_expires_at ||
-    '';
-  const parsed = dayjs(raw);
-  return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm') : '';
-}
-
-function planUserKey(record: any) {
-  return String(
-    record?.user_id ||
-      record?.tg_user_id ||
-      record?.user_display_name ||
-      record?.username_label ||
-      '',
-  ).toLowerCase();
-}
-
-function sortActivePlans<T extends Record<string, any>>(items: T[]) {
-  return items.toSorted((left, right) => {
-    const timeDiff = planTimeValue(left) - planTimeValue(right);
-    if (timeDiff !== 0) return timeDiff;
-    const userDiff = planUserKey(left).localeCompare(planUserKey(right));
-    if (userDiff !== 0) return userDiff;
-    const bucketDiff = planTimeBucket(left).localeCompare(
-      planTimeBucket(right),
-    );
-    if (bucketDiff !== 0) return bucketDiff;
-    return String(
-      left.id || left.asset_id || left.order_id || '',
-    ).localeCompare(String(right.id || right.asset_id || right.order_id || ''));
-  });
 }
 
 function fmtRecordTime(record: any, key: unknown) {
@@ -787,10 +773,24 @@ function goBack() {
 async function loadData(options?: { silent?: boolean }) {
   if (!options?.silent) loading.value = true;
   try {
+    const requestLimit = Math.max(
+      planPageState.ip_delete.pageSize,
+      planPageState.ip_delete_history.pageSize,
+      planPageState.server_delete.pageSize,
+      planPageState.shutdown_plan.pageSize,
+    );
     detail.value = await getDashboardLifecyclePlansApi({
       compact: 1,
       fields: lifecycleFields.value,
-      limit: planLimit.value,
+      ip_delete_history_page: planPageState.ip_delete_history.current,
+      ip_delete_history_page_size: planPageState.ip_delete_history.pageSize,
+      ip_delete_page: planPageState.ip_delete.current,
+      ip_delete_page_size: planPageState.ip_delete.pageSize,
+      limit: requestLimit,
+      server_delete_page: planPageState.server_delete.current,
+      server_delete_page_size: planPageState.server_delete.pageSize,
+      shutdown_page: planPageState.shutdown_plan.current,
+      shutdown_page_size: planPageState.shutdown_plan.pageSize,
     });
   } catch (error: any) {
     message.error(error?.message || '计划加载失败');
@@ -807,6 +807,10 @@ async function toggleVisibleField(key: string, checked: boolean) {
 
 async function loadMorePlans() {
   planLimit.value += 50;
+  (Object.keys(planPageState) as PlanTableKey[]).forEach((key) => {
+    planPageState[key].current = 1;
+    planPageState[key].pageSize = planLimit.value;
+  });
   await loadData();
 }
 
@@ -1016,9 +1020,20 @@ onMounted(() => {
           :columns="section.columns"
           :data-source="section.items"
           :loading="loading"
-          :pagination="tablePagination"
+          :pagination="
+            planPagination(
+              section.pageKey,
+              section.items.length,
+              section.pageKey === 'shutdown_plan'
+                ? summary?.shutdown_plan_count
+                : summary?.server_delete_count,
+            )
+          "
           :row-key="rowKey"
           :scroll="dueTableScroll"
+          @change="
+            (pagination) => handlePlanPageChange(section.pageKey, pagination)
+          "
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'user_display_name'">
@@ -1281,9 +1296,18 @@ onMounted(() => {
           :columns="ipDeleteColumns"
           :data-source="ipDeletePlanItems"
           :loading="loading"
-          :pagination="tablePagination"
+          :pagination="
+            planPagination(
+              'ip_delete',
+              ipDeletePlanItems.length,
+              summary?.ip_delete_count,
+            )
+          "
           :row-key="rowKey"
           :scroll="ipDeleteTableScroll"
+          @change="
+            (pagination) => handlePlanPageChange('ip_delete', pagination)
+          "
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'provider_status'">
@@ -1523,9 +1547,19 @@ onMounted(() => {
           :columns="ipDeleteColumns"
           :data-source="ipDeleteHistoryItems"
           :loading="loading"
-          :pagination="tablePagination"
+          :pagination="
+            planPagination(
+              'ip_delete_history',
+              ipDeleteHistoryItems.length,
+              summary?.ip_delete_history_count,
+            )
+          "
           :row-key="rowKey"
           :scroll="ipDeleteTableScroll"
+          @change="
+            (pagination) =>
+              handlePlanPageChange('ip_delete_history', pagination)
+          "
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'provider_status'">

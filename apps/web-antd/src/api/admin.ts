@@ -934,6 +934,13 @@ export interface DashboardShutdownPlanHistoryItem {
   username_label: string;
 }
 
+export interface DashboardPlanPaginationItem {
+  loaded: number;
+  page: number;
+  page_size: number;
+  total: number;
+}
+
 export interface DashboardLifecyclePlansDetail {
   cache_mode?: 'cached' | 'refreshed' | string;
   due_count: number;
@@ -952,6 +959,12 @@ export interface DashboardLifecyclePlansDetail {
   missing_expiry_count?: number;
   next_run_at: null | string;
   pending_ip_delete_count?: number;
+  pagination?: {
+    ip_delete?: DashboardPlanPaginationItem;
+    ip_delete_history?: DashboardPlanPaginationItem;
+    server_delete?: DashboardPlanPaginationItem;
+    shutdown_plan?: DashboardPlanPaginationItem;
+  };
   recent_failure_count: number;
   recent_success_count: number;
   refreshed?: boolean;
@@ -1365,7 +1378,19 @@ export async function getDashboardAutoRenewTaskDetailApi(
 }
 
 export async function getDashboardLifecyclePlansApi(
-  params: { compact?: 0 | 1; fields?: string; limit?: number } = {},
+  params: {
+    compact?: 0 | 1;
+    fields?: string;
+    ip_delete_history_page?: number;
+    ip_delete_history_page_size?: number;
+    ip_delete_page?: number;
+    ip_delete_page_size?: number;
+    limit?: number;
+    server_delete_page?: number;
+    server_delete_page_size?: number;
+    shutdown_page?: number;
+    shutdown_page_size?: number;
+  } = {},
 ) {
   return requestClient.get<DashboardLifecyclePlansDetail>(
     '/admin/tasks/plans/',
