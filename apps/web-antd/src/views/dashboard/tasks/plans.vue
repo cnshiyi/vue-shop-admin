@@ -2,7 +2,6 @@
 import type {
   DashboardCloudActionSwitchItem,
   DashboardLifecyclePlansDetail,
-  DashboardShutdownPlanHistoryItem,
   DashboardShutdownPlanItem,
   DashboardShutdownPlanRunResult,
   DashboardShutdownPlanRunResultItem,
@@ -202,44 +201,6 @@ const serverDeleteColumnsAll = dueColumnsAll.map((column) =>
     : column,
 );
 
-const historyColumnsAll = [
-  {
-    title: '执行时间',
-    dataIndex: 'executed_at',
-    key: 'executed_at',
-    width: 180,
-  },
-  { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
-  {
-    title: '用户',
-    dataIndex: 'user_display_name',
-    key: 'user_display_name',
-    width: 180,
-  },
-  { title: '结果', dataIndex: 'result_label', key: 'result_label', width: 110 },
-  {
-    title: '删除来源',
-    dataIndex: 'deletion_source_label',
-    key: 'deletion_source_label',
-    width: 140,
-  },
-  {
-    title: '执行状态',
-    dataIndex: 'execution_status',
-    key: 'execution_status',
-    width: 150,
-  },
-  {
-    title: '失败原因',
-    dataIndex: 'failure_reason',
-    key: 'failure_reason',
-    width: 320,
-  },
-  { title: '关机时间', dataIndex: 'suspend_at', key: 'suspend_at', width: 180 },
-  { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 190 },
-  { title: '操作', key: 'actions', width: 100, fixed: 'right' as const },
-];
-
 const failureColumns = [
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
   { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 190 },
@@ -318,7 +279,6 @@ const dueColumns = computed(() => filterPlanColumns(dueColumnsAll));
 const serverDeleteColumns = computed(() =>
   filterPlanColumns(serverDeleteColumnsAll),
 );
-const historyColumns = computed(() => filterPlanColumns(historyColumnsAll));
 const ipDeleteColumns = computed(() => filterPlanColumns(ipDeleteColumnsAll));
 const lastRunFailureColumns = computed(() => filterPlanColumns(failureColumns));
 const visibleFieldState = computed(() => ({
@@ -358,20 +318,12 @@ const ipDeleteTableScroll = computed(() => ({
     (visibleFieldState.value.execution ? 510 : 0) +
     (visibleFieldState.value.provider ? 150 : 0),
 }));
-const historyTableScroll = computed(() => ({
-  x:
-    1180 +
-    (visibleFieldState.value.execution ? 610 : 0) +
-    (visibleFieldState.value.provider ? 140 : 0),
-}));
-
 const summary = computed(() => detail.value);
 const shutdownPlanItems = computed(
   () => summary.value?.shutdown_plan_items || [],
 );
 const serverDeletePlanItems = computed(
-  () =>
-    summary.value?.server_delete_items || summary.value?.shutdown_items || [],
+  () => summary.value?.server_delete_items || [],
 );
 const serverPlanSections = computed(() => [
   {
@@ -397,23 +349,11 @@ const serverPlanSections = computed(() => [
     ),
   },
 ]);
-const historyItems = computed(() =>
-  (summary.value?.history_items || []).toSorted(
-    (left, right) =>
-      dayjs(right.executed_at || 0).valueOf() -
-      dayjs(left.executed_at || 0).valueOf(),
-  ),
-);
-const ipDeleteItems = computed(() => summary.value?.ip_delete_items || []);
 const ipDeletePlanItems = computed(
-  () =>
-    summary.value?.ip_delete_plan_items ||
-    ipDeleteItems.value.filter((item: any) => !item.is_history),
+  () => summary.value?.ip_delete_plan_items || [],
 );
 const ipDeleteHistoryItems = computed(
-  () =>
-    summary.value?.ip_delete_history_items ||
-    ipDeleteItems.value.filter((item: any) => item.is_history),
+  () => summary.value?.ip_delete_history_items || [],
 );
 const lastRunFailures = computed(() =>
   (lastRunResult.value?.items || []).filter((item) => !item.ok),
@@ -517,10 +457,6 @@ function dueColor(value?: null | string, overdue?: boolean) {
   if (hours <= 720) return 'green';
   if (hours <= 1440) return 'cyan';
   return 'blue';
-}
-
-function resultColor(item: DashboardShutdownPlanHistoryItem) {
-  return item.is_success ? 'success' : 'error';
 }
 
 function resourceStateColor(state?: string) {
@@ -822,8 +758,7 @@ async function refreshPlanTable() {
     });
     const activeCount =
       result.source_asset_count ??
-      result.shutdown_count ??
-      result.due_count + result.future_count;
+      result.shutdown_plan_count + result.server_delete_count;
     message.success(`计划已刷新：${activeCount} 条`);
     await loadData({ silent: true });
   } catch (error: any) {
@@ -974,10 +909,6 @@ onMounted(() => {
           </Descriptions.Item>
           <Descriptions.Item label="IP删除历史">
             {{ summary?.ip_delete_history_count ?? 0 }} 条
-          </Descriptions.Item>
-          <Descriptions.Item label="服务器删除历史">
-            {{ summary?.server_delete_history_count ?? 0 }}
-            条
           </Descriptions.Item>
         </Descriptions>
       </Card>
@@ -1786,94 +1717,6 @@ onMounted(() => {
           description="当前没有 IP 删除历史记录"
         />
       </Card>
-
-      <Card title="服务器删除历史记录">
-        <Table
-          class="plans-compact-table"
-          size="small"
-          :columns="historyColumns"
-          :data-source="historyItems"
-          :loading="loading"
-          :pagination="tablePagination"
-          :row-key="rowKey"
-          :scroll="historyTableScroll"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'result_label'">
-              <Tag
-                :color="resultColor(record as DashboardShutdownPlanHistoryItem)"
-              >
-                {{ (record as DashboardShutdownPlanHistoryItem).result_label }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'user_display_name'">
-              <div>
-                <div>{{ (record as any).user_display_name || '-' }}</div>
-                <div
-                  v-if="(record as any).username_label"
-                  style="color: var(--color-text-secondary)"
-                  class="text-xs"
-                >
-                  {{ (record as any).username_label }}
-                </div>
-              </div>
-            </template>
-            <template v-else-if="column.key === 'deletion_source_label'">
-              <Tag color="blue">
-                {{
-                  (record as DashboardShutdownPlanHistoryItem)
-                    .deletion_source_label || '-'
-                }}
-              </Tag>
-            </template>
-            <template
-              v-else-if="
-                ['executed_at', 'actual_expires_at', 'suspend_at'].includes(
-                  String(column.key),
-                )
-              "
-            >
-              <Tag :color="recordTimeColor(record, column.key)">
-                {{ fmtRecordTime(record, column.key) }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'failure_reason'">
-              <TypographyParagraph
-                v-if="
-                  !(record as DashboardShutdownPlanHistoryItem).is_success &&
-                  (record as DashboardShutdownPlanHistoryItem).failure_reason
-                "
-                :content="
-                  (record as DashboardShutdownPlanHistoryItem).failure_reason ||
-                  '-'
-                "
-                class="mb-0 break-all text-xs leading-5"
-                :ellipsis="{
-                  rows: 2,
-                  tooltip: (record as DashboardShutdownPlanHistoryItem)
-                    .failure_reason,
-                }"
-              />
-              <span v-else>-</span>
-            </template>
-            <template v-else-if="column.key === 'actions'">
-              <Button
-                v-if="(record as DashboardShutdownPlanHistoryItem).related_path"
-                type="link"
-                size="small"
-                @click="
-                  openPath(
-                    (record as DashboardShutdownPlanHistoryItem).related_path,
-                  )
-                "
-              >
-                详情
-              </Button>
-              <span v-else>-</span>
-            </template>
-          </template>
-        </Table>
-      </Card>
     </Space>
     <Modal
       v-model:open="failurePanelOpen"
@@ -1937,7 +1780,6 @@ onMounted(() => {
     </Modal>
   </Page>
 </template>
-
 <style scoped>
 .plan-action-switches {
   display: inline-flex;

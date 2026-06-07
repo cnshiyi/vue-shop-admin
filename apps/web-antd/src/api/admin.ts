@@ -943,17 +943,12 @@ export interface DashboardPlanPaginationItem {
 
 export interface DashboardLifecyclePlansDetail {
   cache_mode?: 'cached' | 'refreshed' | string;
-  due_count: number;
-  due_items: DashboardShutdownPlanItem[];
-  future_plan_items: DashboardShutdownPlanItem[];
-  history_items: DashboardShutdownPlanHistoryItem[];
   interval_minutes: number;
   ip_delete_count: number;
   ip_delete_due_count: number;
   ip_delete_history_count?: number;
-  ip_delete_items: DashboardUnattachedIpDeletePlan[];
-  ip_delete_plan_items?: DashboardUnattachedIpDeletePlan[];
-  ip_delete_history_items?: DashboardUnattachedIpDeletePlan[];
+  ip_delete_plan_items: DashboardUnattachedIpDeletePlan[];
+  ip_delete_history_items: DashboardUnattachedIpDeletePlan[];
   last_run_at: null | string;
   last_refresh_at?: null | string;
   missing_expiry_count?: number;
@@ -968,17 +963,13 @@ export interface DashboardLifecyclePlansDetail {
   recent_failure_count: number;
   recent_success_count: number;
   refreshed?: boolean;
-  server_delete_history_count?: number;
   server_delete_count?: number;
   server_delete_due_count?: number;
-  server_delete_items?: DashboardShutdownPlanItem[];
+  server_delete_items: DashboardShutdownPlanItem[];
   server_asset_count?: number;
-  shutdown_count: number;
-  shutdown_due_count: number;
-  shutdown_items: DashboardShutdownPlanItem[];
   shutdown_plan_count?: number;
   shutdown_plan_due_count?: number;
-  shutdown_plan_items?: DashboardShutdownPlanItem[];
+  shutdown_plan_items: DashboardShutdownPlanItem[];
   source_asset_count?: number;
   status_label: string;
   task_key: string;
@@ -1404,15 +1395,17 @@ export async function refreshDashboardLifecyclePlansApi(
   } = {},
 ) {
   return requestClient.post<{
-    due_count: number;
-    future_count: number;
-    history_count: number;
     ip_delete_count: number;
     last_refresh_at?: null | string;
+    loaded_ip_delete_count: number;
+    loaded_ip_delete_history_count: number;
+    loaded_server_delete_count: number;
+    loaded_shutdown_plan_count: number;
     missing_expiry_count: number;
     refreshed: boolean;
     server_asset_count: number;
-    shutdown_count: number;
+    server_delete_count: number;
+    shutdown_plan_count: number;
     source_asset_count: number;
     unattached_ip_count: number;
   }>('/admin/tasks/plans/refresh/', payload);
