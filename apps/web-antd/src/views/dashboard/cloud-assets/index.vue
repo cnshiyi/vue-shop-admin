@@ -6,6 +6,7 @@ import type {
   DashboardCloudAssetGroup,
   DashboardCloudAssetGroupedResponse,
   DashboardCloudAssetItem,
+  DashboardCloudAssetsSyncStatus,
   DashboardCloudAssetSyncJob,
   DashboardCloudAssetSyncJobEvent,
   DashboardCloudAssetSyncJobsMetrics,
@@ -1588,6 +1589,43 @@ function handleColumnViewChange() {
   loadData();
 }
 
+function applyCloudAssetSyncStatus(
+  syncStatus: DashboardCloudAssetsSyncStatus | null | undefined,
+) {
+  if (!syncStatus) return;
+  autoSyncEverySeconds.value = normalizedIntervalSeconds(
+    syncStatus.auto_sync_every_seconds,
+  );
+  resetRefreshCountdown();
+  lastSyncedAt.value = syncStatus.last_synced_at
+    ? dayjs(syncStatus.last_synced_at)
+    : null;
+  awsExistingCount.value = syncStatus.aws_existing_count || 0;
+  aliyunExistingCount.value = syncStatus.aliyun_existing_count || 0;
+  unattachedIpCount.value = syncStatus.unattached_ip_count || 0;
+  if (syncStatus.metrics) {
+    syncJobMetrics.value = syncStatus.metrics;
+  }
+  const latestCompletedJob = syncStatus.recent_jobs?.find(
+    (job) => job.is_terminal,
+  );
+  lastSyncTasks.value =
+    latestCompletedJob?.tasks || syncStatus.recent_syncs?.[0]?.tasks || [];
+  lastSkippedSyncTasks.value =
+    latestCompletedJob?.skipped_tasks ||
+    syncStatus.recent_syncs?.[0]?.skipped_tasks ||
+    [];
+  if (!syncJobsOpen.value && syncStatus.recent_jobs?.length) {
+    syncJobs.value = syncStatus.recent_jobs;
+  }
+  const activeJob = syncStatus.active_jobs?.[0];
+  if (activeJob) {
+    resumeCloudAssetSyncJob(activeJob);
+  } else if (!watchedSyncJobId) {
+    activeSyncJob.value = null;
+  }
+}
+
 async function loadData() {
   const sequence = ++loadSequence;
   loading.value = true;
@@ -1624,42 +1662,17 @@ async function loadData() {
           show_deleted: showDeletedAssets.value ? 1 : 0,
           ...sortParams,
         });
-    const [syncStatus, firstPage] = await Promise.all([
-      getDashboardCloudAssetsSyncStatusApi(),
-      assetRequest,
-    ]);
+    const syncStatusRequest = getDashboardCloudAssetsSyncStatusApi()
+      .then((syncStatus) => {
+        if (sequence === loadSequence) {
+          applyCloudAssetSyncStatus(syncStatus);
+        }
+        return syncStatus;
+      })
+      .catch(() => null);
+    const firstPage = await assetRequest;
     if (sequence !== loadSequence) return;
-    autoSyncEverySeconds.value = normalizedIntervalSeconds(
-      syncStatus.auto_sync_every_seconds,
-    );
-    resetRefreshCountdown();
-    lastSyncedAt.value = syncStatus.last_synced_at
-      ? dayjs(syncStatus.last_synced_at)
-      : null;
-    awsExistingCount.value = syncStatus.aws_existing_count || 0;
-    aliyunExistingCount.value = syncStatus.aliyun_existing_count || 0;
-    unattachedIpCount.value = syncStatus.unattached_ip_count || 0;
-    if (syncStatus.metrics) {
-      syncJobMetrics.value = syncStatus.metrics;
-    }
-    const latestCompletedJob = syncStatus.recent_jobs?.find(
-      (job) => job.is_terminal,
-    );
-    lastSyncTasks.value =
-      latestCompletedJob?.tasks || syncStatus.recent_syncs?.[0]?.tasks || [];
-    lastSkippedSyncTasks.value =
-      latestCompletedJob?.skipped_tasks ||
-      syncStatus.recent_syncs?.[0]?.skipped_tasks ||
-      [];
-    if (!syncJobsOpen.value && syncStatus.recent_jobs?.length) {
-      syncJobs.value = syncStatus.recent_jobs;
-    }
-    const activeJob = syncStatus.active_jobs?.[0];
-    if (activeJob) {
-      resumeCloudAssetSyncJob(activeJob);
-    } else if (!watchedSyncJobId) {
-      activeSyncJob.value = null;
-    }
+    void syncStatusRequest;
 
     const nextRiskCounts = firstPage.risk_counts || {};
     riskCounts.value = nextRiskCounts;
