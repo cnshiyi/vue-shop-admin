@@ -1434,127 +1434,6 @@ onMounted(() => {
       <Card
         :title="
           countTitle(
-            '服务器删除历史记录',
-            serverHistoryItems.length,
-            summary?.server_history_count,
-          )
-        "
-      >
-        <Table
-          class="plans-compact-table"
-          size="small"
-          :columns="serverHistoryColumns"
-          :data-source="serverHistoryItems"
-          :loading="loading"
-          :pagination="
-            planPagination(
-              'server_history',
-              serverHistoryItems.length,
-              summary?.server_history_count,
-            )
-          "
-          :row-key="rowKey"
-          :scroll="dueTableScroll"
-          @change="
-            (pagination) => handlePlanPageChange('server_history', pagination)
-          "
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'user_display_name'">
-              <div>
-                <div>{{ (record as any).user_display_name || '-' }}</div>
-                <div
-                  v-if="(record as any).username_label"
-                  style="color: var(--color-text-secondary)"
-                  class="text-xs"
-                >
-                  {{ (record as any).username_label }}
-                </div>
-              </div>
-            </template>
-            <template v-else-if="column.key === 'result_label'">
-              <Tag
-                :color="
-                  (record as DashboardShutdownPlanHistoryItem).is_success
-                    ? 'success'
-                    : 'error'
-                "
-              >
-                {{
-                  (record as DashboardShutdownPlanHistoryItem).result_label ||
-                  '-'
-                }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'deletion_source_label'">
-              <Tag color="blue">
-                {{
-                  (record as DashboardShutdownPlanHistoryItem)
-                    .deletion_source_label || '-'
-                }}
-              </Tag>
-            </template>
-            <template v-else-if="column.key === 'executed_at'">
-              {{
-                fmtTime(
-                  (record as DashboardShutdownPlanHistoryItem).executed_at,
-                )
-              }}
-            </template>
-            <template v-else-if="column.key === 'execution_status'">
-              <TypographyParagraph
-                :content="
-                  executionText(record as DashboardShutdownPlanHistoryItem)
-                "
-                class="mb-0 break-all text-xs leading-5"
-                :ellipsis="
-                  cellEllipsis(
-                    'server-history-exec',
-                    record as any,
-                    executionText(record as DashboardShutdownPlanHistoryItem),
-                  )
-                "
-              />
-            </template>
-            <template v-else-if="column.key === 'note'">
-              <TypographyParagraph
-                :content="planNote(record as DashboardShutdownPlanHistoryItem)"
-                class="note-cell-text mb-0 whitespace-pre-wrap break-all text-xs leading-5"
-                :ellipsis="
-                  cellEllipsis(
-                    'server-history-note',
-                    record as any,
-                    planNote(record as DashboardShutdownPlanHistoryItem),
-                    2,
-                  )
-                "
-              />
-            </template>
-            <template v-else-if="column.key === 'actions'">
-              <Button
-                type="link"
-                size="small"
-                @click="
-                  openPath(
-                    (record as DashboardShutdownPlanHistoryItem).detail_path ||
-                      (record as DashboardShutdownPlanHistoryItem).related_path,
-                  )
-                "
-              >
-                查看详情
-              </Button>
-            </template>
-          </template>
-        </Table>
-        <Empty
-          v-if="serverHistoryItems.length === 0 && !loading"
-          description="当前没有服务器删除历史记录"
-        />
-      </Card>
-
-      <Card
-        :title="
-          countTitle(
             'IP删除计划',
             ipDeletePlanItems.length,
             summary?.ip_delete_count,
@@ -2073,6 +1952,127 @@ onMounted(() => {
         <Empty
           v-if="ipDeleteHistoryItems.length === 0 && !loading"
           description="当前没有 IP 删除历史记录"
+        />
+      </Card>
+
+      <Card
+        :title="
+          countTitle(
+            '服务器删除历史记录',
+            serverHistoryItems.length,
+            summary?.server_history_count,
+          )
+        "
+      >
+        <Table
+          class="plans-compact-table"
+          size="small"
+          :columns="serverHistoryColumns"
+          :data-source="serverHistoryItems"
+          :loading="loading"
+          :pagination="
+            planPagination(
+              'server_history',
+              serverHistoryItems.length,
+              summary?.server_history_count,
+            )
+          "
+          :row-key="rowKey"
+          :scroll="dueTableScroll"
+          @change="
+            (pagination) => handlePlanPageChange('server_history', pagination)
+          "
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'user_display_name'">
+              <div>
+                <div>{{ (record as any).user_display_name || '-' }}</div>
+                <div
+                  v-if="(record as any).username_label"
+                  style="color: var(--color-text-secondary)"
+                  class="text-xs"
+                >
+                  {{ (record as any).username_label }}
+                </div>
+              </div>
+            </template>
+            <template v-else-if="column.key === 'result_label'">
+              <Tag
+                :color="
+                  (record as DashboardShutdownPlanHistoryItem).is_success
+                    ? 'success'
+                    : 'error'
+                "
+              >
+                {{
+                  (record as DashboardShutdownPlanHistoryItem).result_label ||
+                  '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'deletion_source_label'">
+              <Tag color="blue">
+                {{
+                  (record as DashboardShutdownPlanHistoryItem)
+                    .deletion_source_label || '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'executed_at'">
+              {{
+                fmtTime(
+                  (record as DashboardShutdownPlanHistoryItem).executed_at,
+                )
+              }}
+            </template>
+            <template v-else-if="column.key === 'execution_status'">
+              <TypographyParagraph
+                :content="
+                  executionText(record as DashboardShutdownPlanHistoryItem)
+                "
+                class="mb-0 break-all text-xs leading-5"
+                :ellipsis="
+                  cellEllipsis(
+                    'server-history-exec',
+                    record as any,
+                    executionText(record as DashboardShutdownPlanHistoryItem),
+                  )
+                "
+              />
+            </template>
+            <template v-else-if="column.key === 'note'">
+              <TypographyParagraph
+                :content="planNote(record as DashboardShutdownPlanHistoryItem)"
+                class="note-cell-text mb-0 whitespace-pre-wrap break-all text-xs leading-5"
+                :ellipsis="
+                  cellEllipsis(
+                    'server-history-note',
+                    record as any,
+                    planNote(record as DashboardShutdownPlanHistoryItem),
+                    2,
+                  )
+                "
+              />
+            </template>
+            <template v-else-if="column.key === 'actions'">
+              <Button
+                type="link"
+                size="small"
+                @click="
+                  openPath(
+                    (record as DashboardShutdownPlanHistoryItem).detail_path ||
+                      (record as DashboardShutdownPlanHistoryItem).related_path,
+                  )
+                "
+              >
+                查看详情
+              </Button>
+            </template>
+          </template>
+        </Table>
+        <Empty
+          v-if="serverHistoryItems.length === 0 && !loading"
+          description="当前没有服务器删除历史记录"
         />
       </Card>
     </Space>
