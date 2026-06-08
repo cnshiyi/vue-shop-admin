@@ -1,7 +1,9 @@
 <script lang="ts" setup>
 import type {
+  DashboardCloudActionSwitchItem,
   DashboardCloudAssetDetail,
   DashboardCloudOrderSummaryItem,
+  DashboardSiteConfigGroupItem,
 } from '#/api/admin';
 
 import { computed, onMounted, ref } from 'vue';
@@ -25,11 +27,15 @@ import dayjs from 'dayjs';
 
 import {
   getDashboardCloudAssetDetailApi,
+  getDashboardSiteConfigGroupsApi,
   updateDashboardCloudAssetApi,
 } from '#/api/admin';
+import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
 const route = useRoute();
 const router = useRouter();
+const { canRunCloudDanger, requireCloudDangerPermission } =
+  useDashboardPermissions();
 const loading = ref(false);
 const lifecycleSwitchSaving = ref<
   Partial<
@@ -41,11 +47,59 @@ const lifecycleSwitchSaving = ref<
 >({});
 const detail = ref<DashboardCloudAssetDetail | null>(null);
 const expandedLifecycleRows = ref<Record<string, boolean>>({});
+const actionSwitchItems = ref<DashboardCloudActionSwitchItem[]>([]);
 
 const assetId = computed(() => Number(route.params.id || 0));
 const historyOrders = computed<DashboardCloudOrderSummaryItem[]>(
   () => detail.value?.history_orders || [],
 );
+type LifecycleSwitchField =
+  | 'ip_delete_enabled'
+  | 'server_delete_enabled'
+  | 'shutdown_enabled';
+
+function actionSwitchLabel(key: string) {
+  if (key === 'cloud_server_shutdown_enabled') return '关机服务器';
+  if (key === 'cloud_server_delete_enabled') return '删除服务器';
+  if (key === 'cloud_ip_delete_enabled') return '删除IP';
+  return key;
+}
+
+function toActionSwitchItem(item: DashboardSiteConfigGroupItem) {
+  return {
+    description: item.description || '',
+    enabled: String(item.value || '').trim() === '1',
+    id: item.id,
+    key: item.key,
+    label: actionSwitchLabel(item.key),
+  };
+}
+
+function globalActionSwitchKey(field: LifecycleSwitchField) {
+  if (field === 'shutdown_enabled') return 'cloud_server_shutdown_enabled';
+  if (field === 'server_delete_enabled') return 'cloud_server_delete_enabled';
+  return 'cloud_ip_delete_enabled';
+}
+
+function globalActionSwitchLabel(field: LifecycleSwitchField) {
+  if (field === 'shutdown_enabled') return '关机服务器';
+  if (field === 'server_delete_enabled') return '删除服务器';
+  return '删除IP';
+}
+
+const actionSwitchEnabledMap = computed(() =>
+  Object.fromEntries(
+    actionSwitchItems.value.map((item) => [item.key, item.enabled]),
+  ),
+);
+
+function isGlobalActionEnabled(field: LifecycleSwitchField) {
+  return actionSwitchEnabledMap.value[globalActionSwitchKey(field)] !== false;
+}
+
+function lifecycleSwitchDisabled(field: LifecycleSwitchField) {
+  return !canRunCloudDanger.value || !isGlobalActionEnabled(field);
+}
 
 const lifecycleColumns = [
   {
@@ -124,7 +178,16 @@ async function loadData() {
   }
   loading.value = true;
   try {
-    detail.value = await getDashboardCloudAssetDetailApi(assetId.value);
+    const [assetDetail, groups] = await Promise.all([
+      getDashboardCloudAssetDetailApi(assetId.value),
+      getDashboardSiteConfigGroupsApi({
+        group: 'cloud_actions',
+      }),
+    ]);
+    detail.value = assetDetail;
+    actionSwitchItems.value = (groups[0]?.items || []).map((groupItem) =>
+      toActionSwitchItem(groupItem),
+    );
   } catch (error: any) {
     detail.value = null;
     message.error(error?.message || '加载代理详情失败');
@@ -138,11 +201,18 @@ function goBack() {
 }
 
 async function toggleLifecycleSwitch(
-  field: 'ip_delete_enabled' | 'server_delete_enabled' | 'shutdown_enabled',
+  field: LifecycleSwitchField,
   label: string,
   checked: boolean,
 ) {
   if (!detail.value || lifecycleSwitchSaving.value[field]) return;
+  if (!requireCloudDangerPermission(`切换${label}`)) return;
+  if (!isGlobalActionEnabled(field)) {
+    message.error(
+      `${globalActionSwitchLabel(field)}总开关当前为关闭状态，需先到生命周期计划页开启后再切换单项计划。`,
+    );
+    return;
+  }
   lifecycleSwitchSaving.value = {
     ...lifecycleSwitchSaving.value,
     [field]: true,
@@ -405,6 +475,7 @@ onMounted(loadData);
           <Descriptions.Item label="关机计划">
             <Switch
               :checked="detail.shutdown_enabled !== false"
+              :disabled="lifecycleSwitchDisabled('shutdown_enabled')"
               :loading="lifecycleSwitchSaving.shutdown_enabled"
               checked-children="开"
               un-checked-children="关"
@@ -421,6 +492,7 @@ onMounted(loadData);
           <Descriptions.Item label="删除计划">
             <Switch
               :checked="detail.server_delete_enabled !== false"
+              :disabled="lifecycleSwitchDisabled('server_delete_enabled')"
               :loading="lifecycleSwitchSaving.server_delete_enabled"
               checked-children="开"
               un-checked-children="关"
@@ -437,6 +509,7 @@ onMounted(loadData);
           <Descriptions.Item label="IP 删除计划">
             <Switch
               :checked="detail.ip_delete_enabled !== false"
+              :disabled="lifecycleSwitchDisabled('ip_delete_enabled')"
               :loading="lifecycleSwitchSaving.ip_delete_enabled"
               checked-children="开"
               un-checked-children="关"
