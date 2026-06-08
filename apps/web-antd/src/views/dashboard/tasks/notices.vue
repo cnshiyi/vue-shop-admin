@@ -631,6 +631,7 @@ onMounted(loadData);
           :pagination="{
             current: noticePage,
             pageSize: noticeLimit,
+            showQuickJumper: true,
             showSizeChanger: true,
             total: detail?.active_user_count || 0,
             onChange: changeNoticePage,
@@ -809,6 +810,7 @@ onMounted(loadData);
           :pagination="{
             current: historyPage,
             pageSize: historyLimit,
+            showQuickJumper: true,
             showSizeChanger: true,
             total: detail?.history_count || 0,
             onChange: changeHistoryPage,
@@ -922,14 +924,13 @@ onMounted(loadData);
             </template>
             <template v-else-if="column.key === 'retry_label'">
               <TypographyParagraph
+                :content="String((record as any)[column.key] || '-')"
                 :ellipsis="{
                   rows: 2,
                   tooltip: String((record as any)[column.key] || '-'),
                 }"
                 class="mb-0 whitespace-pre-line break-all text-sm leading-6"
-              >
-                {{ (record as any)[column.key] || '-' }}
-              </TypographyParagraph>
+              />
             </template>
             <template v-else-if="column.key === 'actions'">
               <Space size="small">
