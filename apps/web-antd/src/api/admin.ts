@@ -1505,7 +1505,11 @@ export async function runDashboardAutoRenewOrderApi(orderId: number) {
 
 export async function updateDashboardUserBalanceApi(
   userId: number,
-  payload: { balance: string; balance_trx: string },
+  payload: {
+    balance: string;
+    balance_trx: string;
+    cloud_discount_rate?: string;
+  },
 ) {
   return requestClient.post(`/admin/users/${userId}/balance/`, payload);
 }

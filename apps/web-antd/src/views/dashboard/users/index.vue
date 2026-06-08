@@ -20,7 +20,6 @@ import {
 import {
   getDashboardUsersApi,
   updateDashboardUserBalanceApi,
-  updateDashboardUserDiscountApi,
 } from '#/api/admin';
 import { useDashboardPermissions } from '#/utils/dashboard-permissions';
 
@@ -122,8 +121,6 @@ async function submitEdit() {
     await updateDashboardUserBalanceApi(currentRow.value.id, {
       balance: formState.balance,
       balance_trx: formState.balance_trx,
-    });
-    await updateDashboardUserDiscountApi(currentRow.value.id, {
       cloud_discount_rate: formState.cloud_discount_rate,
     });
     message.success('用户余额和折扣已更新');
