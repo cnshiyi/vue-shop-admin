@@ -2984,6 +2984,7 @@ onBeforeUnmount(() => {
           v-model:page-size="groupPagination.pageSize"
           :responsive="true"
           show-less-items
+          show-quick-jumper
           :show-total="(total: number) => `共 ${total} 个用户/分组`"
           :total="groupPagination.total"
           @change="handleGroupPageChange"
@@ -3000,6 +3001,7 @@ onBeforeUnmount(() => {
           current: assetPagination.page,
           pageSize: assetPagination.pageSize,
           responsive: true,
+          showQuickJumper: true,
           showSizeChanger: true,
           total: assetPagination.total,
           showTotal: (total: number) => `共 ${total} 条代理`,
