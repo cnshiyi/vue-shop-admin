@@ -388,6 +388,7 @@ const serverPlanSections = computed(() => [
     items: shutdownPlanItems.value,
     key: 'shutdown',
     pageKey: 'shutdown_plan' as const,
+    switchField: 'shutdown_enabled' as const,
     title: countTitle(
       '关机计划',
       shutdownPlanItems.value.length,
@@ -399,6 +400,7 @@ const serverPlanSections = computed(() => [
     items: serverDeletePlanItems.value,
     key: 'server-delete',
     pageKey: 'server_delete' as const,
+    switchField: 'server_delete_enabled' as const,
     title: countTitle(
       '删除计划',
       serverDeletePlanItems.value.length,
@@ -1196,7 +1198,7 @@ onMounted(() => {
                     planStateColor(
                       effectivePlanState(
                         record as DashboardShutdownPlanItem,
-                        serverPlanSwitchField(column.key),
+                        section.switchField,
                       ),
                     )
                   "
@@ -1204,7 +1206,7 @@ onMounted(() => {
                   {{
                     effectivePlanStateLabel(
                       record as DashboardShutdownPlanItem,
-                      serverPlanSwitchField(column.key),
+                      section.switchField,
                     )
                   }}
                 </Tag>
@@ -1212,13 +1214,13 @@ onMounted(() => {
                   v-if="
                     effectiveBlockedReason(
                       record as DashboardShutdownPlanItem,
-                      serverPlanSwitchField(column.key),
+                      section.switchField,
                     )
                   "
                   :content="
                     effectiveBlockedReason(
                       record as DashboardShutdownPlanItem,
-                      serverPlanSwitchField(column.key),
+                      section.switchField,
                     ) || '-'
                   "
                   class="mb-0 mt-1 break-all text-xs leading-5"
@@ -1229,7 +1231,7 @@ onMounted(() => {
                       record as DashboardShutdownPlanItem,
                       effectiveBlockedReason(
                         record as DashboardShutdownPlanItem,
-                        serverPlanSwitchField(column.key),
+                        section.switchField,
                       ),
                       2,
                     )
@@ -1240,7 +1242,7 @@ onMounted(() => {
                     shouldShowCellExpand(
                       effectiveBlockedReason(
                         record as DashboardShutdownPlanItem,
-                        serverPlanSwitchField(column.key),
+                        section.switchField,
                       ),
                     )
                   "
@@ -1305,7 +1307,7 @@ onMounted(() => {
                   :content="
                     effectiveExecutionText(
                       record as DashboardShutdownPlanItem,
-                      serverPlanSwitchField(column.key),
+                      section.switchField,
                     )
                   "
                   class="mb-0 break-all text-xs leading-5"
@@ -1315,7 +1317,7 @@ onMounted(() => {
                       record as DashboardShutdownPlanItem,
                       effectiveExecutionText(
                         record as DashboardShutdownPlanItem,
-                        serverPlanSwitchField(column.key),
+                        section.switchField,
                       ),
                     )
                   "
