@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import type { TablePaginationConfig } from 'ant-design-vue';
+
 import type { DashboardUserItem } from '#/api/admin';
 
 import { onMounted, reactive, ref } from 'vue';
@@ -29,6 +31,11 @@ const loading = ref(false);
 const saving = ref(false);
 const keyword = ref('');
 const items = ref<DashboardUserItem[]>([]);
+const pagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+});
 const editOpen = ref(false);
 const currentRow = ref<DashboardUserItem | null>(null);
 const router = useRouter();
@@ -81,10 +88,23 @@ const columns = [
 async function loadData() {
   loading.value = true;
   try {
-    items.value = await getDashboardUsersApi({ keyword: keyword.value.trim() });
+    const response = await getDashboardUsersApi({
+      keyword: keyword.value.trim(),
+      page: pagination.current,
+      page_size: pagination.pageSize,
+    });
+    items.value = response.items;
+    pagination.current = response.page;
+    pagination.pageSize = response.page_size;
+    pagination.total = response.total;
   } finally {
     loading.value = false;
   }
+}
+
+function searchUsers() {
+  pagination.current = 1;
+  loadData();
 }
 
 function usernamePipeLabel(value?: null | string) {
@@ -99,6 +119,13 @@ function usernamePipeLabel(value?: null | string) {
 
 function resetSearch() {
   keyword.value = '';
+  pagination.current = 1;
+  loadData();
+}
+
+function handleTableChange(nextPagination: TablePaginationConfig) {
+  pagination.current = Number(nextPagination.current || 1);
+  pagination.pageSize = Number(nextPagination.pageSize || 10);
   loadData();
 }
 
@@ -141,6 +168,9 @@ async function removeUser(record: DashboardUserItem) {
   try {
     await deleteDashboardUserApi(record.id);
     message.success('用户已删除，ID 已加入新用户复用队列');
+    if (items.value.length <= 1 && pagination.current > 1) {
+      pagination.current -= 1;
+    }
     await loadData();
   } catch (error: any) {
     message.error(error?.message || '删除失败');
@@ -167,7 +197,7 @@ onMounted(loadData);
             enter-button="搜索"
             placeholder="搜索 TG ID、用户名、昵称"
             style="width: 320px"
-            @search="loadData"
+            @search="searchUsers"
           />
           <Button size="small" @click="resetSearch">重置</Button>
           <Button size="small" @click="loadData">刷新</Button>
@@ -177,9 +207,16 @@ onMounted(loadData);
         :columns="columns"
         :data-source="items"
         :loading="loading"
-        :pagination="{ pageSize: 10 }"
+        :pagination="{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          showSizeChanger: true,
+          showTotal: (total: number) => `共 ${total} 条`,
+          total: pagination.total,
+        }"
         row-key="id"
         :scroll="{ x: 1580 }"
+        @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'display_name'">

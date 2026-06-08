@@ -169,6 +169,15 @@ export interface DashboardUserItem {
   usernames: string[];
 }
 
+export interface DashboardUsersResponse {
+  items: DashboardUserItem[];
+  loaded: number;
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+}
+
 export interface DashboardCloudOrderItem {
   created_at: null | string;
   currency: string;
@@ -1297,7 +1306,7 @@ export async function getDashboardIpDeleteLogsApi(
 }
 
 export async function getDashboardUsersApi(params: DashboardListQuery = {}) {
-  return requestClient.get<DashboardUserItem[]>('/admin/users/', { params });
+  return requestClient.get<DashboardUsersResponse>('/admin/users/', { params });
 }
 
 export async function getDashboardTasksApi() {
