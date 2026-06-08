@@ -199,6 +199,7 @@ const noticeFields = computed(() =>
     visibleFieldState.value.text ? 'text' : '',
     visibleFieldState.value.channels ? 'channels' : '',
     visibleFieldState.value.retry ? 'retry' : '',
+    visibleColumnState.actions === false ? '' : 'actions',
   ]
     .filter(Boolean)
     .join(','),
