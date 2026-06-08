@@ -8,7 +8,15 @@ import { computed, nextTick, onMounted, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
-import { Avatar, Button, Empty, Input, Switch, message, Tag } from 'ant-design-vue';
+import {
+  Avatar,
+  Button,
+  Empty,
+  Input,
+  message,
+  Switch,
+  Tag,
+} from 'ant-design-vue';
 
 import {
   getDashboardTelegramAccountsApi,
@@ -41,7 +49,7 @@ const totalMessagesCount = computed(() =>
 );
 
 const visibleUsers = computed(() => {
-  const items = [...users.value].sort((a, b) => {
+  const items = [...users.value].toSorted((a, b) => {
     const aHasMessages = a.message_count > 0 ? 1 : 0;
     const bHasMessages = b.message_count > 0 ? 1 : 0;
     if (aHasMessages !== bHasMessages) return bHasMessages - aHasMessages;
@@ -53,9 +61,9 @@ const visibleUsers = computed(() => {
 
 const timelineGroups = computed(() => {
   const groups: Array<{
+    items: DashboardTelegramMessageItem[];
     key: string;
     label: string;
-    items: DashboardTelegramMessageItem[];
   }> = [];
   for (const item of orderedMessages.value) {
     const key = (item.created_at || '').slice(0, 10) || 'unknown';
@@ -152,7 +160,8 @@ function messagePeerText(item: DashboardTelegramMessageItem) {
 }
 
 function userInitial(user: DashboardTelegramChatUserItem | null) {
-  const name = user?.display_name?.trim() || user?.primary_username?.trim() || '?';
+  const name =
+    user?.display_name?.trim() || user?.primary_username?.trim() || '?';
   return name.slice(0, 1).toUpperCase();
 }
 
@@ -193,7 +202,9 @@ onMounted(() => loadData());
         <div class="pane-hero">
           <div class="pane-hero-copy">
             <div class="eyebrow">Telegram Inbox</div>
-            <div class="hero-title">把有效会话提到前面，不让 0 消息空用户淹没工单。</div>
+            <div class="hero-title">
+              把有效会话提到前面，不让 0 消息空用户淹没工单。
+            </div>
           </div>
           <div class="hero-metrics">
             <div class="metric-card">
@@ -253,18 +264,10 @@ onMounted(() => loadData());
                 >
                   当前
                 </Tag>
-                <Tag
-                  v-else-if="user.message_count > 0"
-                  color="blue"
-                >
+                <Tag v-else-if="user.message_count > 0" color="blue">
                   活跃
                 </Tag>
-                <Tag
-                  v-else
-                  color="default"
-                >
-                  空白
-                </Tag>
+                <Tag v-else color="default"> 空白 </Tag>
               </div>
               <div class="conversation-subtitle">
                 {{ user.username_label || `ID ${user.tg_user_id}` }}
@@ -293,7 +296,8 @@ onMounted(() => loadData());
                 <div class="chat-title">{{ selectedUser.display_name }}</div>
                 <div class="chat-subtitle">
                   {{
-                    selectedUser.username_label || `ID ${selectedUser.tg_user_id}`
+                    selectedUser.username_label ||
+                    `ID ${selectedUser.tg_user_id}`
                   }}
                 </div>
               </div>
@@ -331,7 +335,11 @@ onMounted(() => loadData());
                 v-for="item in group.items"
                 :key="item.id"
                 class="message-row"
-                :class="item.direction === 'out' ? 'message-row-out' : 'message-row-in'"
+                :class="
+                  item.direction === 'out'
+                    ? 'message-row-out'
+                    : 'message-row-in'
+                "
               >
                 <Avatar
                   v-if="item.direction !== 'out'"
@@ -342,10 +350,16 @@ onMounted(() => loadData());
                 </Avatar>
                 <div
                   class="message-bubble"
-                  :class="item.direction === 'out' ? 'message-bubble-out' : 'message-bubble-in'"
+                  :class="
+                    item.direction === 'out'
+                      ? 'message-bubble-out'
+                      : 'message-bubble-in'
+                  "
                 >
                   <div class="message-topline">
-                    <span class="message-sender">{{ messagePeerText(item) }}</span>
+                    <span class="message-sender">{{
+                      messagePeerText(item)
+                    }}</span>
                     <Tag
                       class="message-source"
                       :color="item.direction === 'out' ? 'blue' : 'default'"
@@ -411,7 +425,11 @@ onMounted(() => loadData());
 
 <style scoped>
 .chat-shell {
-  --chat-panel-bg: linear-gradient(180deg, rgb(12 15 24 / 96%), rgb(20 23 34 / 98%));
+  --chat-panel-bg: linear-gradient(
+    180deg,
+    rgb(12 15 24 / 96%),
+    rgb(20 23 34 / 98%)
+  );
   --chat-card-border: rgb(255 255 255 / 9%);
   --chat-card-shadow: 0 18px 48px rgb(0 0 0 / 22%);
   --chat-soft: rgb(255 255 255 / 7%);
@@ -419,11 +437,12 @@ onMounted(() => loadData());
   --chat-accent: #3f8cff;
   --chat-accent-soft: rgb(63 140 255 / 16%);
   --chat-success: #6be28c;
+
   display: grid;
   grid-template-columns: 390px minmax(0, 1fr);
   gap: 18px;
-  min-height: 720px;
   height: calc(100vh - 146px);
+  min-height: 720px;
 }
 
 .conversation-pane,
@@ -444,8 +463,8 @@ onMounted(() => loadData());
 
 .pane-hero {
   position: relative;
-  overflow: hidden;
   padding: 22px 22px 18px;
+  overflow: hidden;
   background:
     radial-gradient(circle at top left, rgb(81 121 255 / 30%), transparent 42%),
     radial-gradient(circle at 90% 18%, rgb(76 225 160 / 18%), transparent 34%);
@@ -460,15 +479,15 @@ onMounted(() => loadData());
   margin-bottom: 8px;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.18em;
   color: rgb(161 194 255 / 88%);
   text-transform: uppercase;
+  letter-spacing: 0.18em;
 }
 
 .hero-title {
   font-size: 22px;
-  line-height: 1.3;
   font-weight: 700;
+  line-height: 1.3;
   color: #f7fbff;
 }
 
@@ -510,8 +529,8 @@ onMounted(() => loadData());
   flex-direction: column;
   gap: 12px;
   padding: 16px 18px;
-  border-bottom: 1px solid var(--chat-card-border);
   background: rgb(255 255 255 / 2%);
+  border-bottom: 1px solid var(--chat-card-border);
 }
 
 .pane-toolbar :deep(.ant-input-group-addon),
@@ -572,7 +591,11 @@ onMounted(() => loadData());
 
 .conversation-item:hover,
 .conversation-item.active {
-  background: linear-gradient(135deg, rgb(63 140 255 / 16%), rgb(255 255 255 / 6%));
+  background: linear-gradient(
+    135deg,
+    rgb(63 140 255 / 16%),
+    rgb(255 255 255 / 6%)
+  );
   border-color: rgb(95 160 255 / 44%);
   box-shadow: 0 14px 24px rgb(0 0 0 / 16%);
   transform: translateY(-1px);
@@ -583,8 +606,11 @@ onMounted(() => loadData());
 .message-avatar {
   flex: none;
   color: #fff;
-  background:
-    linear-gradient(145deg, rgb(93 136 255 / 94%), rgb(63 205 162 / 74%));
+  background: linear-gradient(
+    145deg,
+    rgb(93 136 255 / 94%),
+    rgb(63 205 162 / 74%)
+  );
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 26%);
 }
 
@@ -623,11 +649,11 @@ onMounted(() => loadData());
 
 .conversation-preview {
   display: -webkit-box;
+  -webkit-line-clamp: 2;
   font-size: 13px;
   line-height: 1.5;
   color: rgb(240 245 255 / 84%);
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .conversation-side {
@@ -649,7 +675,11 @@ onMounted(() => loadData());
   position: relative;
   flex-direction: column;
   background:
-    radial-gradient(circle at top right, rgb(81 121 255 / 18%), transparent 32%),
+    radial-gradient(
+      circle at top right,
+      rgb(81 121 255 / 18%),
+      transparent 32%
+    ),
     linear-gradient(180deg, rgb(11 14 23 / 96%), rgb(16 18 28 / 98%));
 }
 
@@ -659,8 +689,8 @@ onMounted(() => loadData());
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--chat-card-border);
   background: rgb(255 255 255 / 3%);
+  border-bottom: 1px solid var(--chat-card-border);
 }
 
 .chat-header-main {
@@ -683,16 +713,16 @@ onMounted(() => loadData());
 
 .chat-header-meta {
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
+  gap: 10px;
 }
 
 .meta-pill {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 11px 14px;
   min-width: 132px;
+  padding: 11px 14px;
   background: rgb(255 255 255 / 4%);
   border: 1px solid rgb(255 255 255 / 9%);
   border-radius: 16px;
@@ -700,9 +730,9 @@ onMounted(() => loadData());
 
 .meta-pill-label {
   font-size: 11px;
-  letter-spacing: 0.08em;
   color: rgb(186 202 245 / 66%);
   text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .message-timeline {
@@ -730,12 +760,12 @@ onMounted(() => loadData());
   padding: 6px 12px;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.08em;
   color: rgb(210 221 248 / 72%);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   background: rgb(255 255 255 / 4%);
   border: 1px solid rgb(255 255 255 / 8%);
   border-radius: 999px;
-  text-transform: uppercase;
 }
 
 .message-row {
@@ -755,25 +785,33 @@ onMounted(() => loadData());
 .message-bubble {
   max-width: min(720px, 78%);
   padding: 14px 16px 12px;
-  border-radius: 22px;
   border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: 22px;
   box-shadow: 0 16px 30px rgb(0 0 0 / 18%);
 }
 
 .message-bubble-in {
-  background: linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 4%));
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 8%),
+    rgb(255 255 255 / 4%)
+  );
 }
 
 .message-bubble-out {
-  background: linear-gradient(135deg, rgb(63 140 255 / 22%), rgb(39 60 118 / 48%));
+  background: linear-gradient(
+    135deg,
+    rgb(63 140 255 / 22%),
+    rgb(39 60 118 / 48%)
+  );
   border-color: rgb(88 151 255 / 32%);
 }
 
 .message-topline {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  flex-wrap: wrap;
   margin-bottom: 8px;
 }
 
@@ -808,8 +846,8 @@ onMounted(() => loadData());
   gap: 16px;
   align-items: end;
   padding: 18px 22px 20px;
-  border-top: 1px solid var(--chat-card-border);
   background: rgb(8 10 17 / 38%);
+  border-top: 1px solid var(--chat-card-border);
 }
 
 .editor-title {
