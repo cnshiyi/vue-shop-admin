@@ -13,11 +13,13 @@ import {
   Input,
   message,
   Modal,
+  Popconfirm,
   Space,
   Table,
 } from 'ant-design-vue';
 
 import {
+  deleteDashboardUserApi,
   getDashboardUsersApi,
   updateDashboardUserBalanceApi,
 } from '#/api/admin';
@@ -73,7 +75,7 @@ const columns = [
     width: 140,
   },
   { title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 220 },
-  { title: '操作', key: 'actions', fixed: 'right' as const, width: 180 },
+  { title: '操作', key: 'actions', fixed: 'right' as const, width: 240 },
 ];
 
 async function loadData() {
@@ -133,6 +135,20 @@ async function submitEdit() {
   }
 }
 
+async function removeUser(record: DashboardUserItem) {
+  if (!requireCloudDangerPermission('删除用户')) return;
+  saving.value = true;
+  try {
+    await deleteDashboardUserApi(record.id);
+    message.success('用户已删除，ID 已加入新用户复用队列');
+    await loadData();
+  } catch (error: any) {
+    message.error(error?.message || '删除失败');
+  } finally {
+    saving.value = false;
+  }
+}
+
 onMounted(loadData);
 </script>
 
@@ -163,7 +179,7 @@ onMounted(loadData);
         :loading="loading"
         :pagination="{ pageSize: 10 }"
         row-key="id"
-        :scroll="{ x: 1520 }"
+        :scroll="{ x: 1580 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'display_name'">
@@ -193,6 +209,15 @@ onMounted(loadData);
               >
                 编辑
               </Button>
+              <Popconfirm
+                title="确认删除该用户信息吗？"
+                description="仅允许删除无业务记录的用户；删除后资产/IP会解绑，新用户优先复用该ID。"
+                @confirm="removeUser(record as DashboardUserItem)"
+              >
+                <Button danger type="link" :disabled="!canRunCloudDanger">
+                  删除
+                </Button>
+              </Popconfirm>
             </Space>
           </template>
         </template>

@@ -1521,6 +1521,12 @@ export async function updateDashboardUserDiscountApi(
   return requestClient.post(`/admin/users/${userId}/discount/`, payload);
 }
 
+export async function deleteDashboardUserApi(userId: number) {
+  return requestClient.post<{ deleted: boolean; reusable_user_id: number }>(
+    `/admin/users/${userId}/delete/`,
+  );
+}
+
 export interface DashboardUserBalanceDetailItem {
   after_balance?: string;
   amount: string;
