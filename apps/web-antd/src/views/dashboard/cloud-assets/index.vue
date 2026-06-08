@@ -2537,10 +2537,11 @@ onBeforeUnmount(() => {
                         asDashboardCloudAssetItem(record),
                       ),
                     }"
+                    :content="
+                      usernamePipeLabel(asDashboardCloudAssetItem(record))
+                    "
                     class="mb-0 max-w-full break-all text-xs leading-5"
-                  >
-                    {{ usernamePipeLabel(asDashboardCloudAssetItem(record)) }}
-                  </TypographyParagraph>
+                  />
                 </Space>
               </template>
               <template v-else-if="column.key === 'ip_user_summary'">
@@ -2570,10 +2571,9 @@ onBeforeUnmount(() => {
                       rows: 1,
                       tooltip: record.asset_name || '-',
                     }"
+                    :content="record.asset_name || '-'"
                     class="mb-0 max-w-full break-all text-xs leading-5"
-                  >
-                    {{ record.asset_name || '-' }}
-                  </TypographyParagraph>
+                  />
                   <Space :size="4" wrap>
                     <Tag
                       :color="
@@ -2604,10 +2604,11 @@ onBeforeUnmount(() => {
                         asDashboardCloudAssetItem(record),
                       ),
                     }"
+                    :content="
+                      resourceIdLabel(asDashboardCloudAssetItem(record))
+                    "
                     class="mb-0 max-w-full break-all font-mono text-xs leading-5"
-                  >
-                    {{ resourceIdLabel(asDashboardCloudAssetItem(record)) }}
-                  </TypographyParagraph>
+                  />
                 </Space>
               </template>
               <template v-else-if="column.key === 'cloud_ip_price'">
@@ -2649,10 +2650,11 @@ onBeforeUnmount(() => {
                             ),
                           }
                     "
+                    :content="
+                      usernamePipeLabel(asDashboardCloudAssetItem(record))
+                    "
                     class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
-                  >
-                    {{ usernamePipeLabel(asDashboardCloudAssetItem(record)) }}
-                  </TypographyParagraph>
+                  />
                   <Button
                     size="small"
                     type="link"
@@ -2672,10 +2674,9 @@ onBeforeUnmount(() => {
                         ? false
                         : { rows: 1, tooltip: record.asset_name || '-' }
                     "
+                    :content="record.asset_name || '-'"
                     class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
-                  >
-                    {{ record.asset_name || '-' }}
-                  </TypographyParagraph>
+                  />
                   <Button
                     size="small"
                     type="link"
@@ -2715,10 +2716,9 @@ onBeforeUnmount(() => {
                     rows: 2,
                     tooltip: record.instance_id || record.provider_resource_id,
                   }"
+                  :content="record.instance_id || record.provider_resource_id"
                   class="mb-0 break-all font-mono text-xs leading-5"
-                >
-                  {{ record.instance_id || record.provider_resource_id }}
-                </TypographyParagraph>
+                />
                 <span v-else>-</span>
               </template>
               <template v-else-if="column.key === 'account_label'">
@@ -2801,10 +2801,11 @@ onBeforeUnmount(() => {
                         asDashboardCloudAssetItem(record),
                       ),
                     }"
+                    :content="
+                      buildProxyLinkText(asDashboardCloudAssetItem(record))
+                    "
                     class="mb-0 max-h-32 overflow-y-auto break-all font-mono text-xs leading-5"
-                  >
-                    {{ buildProxyLinkText(asDashboardCloudAssetItem(record)) }}
-                  </TypographyParagraph>
+                  />
                   <Space :size="6" class="mt-1">
                     <Button
                       size="small"
@@ -2865,10 +2866,9 @@ onBeforeUnmount(() => {
                         ? false
                         : { rows: 1, tooltip: record.note }
                     "
+                    :content="record.note"
                     class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
-                  >
-                    {{ record.note }}
-                  </TypographyParagraph>
+                  />
                   <Button
                     size="small"
                     type="link"
@@ -3024,10 +3024,9 @@ onBeforeUnmount(() => {
                   rows: 1,
                   tooltip: usernamePipeLabel(record as DashboardCloudAssetItem),
                 }"
+                :content="usernamePipeLabel(record as DashboardCloudAssetItem)"
                 class="mb-0 max-w-full break-all text-xs leading-5"
-              >
-                {{ usernamePipeLabel(record as DashboardCloudAssetItem) }}
-              </TypographyParagraph>
+              />
             </Space>
           </template>
           <template v-else-if="column.key === 'ip_user_summary'">
@@ -3057,10 +3056,9 @@ onBeforeUnmount(() => {
                   rows: 1,
                   tooltip: record.asset_name || '-',
                 }"
+                :content="record.asset_name || '-'"
                 class="mb-0 max-w-full break-all text-xs leading-5"
-              >
-                {{ record.asset_name || '-' }}
-              </TypographyParagraph>
+              />
               <Space :size="4" wrap>
                 <Tag
                   :color="
@@ -3087,10 +3085,9 @@ onBeforeUnmount(() => {
                   rows: 1,
                   tooltip: resourceIdLabel(record as DashboardCloudAssetItem),
                 }"
+                :content="resourceIdLabel(record as DashboardCloudAssetItem)"
                 class="mb-0 max-w-full break-all font-mono text-xs leading-5"
-              >
-                {{ resourceIdLabel(record as DashboardCloudAssetItem) }}
-              </TypographyParagraph>
+              />
             </Space>
           </template>
           <template v-else-if="column.key === 'cloud_ip_price'">
@@ -3132,10 +3129,9 @@ onBeforeUnmount(() => {
                         ),
                       }
                 "
+                :content="usernamePipeLabel(asDashboardCloudAssetItem(record))"
                 class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
-              >
-                {{ usernamePipeLabel(asDashboardCloudAssetItem(record)) }}
-              </TypographyParagraph>
+              />
               <Button
                 size="small"
                 type="link"
@@ -3155,10 +3151,9 @@ onBeforeUnmount(() => {
                     ? false
                     : { rows: 1, tooltip: record.asset_name || '-' }
                 "
+                :content="record.asset_name || '-'"
                 class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
-              >
-                {{ record.asset_name || '-' }}
-              </TypographyParagraph>
+              />
               <Button
                 size="small"
                 type="link"
@@ -3196,10 +3191,9 @@ onBeforeUnmount(() => {
                 rows: 2,
                 tooltip: record.instance_id || record.provider_resource_id,
               }"
+              :content="record.instance_id || record.provider_resource_id"
               class="mb-0 break-all font-mono text-xs leading-5"
-            >
-              {{ record.instance_id || record.provider_resource_id }}
-            </TypographyParagraph>
+            />
             <span v-else>-</span>
           </template>
           <template v-else-if="column.key === 'account_label'">
@@ -3280,10 +3274,9 @@ onBeforeUnmount(() => {
                 :copyable="{
                   text: buildProxyLinkText(record as DashboardCloudAssetItem),
                 }"
+                :content="buildProxyLinkText(record as DashboardCloudAssetItem)"
                 class="mb-0 max-h-32 overflow-y-auto break-all font-mono text-xs leading-5"
-              >
-                {{ buildProxyLinkText(record as DashboardCloudAssetItem) }}
-              </TypographyParagraph>
+              />
               <Space :size="6" class="mt-1">
                 <Button
                   size="small"
@@ -3340,10 +3333,9 @@ onBeforeUnmount(() => {
                     ? false
                     : { rows: 1, tooltip: record.note }
                 "
+                :content="record.note"
                 class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
-              >
-                {{ record.note }}
-              </TypographyParagraph>
+              />
               <Button
                 size="small"
                 type="link"
