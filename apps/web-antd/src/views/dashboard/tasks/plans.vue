@@ -313,6 +313,9 @@ const ipDeleteColumnsAll = [
   },
   { title: '操作', key: 'actions', width: 150, fixed: 'right' as const },
 ];
+const ipDeleteHistoryColumnsAll = ipDeleteColumnsAll.filter(
+  (column) => column.key !== 'ip_delete_enabled',
+);
 
 function filterPlanColumns(columns: any[]) {
   return columns.filter(
@@ -328,6 +331,9 @@ const serverHistoryColumns = computed(() =>
   filterPlanColumns(serverHistoryColumnsAll),
 );
 const ipDeleteColumns = computed(() => filterPlanColumns(ipDeleteColumnsAll));
+const ipDeleteHistoryColumns = computed(() =>
+  filterPlanColumns(ipDeleteHistoryColumnsAll),
+);
 const lastRunFailureColumns = computed(() => filterPlanColumns(failureColumns));
 const visibleFieldState = computed(() => ({
   execution: [
@@ -1827,7 +1833,7 @@ onMounted(() => {
         <Table
           class="plans-compact-table"
           size="small"
-          :columns="ipDeleteColumns"
+          :columns="ipDeleteHistoryColumns"
           :data-source="ipDeleteHistoryItems"
           :loading="loading"
           :pagination="
