@@ -1390,6 +1390,7 @@ export async function getDashboardLifecyclePlansApi(
     server_history_page_size?: number;
     shutdown_page?: number;
     shutdown_page_size?: number;
+    tables?: string;
   } = {},
 ) {
   return requestClient.get<DashboardLifecyclePlansDetail>(

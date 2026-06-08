@@ -455,7 +455,7 @@ async function handlePlanPageChange(key: PlanTableKey, pagination: any) {
   const nextPage = Number(pagination?.current || 1);
   planPageState[key].current = pageSizeChanged ? 1 : Math.max(nextPage, 1);
   planPageState[key].pageSize = Math.max(nextPageSize, 1);
-  await loadData({ silent: true });
+  await loadData({ silent: true, tables: [key] });
 }
 
 function fmtTime(value?: null | string) {
@@ -853,7 +853,34 @@ function goBack() {
   router.push('/admin/cloud-assets').catch(() => {});
 }
 
-async function loadData(options?: { silent?: boolean }) {
+function mergeLifecyclePlanDetail(
+  current: DashboardLifecyclePlansDetail,
+  incoming: DashboardLifecyclePlansDetail,
+): DashboardLifecyclePlansDetail {
+  return {
+    ...current,
+    ...incoming,
+    ip_delete_history_items:
+      incoming.ip_delete_history_items ?? current.ip_delete_history_items,
+    ip_delete_plan_items:
+      incoming.ip_delete_plan_items ?? current.ip_delete_plan_items,
+    pagination: {
+      ...current.pagination,
+      ...incoming.pagination,
+    },
+    server_delete_items:
+      incoming.server_delete_items ?? current.server_delete_items,
+    server_history_items:
+      incoming.server_history_items ?? current.server_history_items,
+    shutdown_plan_items:
+      incoming.shutdown_plan_items ?? current.shutdown_plan_items,
+  };
+}
+
+async function loadData(options?: {
+  silent?: boolean;
+  tables?: PlanTableKey[];
+}) {
   if (!options?.silent) loading.value = true;
   try {
     const requestLimit = Math.max(
@@ -863,7 +890,7 @@ async function loadData(options?: { silent?: boolean }) {
       planPageState.server_history.pageSize,
       planPageState.shutdown_plan.pageSize,
     );
-    detail.value = await getDashboardLifecyclePlansApi({
+    const result = await getDashboardLifecyclePlansApi({
       compact: 1,
       fields: lifecycleFields.value,
       ip_delete_history_page: planPageState.ip_delete_history.current,
@@ -877,7 +904,12 @@ async function loadData(options?: { silent?: boolean }) {
       server_history_page_size: planPageState.server_history.pageSize,
       shutdown_page: planPageState.shutdown_plan.current,
       shutdown_page_size: planPageState.shutdown_plan.pageSize,
+      tables: options?.tables?.join(','),
     });
+    detail.value =
+      options?.tables?.length && detail.value
+        ? mergeLifecyclePlanDetail(detail.value, result)
+        : result;
   } catch (error: any) {
     message.error(error?.message || '计划加载失败');
     detail.value = null;
