@@ -4020,7 +4020,7 @@ onBeforeUnmount(() => {
         <Form.Item label="用户">
           <Input
             v-model:value="formState.user_query"
-            placeholder="输入后台用户ID / Telegram ID / 用户名；账号登记页保存过ID+用户名也可绑定"
+            placeholder="输入后台用户ID / Telegram ID / @用户名 / t.me链接；本地没有时用已登录账号解析"
           />
         </Form.Item>
         <Form.Item label="当前显示用户">
