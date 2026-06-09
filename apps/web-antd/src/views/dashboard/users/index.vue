@@ -35,6 +35,7 @@ const pagination = reactive({
   current: 1,
   pageSize: 10,
   total: 0,
+  totalPages: 0,
 });
 const editOpen = ref(false);
 const currentRow = ref<DashboardUserItem | null>(null);
@@ -97,6 +98,7 @@ async function loadData() {
     pagination.current = response.page;
     pagination.pageSize = response.page_size;
     pagination.total = response.total;
+    pagination.totalPages = response.total_pages;
   } finally {
     loading.value = false;
   }
@@ -204,14 +206,19 @@ onMounted(loadData);
         </Space>
       </template>
       <Table
+        class="users-table"
         :columns="columns"
         :data-source="items"
         :loading="loading"
         :pagination="{
           current: pagination.current,
           pageSize: pagination.pageSize,
+          pageSizeOptions: ['10', '20', '50', '100'],
+          showLessItems: false,
+          showQuickJumper: true,
           showSizeChanger: true,
-          showTotal: (total: number) => `共 ${total} 条`,
+          showTotal: (total: number) =>
+            `共 ${total} 条 / ${pagination.totalPages} 页`,
           total: pagination.total,
         }"
         row-key="id"
@@ -294,3 +301,17 @@ onMounted(loadData);
     </Modal>
   </Page>
 </template>
+
+<style scoped>
+.users-table :deep(.ant-table-cell) {
+  vertical-align: middle;
+}
+
+.users-table :deep(.ant-table-cell:nth-child(1)),
+.users-table :deep(.ant-table-cell:nth-child(2)),
+.users-table :deep(.ant-table-cell:nth-child(7)),
+.users-table :deep(.ant-table-cell:nth-child(8)),
+.users-table :deep(.ant-table-cell:nth-child(9)) {
+  white-space: nowrap;
+}
+</style>
