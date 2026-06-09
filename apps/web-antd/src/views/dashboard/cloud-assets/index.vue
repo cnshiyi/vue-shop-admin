@@ -92,6 +92,7 @@ const keyword = ref('');
 const grouped = ref(false);
 const showDeletedAssets = ref(false);
 const groupMode = ref<'telegram_group' | 'user'>('user');
+type AssetDisplayMode = 'flat' | 'telegram_group' | 'user';
 const totalSortMode = ref<
   | 'default'
   | 'expires_asc'
@@ -442,24 +443,6 @@ function setAllGroupsExpanded(expanded: boolean) {
 function resetListPages() {
   groupPagination.page = 1;
   assetPagination.page = 1;
-}
-
-function handleGroupModeChange() {
-  resetListPages();
-  clearSelectedRows();
-  loadData();
-}
-
-function handleGroupedChange(enabled: boolean | number | string) {
-  resetListPages();
-  clearSelectedRows();
-  if (enabled) {
-    loadData();
-    return;
-  }
-  groups.value = [];
-  expandedGroupKeys.value = [];
-  loadData();
 }
 
 function handleDeletedAssetsVisibleChange() {
@@ -1003,6 +986,29 @@ const columnViewOptions = [
   { label: '云资源视图', value: 'cloud' },
   { label: 'IP视图', value: 'ip' },
 ];
+const displayModeOptions = [
+  { label: '按用户分组', value: 'user' },
+  { label: '按群组分组', value: 'telegram_group' },
+  { label: '不分组', value: 'flat' },
+];
+const assetDisplayMode = computed<AssetDisplayMode>({
+  get() {
+    return grouped.value ? groupMode.value : 'flat';
+  },
+  set(value = 'user') {
+    grouped.value = value !== 'flat';
+    if (value !== 'flat') {
+      groupMode.value = value;
+    }
+    resetListPages();
+    clearSelectedRows();
+    if (!grouped.value) {
+      groups.value = [];
+      expandedGroupKeys.value = [];
+    }
+    loadData();
+  },
+});
 
 const assetColumnVisible = reactive<Record<string, boolean>>({});
 const assetColumnSwitchOptions = [
@@ -2421,14 +2427,9 @@ onBeforeUnmount(() => {
             <Tag color="default">已删除 {{ deletedAssetCount }} 条</Tag>
           </Space>
           <Select
-            v-if="grouped"
-            v-model:value="groupMode"
+            v-model:value="assetDisplayMode"
             class="cloud-assets-group-select"
-            :options="[
-              { label: '按群组分区', value: 'telegram_group' },
-              { label: '按用户分区', value: 'user' },
-            ]"
-            @change="handleGroupModeChange"
+            :options="displayModeOptions"
           />
           <Button
             v-if="grouped"
@@ -2449,7 +2450,6 @@ onBeforeUnmount(() => {
           <Tag v-if="grouped" color="cyan">
             已展开 {{ expandedGroupCount }} / {{ totalGroupCount }} 组
           </Tag>
-          <Switch v-model:checked="grouped" @change="handleGroupedChange" />
         </Space>
       </template>
 
