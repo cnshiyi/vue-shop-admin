@@ -89,9 +89,9 @@ const syncJobCancellingIds = ref<number[]>([]);
 const assetSyncingIds = ref<number[]>([]);
 const autoRenewSavingIds = ref<number[]>([]);
 const keyword = ref('');
-const grouped = ref(false);
+const grouped = ref(true);
 const showDeletedAssets = ref(false);
-const groupMode = ref<'telegram_group' | 'user'>('user');
+const groupMode = ref<'telegram_group' | 'user'>('telegram_group');
 type AssetDisplayMode = 'flat' | 'telegram_group' | 'user';
 const totalSortMode = ref<
   | 'default'
@@ -987,15 +987,15 @@ const columnViewOptions = [
   { label: 'IP视图', value: 'ip' },
 ];
 const displayModeOptions = [
-  { label: '按用户分组', value: 'user' },
   { label: '按群组分组', value: 'telegram_group' },
+  { label: '按用户分组', value: 'user' },
   { label: '不分组', value: 'flat' },
 ];
 const assetDisplayMode = computed<AssetDisplayMode>({
   get() {
     return grouped.value ? groupMode.value : 'flat';
   },
-  set(value = 'user') {
+  set(value = 'telegram_group') {
     grouped.value = value !== 'flat';
     if (value !== 'flat') {
       groupMode.value = value;
