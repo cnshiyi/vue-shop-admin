@@ -478,7 +478,7 @@ onMounted(loadData);
 
 <template>
   <Page
-    description="按用户和通知类型整合通知计划；同一种通知只生成一条合并文案"
+    description="按用户和月份整合通知计划；同一用户每月只生成一条合并文案"
     title="通知计划"
   >
     <Space direction="vertical" style="width: 100%" :size="16">
