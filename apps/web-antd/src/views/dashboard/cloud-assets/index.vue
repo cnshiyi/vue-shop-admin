@@ -89,7 +89,7 @@ const syncJobCancellingIds = ref<number[]>([]);
 const assetSyncingIds = ref<number[]>([]);
 const autoRenewSavingIds = ref<number[]>([]);
 const keyword = ref('');
-const grouped = ref(true);
+const grouped = ref(false);
 const showDeletedAssets = ref(false);
 const groupMode = ref<'telegram_group' | 'user'>('telegram_group');
 type AssetDisplayMode = 'flat' | 'telegram_group' | 'user';
@@ -819,10 +819,6 @@ const assetRowSelection = computed(() =>
   columnView.value === 'ip' ? undefined : rowSelection.value,
 );
 
-const assetTableScroll = computed(() => ({
-  x: columnView.value === 'ip' ? 980 : 2380,
-}));
-
 function hasRiskCountBreakdown(counts?: Record<string, number>) {
   if (!counts || Number(counts.all || 0) <= 0) {
     return false;
@@ -871,13 +867,13 @@ const riskFilterOptions = computed(() => [
 
 const columns = [
   {
-    title: '用户',
+    title: '归属用户',
     dataIndex: 'cloud_user_summary',
     key: 'cloud_user_summary',
     width: 220,
   },
   {
-    title: '用户',
+    title: 'IP用户',
     dataIndex: 'ip_user_summary',
     key: 'ip_user_summary',
     width: 170,
@@ -889,7 +885,7 @@ const columns = [
     width: 180,
   },
   {
-    title: '用户',
+    title: '用户昵称',
     dataIndex: 'user_display_name',
     key: 'user_display_name',
     width: 150,
@@ -1012,10 +1008,10 @@ const assetDisplayMode = computed<AssetDisplayMode>({
 
 const assetColumnVisible = reactive<Record<string, boolean>>({});
 const assetColumnSwitchOptions = [
-  { key: 'cloud_user_summary', label: '用户' },
-  { key: 'ip_user_summary', label: '用户' },
+  { key: 'cloud_user_summary', label: '归属用户' },
+  { key: 'ip_user_summary', label: 'IP用户' },
   { key: 'telegram_group_summary', label: '分组' },
-  { key: 'user_display_name', label: '用户' },
+  { key: 'user_display_name', label: '用户昵称' },
   { key: 'username_label', label: '用户名' },
   { key: 'cloud_resource_summary', label: '资源信息' },
   { key: 'asset_name', label: '资产名称' },
@@ -1071,10 +1067,13 @@ const assetTableBaseColumns = computed<
   const filteredByView = mappedColumns.filter((column) => {
     if (columnView.value === 'ip') {
       return [
+        'auto_renew_enabled',
         'cloud_ip_price',
+        'instance_id',
         'ip_actions',
         'ip_expiry_summary',
         'ip_user_summary',
+        'note',
         'telegram_group_summary',
       ].includes(column.key);
     }
@@ -1090,7 +1089,11 @@ const assetTableBaseColumns = computed<
         'provider_status',
         'status',
         'status_countdown',
+        'telegram_group_summary',
       ].includes(column.key);
+    }
+    if (column.key === 'ip_user_summary') {
+      return false;
     }
     if (
       grouped.value &&
@@ -1124,6 +1127,20 @@ const assetTableColumns = computed<TableColumnsType<DashboardCloudAssetItem>>(
       (column) => assetColumnVisible[String(column.key || '')] !== false,
     ),
 );
+
+const assetTableScroll = computed(() => {
+  let width = 80;
+  for (const column of assetTableColumns.value) {
+    const rawWidth = column.width;
+    if (typeof rawWidth === 'number') {
+      width += rawWidth;
+      continue;
+    }
+    const parsed = Number.parseInt(String(rawWidth || ''), 10);
+    width += Number.isFinite(parsed) ? parsed : 120;
+  }
+  return { x: Math.max(width, columnView.value === 'ip' ? 1280 : 1800) };
+});
 
 const syncJobTableColumns = computed<
   TableColumnsType<DashboardCloudAssetSyncJob>
@@ -2511,6 +2528,7 @@ onBeforeUnmount(() => {
             </Space>
           </template>
           <Table
+            v-if="assetTableColumns.length > 0"
             class="cloud-assets-table"
             :columns="assetTableColumns"
             :data-source="group.items"
@@ -2975,6 +2993,7 @@ onBeforeUnmount(() => {
               </template>
             </template>
           </Table>
+          <Empty v-else description="已关闭全部显示列" />
         </Collapse.Panel>
       </Collapse>
 
@@ -2991,75 +3010,198 @@ onBeforeUnmount(() => {
         />
       </div>
 
-      <Table
-        v-else
-        class="cloud-assets-table"
-        :columns="assetTableColumns"
-        :data-source="displayedItems"
-        :loading="loading"
-        :pagination="{
-          current: assetPagination.page,
-          pageSize: assetPagination.pageSize,
-          responsive: true,
-          showQuickJumper: true,
-          showSizeChanger: true,
-          total: assetPagination.total,
-          showTotal: (total: number) => `共 ${total} 条代理`,
-        }"
-        :row-selection="assetRowSelection"
-        row-key="id"
-        :scroll="assetTableScroll"
-        size="small"
-        @change="handleAssetTableChange"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'cloud_user_summary'">
-            <Space direction="vertical" :size="2">
-              <span>{{ record.user_display_name || '未绑定用户' }}</span>
-              <TypographyParagraph
+      <template v-else>
+        <Table
+          v-if="assetTableColumns.length > 0"
+          class="cloud-assets-table"
+          :columns="assetTableColumns"
+          :data-source="displayedItems"
+          :loading="loading"
+          :pagination="{
+            current: assetPagination.page,
+            pageSize: assetPagination.pageSize,
+            responsive: true,
+            showQuickJumper: true,
+            showSizeChanger: true,
+            total: assetPagination.total,
+            showTotal: (total: number) => `共 ${total} 条代理`,
+          }"
+          :row-selection="assetRowSelection"
+          row-key="id"
+          :scroll="assetTableScroll"
+          size="small"
+          @change="handleAssetTableChange"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'cloud_user_summary'">
+              <Space direction="vertical" :size="2">
+                <span>{{ record.user_display_name || '未绑定用户' }}</span>
+                <TypographyParagraph
+                  v-if="
+                    usernamePipeLabel(record as DashboardCloudAssetItem) !== '-'
+                  "
+                  :ellipsis="{
+                    rows: 1,
+                    tooltip: usernamePipeLabel(
+                      record as DashboardCloudAssetItem,
+                    ),
+                  }"
+                  :content="
+                    usernamePipeLabel(record as DashboardCloudAssetItem)
+                  "
+                  class="mb-0 max-w-full break-all text-xs leading-5"
+                />
+              </Space>
+            </template>
+            <template v-else-if="column.key === 'ip_user_summary'">
+              <Space direction="vertical" :size="2">
+                <span>{{ record.user_display_name || '未绑定用户' }}</span>
+                <span class="text-xs text-muted-foreground">
+                  {{ usernamePipeLabel(asDashboardCloudAssetItem(record)) }}
+                </span>
+              </Space>
+            </template>
+            <template v-else-if="column.key === 'telegram_group_summary'">
+              <Space direction="vertical" :size="2">
+                <span>{{ record.telegram_group_title || '未绑定群组' }}</span>
+                <span class="text-xs text-muted-foreground">
+                  {{
+                    record.telegram_group_username
+                      ? `@${record.telegram_group_username}`
+                      : record.telegram_group_chat_id || '-'
+                  }}
+                </span>
+              </Space>
+            </template>
+            <template v-else-if="column.key === 'cloud_resource_summary'">
+              <Space direction="vertical" :size="2">
+                <TypographyParagraph
+                  :ellipsis="{
+                    rows: 1,
+                    tooltip: record.asset_name || '-',
+                  }"
+                  :content="record.asset_name || '-'"
+                  class="mb-0 max-w-full break-all text-xs leading-5"
+                />
+                <Space :size="4" wrap>
+                  <Tag
+                    :color="
+                      record.provider === 'aws_lightsail' ? 'orange' : 'blue'
+                    "
+                  >
+                    {{ record.provider_label || record.provider || '-' }}
+                  </Tag>
+                  <Tag v-if="record.region_code" color="geekblue">
+                    {{ record.region_code }}
+                  </Tag>
+                  <span v-else>{{
+                    regionDisplay(record as DashboardCloudAssetItem)
+                  }}</span>
+                </Space>
+                <TypographyParagraph
+                  v-if="
+                    resourceIdLabel(record as DashboardCloudAssetItem) !== '-'
+                  "
+                  :copyable="{
+                    text: resourceIdCopyValue(
+                      record as DashboardCloudAssetItem,
+                    ),
+                  }"
+                  :ellipsis="{
+                    rows: 1,
+                    tooltip: resourceIdLabel(record as DashboardCloudAssetItem),
+                  }"
+                  :content="resourceIdLabel(record as DashboardCloudAssetItem)"
+                  class="mb-0 max-w-full break-all font-mono text-xs leading-5"
+                />
+              </Space>
+            </template>
+            <template v-else-if="column.key === 'cloud_ip_price'">
+              <Space direction="vertical" :size="2">
+                <TypographyParagraph
+                  v-if="record.public_ip"
+                  :copyable="{ text: record.public_ip }"
+                  class="mb-0 font-mono text-xs leading-5"
+                >
+                  {{ record.public_ip }}
+                </TypographyParagraph>
+                <span v-else>-</span>
+                <Tag
+                  :color="
+                    hasAssetPrice(record as DashboardCloudAssetItem)
+                      ? 'success'
+                      : 'error'
+                  "
+                >
+                  {{ assetPriceLabel(record as DashboardCloudAssetItem) }}
+                </Tag>
+              </Space>
+            </template>
+            <template v-else-if="column.key === 'username_label'">
+              <div
                 v-if="
-                  usernamePipeLabel(record as DashboardCloudAssetItem) !== '-'
+                  usernamePipeLabel(asDashboardCloudAssetItem(record)) !== '-'
                 "
-                :ellipsis="{
-                  rows: 1,
-                  tooltip: usernamePipeLabel(record as DashboardCloudAssetItem),
-                }"
-                :content="usernamePipeLabel(record as DashboardCloudAssetItem)"
-                class="mb-0 max-w-full break-all text-xs leading-5"
-              />
-            </Space>
-          </template>
-          <template v-else-if="column.key === 'ip_user_summary'">
-            <Space direction="vertical" :size="2">
-              <span>{{ record.user_display_name || '未绑定用户' }}</span>
-              <span class="text-xs text-muted-foreground">
-                {{ usernamePipeLabel(asDashboardCloudAssetItem(record)) }}
-              </span>
-            </Space>
-          </template>
-          <template v-else-if="column.key === 'telegram_group_summary'">
-            <Space direction="vertical" :size="2">
-              <span>{{ record.telegram_group_title || '未绑定群组' }}</span>
-              <span class="text-xs text-muted-foreground">
-                {{
-                  record.telegram_group_username
-                    ? `@${record.telegram_group_username}`
-                    : record.telegram_group_chat_id || '-'
-                }}
-              </span>
-            </Space>
-          </template>
-          <template v-else-if="column.key === 'cloud_resource_summary'">
-            <Space direction="vertical" :size="2">
-              <TypographyParagraph
-                :ellipsis="{
-                  rows: 1,
-                  tooltip: record.asset_name || '-',
-                }"
-                :content="record.asset_name || '-'"
-                class="mb-0 max-w-full break-all text-xs leading-5"
-              />
-              <Space :size="4" wrap>
+                class="max-w-full overflow-hidden"
+              >
+                <TypographyParagraph
+                  :ellipsis="
+                    isUsernameExpanded(record.id)
+                      ? false
+                      : {
+                          rows: 1,
+                          tooltip: usernamePipeLabel(
+                            asDashboardCloudAssetItem(record),
+                          ),
+                        }
+                  "
+                  :content="
+                    usernamePipeLabel(asDashboardCloudAssetItem(record))
+                  "
+                  class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
+                />
+                <Button
+                  size="small"
+                  type="link"
+                  class="mt-1 h-auto px-0 py-0"
+                  @click="toggleUsernameExpand(record.id)"
+                >
+                  {{ isUsernameExpanded(record.id) ? '收起' : '展开' }}
+                </Button>
+              </div>
+              <span v-else>-</span>
+            </template>
+            <template v-else-if="column.key === 'asset_name'">
+              <div class="max-w-full overflow-hidden">
+                <TypographyParagraph
+                  :ellipsis="
+                    isAssetNameExpanded(record.id)
+                      ? false
+                      : { rows: 1, tooltip: record.asset_name || '-' }
+                  "
+                  :content="record.asset_name || '-'"
+                  class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
+                />
+                <Button
+                  size="small"
+                  type="link"
+                  class="mt-1 h-auto px-0 py-0"
+                  @click="toggleAssetNameExpand(record.id)"
+                >
+                  {{ isAssetNameExpanded(record.id) ? '收起' : '展开' }}
+                </Button>
+                <Tag :color="record.kind === 'mtproxy' ? 'purple' : 'blue'">
+                  {{ record.kind === 'mtproxy' ? 'MTProxy' : '服务器' }}
+                </Tag>
+              </div>
+            </template>
+            <template v-else-if="column.key === 'sort_order'">
+              <Tag :color="sortOrderTagColor(record.sort_order)">
+                {{ record.sort_order || 99 }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'provider_label'">
+              <Space direction="vertical" :size="2">
                 <Tag
                   :color="
                     record.provider === 'aws_lightsail' ? 'orange' : 'blue'
@@ -3067,345 +3209,261 @@ onBeforeUnmount(() => {
                 >
                   {{ record.provider_label || record.provider || '-' }}
                 </Tag>
+              </Space>
+            </template>
+            <template v-else-if="column.key === 'instance_id'">
+              <TypographyParagraph
+                v-if="record.instance_id || record.provider_resource_id"
+                :copyable="{
+                  text: record.instance_id || record.provider_resource_id,
+                }"
+                :ellipsis="{
+                  rows: 2,
+                  tooltip: record.instance_id || record.provider_resource_id,
+                }"
+                :content="record.instance_id || record.provider_resource_id"
+                class="mb-0 break-all font-mono text-xs leading-5"
+              />
+              <span v-else>-</span>
+            </template>
+            <template v-else-if="column.key === 'account_label'">
+              <TypographyParagraph
+                v-if="record.account_label"
+                :copyable="{ text: record.account_label }"
+                class="mb-0 break-all font-mono text-xs leading-5"
+              >
+                {{ record.account_label }}
+              </TypographyParagraph>
+              <span v-else>-</span>
+            </template>
+            <template v-else-if="column.key === 'region_label'">
+              <Space direction="vertical" :size="2">
+                <span>{{
+                  regionDisplay(asDashboardCloudAssetItem(record))
+                }}</span>
                 <Tag v-if="record.region_code" color="geekblue">
                   {{ record.region_code }}
                 </Tag>
-                <span v-else>{{
-                  regionDisplay(record as DashboardCloudAssetItem)
-                }}</span>
               </Space>
-              <TypographyParagraph
-                v-if="
-                  resourceIdLabel(record as DashboardCloudAssetItem) !== '-'
-                "
-                :copyable="{
-                  text: resourceIdCopyValue(record as DashboardCloudAssetItem),
-                }"
-                :ellipsis="{
-                  rows: 1,
-                  tooltip: resourceIdLabel(record as DashboardCloudAssetItem),
-                }"
-                :content="resourceIdLabel(record as DashboardCloudAssetItem)"
-                class="mb-0 max-w-full break-all font-mono text-xs leading-5"
-              />
-            </Space>
-          </template>
-          <template v-else-if="column.key === 'cloud_ip_price'">
-            <Space direction="vertical" :size="2">
-              <TypographyParagraph
-                v-if="record.public_ip"
-                :copyable="{ text: record.public_ip }"
-                class="mb-0 font-mono text-xs leading-5"
-              >
-                {{ record.public_ip }}
-              </TypographyParagraph>
-              <span v-else>-</span>
+            </template>
+            <template v-else-if="column.key === 'price'">
               <Tag
                 :color="
-                  hasAssetPrice(record as DashboardCloudAssetItem)
+                  hasAssetPrice(asDashboardCloudAssetItem(record))
                     ? 'success'
                     : 'error'
                 "
               >
-                {{ assetPriceLabel(record as DashboardCloudAssetItem) }}
+                {{ assetPriceLabel(asDashboardCloudAssetItem(record)) }}
               </Tag>
-            </Space>
-          </template>
-          <template v-else-if="column.key === 'username_label'">
-            <div
-              v-if="
-                usernamePipeLabel(asDashboardCloudAssetItem(record)) !== '-'
-              "
-              class="max-w-full overflow-hidden"
-            >
-              <TypographyParagraph
-                :ellipsis="
-                  isUsernameExpanded(record.id)
-                    ? false
-                    : {
-                        rows: 1,
-                        tooltip: usernamePipeLabel(
-                          asDashboardCloudAssetItem(record),
-                        ),
-                      }
-                "
-                :content="usernamePipeLabel(asDashboardCloudAssetItem(record))"
-                class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
-              />
-              <Button
-                size="small"
-                type="link"
-                class="mt-1 h-auto px-0 py-0"
-                @click="toggleUsernameExpand(record.id)"
-              >
-                {{ isUsernameExpanded(record.id) ? '收起' : '展开' }}
-              </Button>
-            </div>
-            <span v-else>-</span>
-          </template>
-          <template v-else-if="column.key === 'asset_name'">
-            <div class="max-w-full overflow-hidden">
-              <TypographyParagraph
-                :ellipsis="
-                  isAssetNameExpanded(record.id)
-                    ? false
-                    : { rows: 1, tooltip: record.asset_name || '-' }
-                "
-                :content="record.asset_name || '-'"
-                class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
-              />
-              <Button
-                size="small"
-                type="link"
-                class="mt-1 h-auto px-0 py-0"
-                @click="toggleAssetNameExpand(record.id)"
-              >
-                {{ isAssetNameExpanded(record.id) ? '收起' : '展开' }}
-              </Button>
-              <Tag :color="record.kind === 'mtproxy' ? 'purple' : 'blue'">
-                {{ record.kind === 'mtproxy' ? 'MTProxy' : '服务器' }}
-              </Tag>
-            </div>
-          </template>
-          <template v-else-if="column.key === 'sort_order'">
-            <Tag :color="sortOrderTagColor(record.sort_order)">
-              {{ record.sort_order || 99 }}
-            </Tag>
-          </template>
-          <template v-else-if="column.key === 'provider_label'">
-            <Space direction="vertical" :size="2">
-              <Tag
-                :color="record.provider === 'aws_lightsail' ? 'orange' : 'blue'"
-              >
-                {{ record.provider_label || record.provider || '-' }}
-              </Tag>
-            </Space>
-          </template>
-          <template v-else-if="column.key === 'instance_id'">
-            <TypographyParagraph
-              v-if="record.instance_id || record.provider_resource_id"
-              :copyable="{
-                text: record.instance_id || record.provider_resource_id,
-              }"
-              :ellipsis="{
-                rows: 2,
-                tooltip: record.instance_id || record.provider_resource_id,
-              }"
-              :content="record.instance_id || record.provider_resource_id"
-              class="mb-0 break-all font-mono text-xs leading-5"
-            />
-            <span v-else>-</span>
-          </template>
-          <template v-else-if="column.key === 'account_label'">
-            <TypographyParagraph
-              v-if="record.account_label"
-              :copyable="{ text: record.account_label }"
-              class="mb-0 break-all font-mono text-xs leading-5"
-            >
-              {{ record.account_label }}
-            </TypographyParagraph>
-            <span v-else>-</span>
-          </template>
-          <template v-else-if="column.key === 'region_label'">
-            <Space direction="vertical" :size="2">
-              <span>{{
-                regionDisplay(asDashboardCloudAssetItem(record))
-              }}</span>
-              <Tag v-if="record.region_code" color="geekblue">
-                {{ record.region_code }}
-              </Tag>
-            </Space>
-          </template>
-          <template v-else-if="column.key === 'price'">
-            <Tag
-              :color="
-                hasAssetPrice(asDashboardCloudAssetItem(record))
-                  ? 'success'
-                  : 'error'
-              "
-            >
-              {{ assetPriceLabel(asDashboardCloudAssetItem(record)) }}
-            </Tag>
-          </template>
-          <template v-else-if="column.key === 'auto_renew_enabled'">
-            <Space direction="vertical" :size="2">
-              <Tag :color="record.auto_renew_enabled ? 'success' : 'error'">
-                {{ record.auto_renew_enabled ? '已开启' : '已关闭' }}
-              </Tag>
-              <Switch
-                :checked="Boolean(record.auto_renew_enabled)"
-                checked-children="开"
-                un-checked-children="关"
-                :disabled="
-                  !canRunCloudDanger ||
-                  !record.user_id ||
-                  record.can_auto_renew === false
-                "
-                :loading="isAutoRenewSaving(record.id)"
-                @change="
-                  (checked) =>
-                    toggleAutoRenew(
-                      record as DashboardCloudAssetItem,
-                      Boolean(checked),
-                    )
-                "
-              />
-            </Space>
-          </template>
-          <template v-else-if="column.key === 'mtproxy_link'">
-            <div
-              v-if="
-                buildProxyLinkItems(record as DashboardCloudAssetItem).length >
-                0
-              "
-              class="max-w-full overflow-hidden"
-            >
-              <TypographyParagraph
-                :ellipsis="
-                  isLinkExpanded(record.id)
-                    ? false
-                    : {
-                        rows: 1,
-                        tooltip: buildProxyLinkText(
-                          record as DashboardCloudAssetItem,
-                        ),
-                      }
-                "
-                :copyable="{
-                  text: buildProxyLinkText(record as DashboardCloudAssetItem),
-                }"
-                :content="buildProxyLinkText(record as DashboardCloudAssetItem)"
-                class="mb-0 max-h-32 overflow-y-auto break-all font-mono text-xs leading-5"
-              />
-              <Space :size="6" class="mt-1">
-                <Button
-                  size="small"
-                  type="link"
-                  class="h-auto px-0 py-0"
-                  @click="toggleLinkExpand(record.id)"
-                >
-                  {{ isLinkExpanded(record.id) ? '收起' : '展开' }}
-                </Button>
-                <Button
-                  size="small"
-                  type="link"
-                  class="h-auto px-0 py-0"
-                  @click="copyProxyLinks(record as DashboardCloudAssetItem)"
-                >
-                  复制全部
-                </Button>
+            </template>
+            <template v-else-if="column.key === 'auto_renew_enabled'">
+              <Space direction="vertical" :size="2">
+                <Tag :color="record.auto_renew_enabled ? 'success' : 'error'">
+                  {{ record.auto_renew_enabled ? '已开启' : '已关闭' }}
+                </Tag>
+                <Switch
+                  :checked="Boolean(record.auto_renew_enabled)"
+                  checked-children="开"
+                  un-checked-children="关"
+                  :disabled="
+                    !canRunCloudDanger ||
+                    !record.user_id ||
+                    record.can_auto_renew === false
+                  "
+                  :loading="isAutoRenewSaving(record.id)"
+                  @change="
+                    (checked) =>
+                      toggleAutoRenew(
+                        record as DashboardCloudAssetItem,
+                        Boolean(checked),
+                      )
+                  "
+                />
               </Space>
-            </div>
-            <span v-else>-</span>
-          </template>
-          <template v-else-if="column.key === 'actual_expires_at'">
-            <span>{{
-              record.actual_expires_at
-                ? dayjs(record.actual_expires_at).format('YYYY-MM-DD')
-                : '-'
-            }}</span>
-          </template>
-          <template v-else-if="column.key === 'ip_expiry_summary'">
-            <Space direction="vertical" :size="2">
-              <span>
+            </template>
+            <template v-else-if="column.key === 'mtproxy_link'">
+              <div
+                v-if="
+                  buildProxyLinkItems(record as DashboardCloudAssetItem)
+                    .length > 0
+                "
+                class="max-w-full overflow-hidden"
+              >
+                <TypographyParagraph
+                  :ellipsis="
+                    isLinkExpanded(record.id)
+                      ? false
+                      : {
+                          rows: 1,
+                          tooltip: buildProxyLinkText(
+                            record as DashboardCloudAssetItem,
+                          ),
+                        }
+                  "
+                  :copyable="{
+                    text: buildProxyLinkText(record as DashboardCloudAssetItem),
+                  }"
+                  :content="
+                    buildProxyLinkText(record as DashboardCloudAssetItem)
+                  "
+                  class="mb-0 max-h-32 overflow-y-auto break-all font-mono text-xs leading-5"
+                />
+                <Space :size="6" class="mt-1">
+                  <Button
+                    size="small"
+                    type="link"
+                    class="h-auto px-0 py-0"
+                    @click="toggleLinkExpand(record.id)"
+                  >
+                    {{ isLinkExpanded(record.id) ? '收起' : '展开' }}
+                  </Button>
+                  <Button
+                    size="small"
+                    type="link"
+                    class="h-auto px-0 py-0"
+                    @click="copyProxyLinks(record as DashboardCloudAssetItem)"
+                  >
+                    复制全部
+                  </Button>
+                </Space>
+              </div>
+              <span v-else>-</span>
+            </template>
+            <template v-else-if="column.key === 'actual_expires_at'">
+              <span>{{
+                record.actual_expires_at
+                  ? dayjs(record.actual_expires_at).format('YYYY-MM-DD')
+                  : '-'
+              }}</span>
+            </template>
+            <template v-else-if="column.key === 'ip_expiry_summary'">
+              <Space direction="vertical" :size="2">
+                <span>
+                  {{
+                    record.actual_expires_at
+                      ? dayjs(record.actual_expires_at).format('YYYY-MM-DD')
+                      : '-'
+                  }}
+                </span>
+                <Tag
+                  :color="
+                    countdownTagColor(
+                      record.status_countdown || record.provider_status || '-',
+                    )
+                  "
+                >
+                  {{ record.status_countdown || record.provider_status || '-' }}
+                </Tag>
+              </Space>
+            </template>
+            <template v-else-if="column.key === 'note'">
+              <div v-if="record.note" class="max-w-full overflow-hidden">
+                <TypographyParagraph
+                  :ellipsis="
+                    isNoteExpanded(record.id)
+                      ? false
+                      : { rows: 1, tooltip: record.note }
+                  "
+                  :content="record.note"
+                  class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
+                />
+                <Button
+                  size="small"
+                  type="link"
+                  class="mt-1 h-auto px-0 py-0"
+                  @click="toggleNoteExpand(record.id)"
+                >
+                  {{ isNoteExpanded(record.id) ? '收起' : '展开' }}
+                </Button>
+              </div>
+              <span v-else>-</span>
+            </template>
+            <template v-else-if="column.key === 'status'">
+              <Tag
+                :color="
+                  (record.provider_status || '').includes('未附加固定IP')
+                    ? 'warning'
+                    : record.status === 'deleted'
+                      ? 'default'
+                      : record.is_active
+                        ? 'success'
+                        : record.status === 'terminated'
+                          ? 'default'
+                          : 'warning'
+                "
+              >
                 {{
-                  record.actual_expires_at
-                    ? dayjs(record.actual_expires_at).format('YYYY-MM-DD')
-                    : '-'
+                  (record.provider_status || '').includes('未附加固定IP')
+                    ? '未附加IP'
+                    : record.status_label || record.status || '-'
                 }}
-              </span>
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'provider_status'">
+              <Tag
+                :color="
+                  ['running', '运行中'].includes(record.provider_status)
+                    ? 'success'
+                    : 'default'
+                "
+              >
+                {{ record.provider_status || '-' }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'status_countdown'">
               <Tag
                 :color="
                   countdownTagColor(
-                    record.status_countdown || record.provider_status || '-',
+                    record.preserve_link_status ||
+                      record.status_countdown ||
+                      record.provider_status ||
+                      '-',
                   )
                 "
               >
-                {{ record.status_countdown || record.provider_status || '-' }}
-              </Tag>
-            </Space>
-          </template>
-          <template v-else-if="column.key === 'note'">
-            <div v-if="record.note" class="max-w-full overflow-hidden">
-              <TypographyParagraph
-                :ellipsis="
-                  isNoteExpanded(record.id)
-                    ? false
-                    : { rows: 1, tooltip: record.note }
-                "
-                :content="record.note"
-                class="mb-0 max-h-24 overflow-y-auto break-all text-xs leading-5"
-              />
-              <Button
-                size="small"
-                type="link"
-                class="mt-1 h-auto px-0 py-0"
-                @click="toggleNoteExpand(record.id)"
-              >
-                {{ isNoteExpanded(record.id) ? '收起' : '展开' }}
-              </Button>
-            </div>
-            <span v-else>-</span>
-          </template>
-          <template v-else-if="column.key === 'status'">
-            <Tag
-              :color="
-                (record.provider_status || '').includes('未附加固定IP')
-                  ? 'warning'
-                  : record.status === 'deleted'
-                    ? 'default'
-                    : record.is_active
-                      ? 'success'
-                      : record.status === 'terminated'
-                        ? 'default'
-                        : 'warning'
-              "
-            >
-              {{
-                (record.provider_status || '').includes('未附加固定IP')
-                  ? '未附加IP'
-                  : record.status_label || record.status || '-'
-              }}
-            </Tag>
-          </template>
-          <template v-else-if="column.key === 'provider_status'">
-            <Tag
-              :color="
-                ['running', '运行中'].includes(record.provider_status)
-                  ? 'success'
-                  : 'default'
-              "
-            >
-              {{ record.provider_status || '-' }}
-            </Tag>
-          </template>
-          <template v-else-if="column.key === 'status_countdown'">
-            <Tag
-              :color="
-                countdownTagColor(
+                {{
                   record.preserve_link_status ||
-                    record.status_countdown ||
-                    record.provider_status ||
-                    '-',
-                )
-              "
-            >
-              {{
-                record.preserve_link_status ||
-                record.status_countdown ||
-                record.provider_status ||
-                '-'
-              }}
-            </Tag>
-          </template>
-          <template v-else-if="column.key === 'actions'">
-            <Space class="cloud-assets-actions" :wrap="false">
-              <Button
-                type="link"
-                @click="openDetail(record as DashboardCloudAssetItem)"
-              >
-                详情
-              </Button>
+                  record.status_countdown ||
+                  record.provider_status ||
+                  '-'
+                }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'actions'">
+              <Space class="cloud-assets-actions" :wrap="false">
+                <Button
+                  type="link"
+                  @click="openDetail(record as DashboardCloudAssetItem)"
+                >
+                  详情
+                </Button>
+                <Button
+                  type="link"
+                  :disabled="!canRunCloudDanger"
+                  @click="openEdit(record as DashboardCloudAssetItem)"
+                >
+                  编辑
+                </Button>
+                <Button
+                  type="link"
+                  :disabled="!canRunCloudDanger"
+                  :loading="isAssetSyncing(record.id)"
+                  @click="syncAssetStatus(record as DashboardCloudAssetItem)"
+                >
+                  更新
+                </Button>
+                <Popconfirm
+                  title="确认清除这条代理的本地状态吗？不会删除真实云服务器/IP；会清除关联订单的云资源绑定，后续同步按全新资源重新拉回。"
+                  @confirm="deleteAsset(record as DashboardCloudAssetItem)"
+                >
+                  <Button danger type="link" :disabled="!canRunCloudDanger">
+                    删除
+                  </Button>
+                </Popconfirm>
+              </Space>
+            </template>
+            <template v-else-if="column.key === 'ip_actions'">
               <Button
                 type="link"
                 :disabled="!canRunCloudDanger"
@@ -3413,35 +3471,11 @@ onBeforeUnmount(() => {
               >
                 编辑
               </Button>
-              <Button
-                type="link"
-                :disabled="!canRunCloudDanger"
-                :loading="isAssetSyncing(record.id)"
-                @click="syncAssetStatus(record as DashboardCloudAssetItem)"
-              >
-                更新
-              </Button>
-              <Popconfirm
-                title="确认清除这条代理的本地状态吗？不会删除真实云服务器/IP；会清除关联订单的云资源绑定，后续同步按全新资源重新拉回。"
-                @confirm="deleteAsset(record as DashboardCloudAssetItem)"
-              >
-                <Button danger type="link" :disabled="!canRunCloudDanger">
-                  删除
-                </Button>
-              </Popconfirm>
-            </Space>
+            </template>
           </template>
-          <template v-else-if="column.key === 'ip_actions'">
-            <Button
-              type="link"
-              :disabled="!canRunCloudDanger"
-              @click="openEdit(record as DashboardCloudAssetItem)"
-            >
-              编辑
-            </Button>
-          </template>
-        </template>
-      </Table>
+        </Table>
+        <Empty v-else description="已关闭全部显示列" />
+      </template>
     </Card>
 
     <Drawer
