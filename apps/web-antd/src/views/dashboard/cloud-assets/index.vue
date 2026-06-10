@@ -1035,7 +1035,9 @@ const assetColumnSwitchOptions = [
 ] as const;
 
 assetColumnSwitchOptions.forEach((item) => {
-  assetColumnVisible[item.key] = true;
+  assetColumnVisible[item.key] = !['asset_name', 'instance_id'].includes(
+    item.key,
+  );
 });
 
 const syncScopeOptions = [

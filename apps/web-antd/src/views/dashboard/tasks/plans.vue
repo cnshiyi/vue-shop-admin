@@ -467,7 +467,7 @@ async function handlePlanPageChange(key: PlanTableKey, pagination: any) {
 }
 
 function fmtTime(value?: null | string) {
-  return value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-';
+  return value ? dayjs(value).format('YYYY-MM-DD') : '-';
 }
 
 function fmtRecordTime(record: any, key: unknown) {
