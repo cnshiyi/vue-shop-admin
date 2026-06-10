@@ -902,7 +902,7 @@ const columns = [
     key: 'cloud_resource_summary',
     width: 360,
   },
-  { title: '资产名称', dataIndex: 'asset_name', key: 'asset_name', width: 150 },
+  { title: '实例名称', dataIndex: 'asset_name', key: 'asset_name', width: 150 },
   {
     title: '云厂商',
     dataIndex: 'provider_label',
@@ -1014,7 +1014,7 @@ const assetColumnSwitchOptions = [
   { key: 'user_display_name', label: '用户昵称' },
   { key: 'username_label', label: '用户名' },
   { key: 'cloud_resource_summary', label: '资源信息' },
-  { key: 'asset_name', label: '资产名称' },
+  { key: 'asset_name', label: '实例名称' },
   { key: 'provider_label', label: '云厂商' },
   { key: 'instance_id', label: '实例ID' },
   { key: 'sort_order', label: '排序' },
@@ -1067,6 +1067,7 @@ const assetTableBaseColumns = computed<
   const filteredByView = mappedColumns.filter((column) => {
     if (columnView.value === 'ip') {
       return [
+        'asset_name',
         'auto_renew_enabled',
         'cloud_ip_price',
         'instance_id',
