@@ -49,6 +49,7 @@ const { canRunCloudDanger, requireCloudDangerPermission } =
 const loading = ref(false);
 const refreshingPlanTable = ref(false);
 const planLimit = ref(50);
+const keyword = ref('');
 const detail = ref<DashboardLifecyclePlansDetail | null>(null);
 const lastRunResult = ref<DashboardShutdownPlanRunResult | null>(null);
 const failurePanelOpen = ref(false);
@@ -141,12 +142,18 @@ fieldSwitchItems.forEach((item) => {
     'execution_status',
     'failure_reason',
     'note',
+    'order_no',
     'provider_label',
     'provider_status',
+    'resource_state_label',
   ].includes(item.key);
 });
 
-const dueColumnsAll = [
+function dynamicPlanColumns(columns: any[]) {
+  return columns.map(({ width: _width, ...column }) => column);
+}
+
+const dueColumnsAll = dynamicPlanColumns([
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
   {
     title: '用户',
@@ -195,7 +202,7 @@ const dueColumnsAll = [
     width: 140,
   },
   { title: '操作', key: 'actions', width: 180, fixed: 'right' as const },
-];
+]);
 
 const serverDeleteColumnsAll = dueColumnsAll.map((column) =>
   column.key === 'shutdown_enabled'
@@ -208,7 +215,7 @@ const serverDeleteColumnsAll = dueColumnsAll.map((column) =>
     : column,
 );
 
-const serverHistoryColumnsAll = [
+const serverHistoryColumnsAll = dynamicPlanColumns([
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
   {
     title: '用户',
@@ -244,9 +251,9 @@ const serverHistoryColumnsAll = [
     width: 140,
   },
   { title: '操作', key: 'actions', width: 150, fixed: 'right' as const },
-];
+]);
 
-const failureColumns = [
+const failureColumns = dynamicPlanColumns([
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 150 },
   { title: '订单号', dataIndex: 'order_no', key: 'order_no', width: 190 },
   {
@@ -256,9 +263,9 @@ const failureColumns = [
     width: 140,
   },
   { title: '失败原因', dataIndex: 'error', key: 'error', width: 420 },
-];
+]);
 
-const ipDeleteColumnsAll = [
+const ipDeleteColumnsAll = dynamicPlanColumns([
   { title: 'IP', dataIndex: 'public_ip', key: 'public_ip', width: 150 },
   {
     title: '固定IP/资产',
@@ -312,7 +319,7 @@ const ipDeleteColumnsAll = [
     width: 360,
   },
   { title: '操作', key: 'actions', width: 150, fixed: 'right' as const },
-];
+]);
 const ipDeleteHistoryColumnsAll = ipDeleteColumnsAll.filter(
   (column) => column.key !== 'ip_delete_enabled',
 );
@@ -365,18 +372,10 @@ const lifecycleFields = computed(() =>
     .join(','),
 );
 const dueTableScroll = computed(() => ({
-  x:
-    1020 +
-    (visibleFieldState.value.notes ? 220 : 0) +
-    (visibleFieldState.value.execution ? 260 : 0) +
-    (visibleFieldState.value.provider ? 140 : 0),
+  x: 'max-content' as const,
 }));
 const ipDeleteTableScroll = computed(() => ({
-  x:
-    1050 +
-    (visibleFieldState.value.notes ? 220 : 0) +
-    (visibleFieldState.value.execution ? 510 : 0) +
-    (visibleFieldState.value.provider ? 150 : 0),
+  x: 'max-content' as const,
 }));
 const summary = computed(() => detail.value);
 const shutdownPlanItems = computed(
@@ -464,6 +463,12 @@ async function handlePlanPageChange(key: PlanTableKey, pagination: any) {
   planPageState[key].current = pageSizeChanged ? 1 : Math.max(nextPage, 1);
   planPageState[key].pageSize = Math.max(nextPageSize, 1);
   await loadData({ silent: true, tables: [key] });
+}
+
+function resetPlanPages() {
+  (Object.keys(planPageState) as PlanTableKey[]).forEach((key) => {
+    planPageState[key].current = 1;
+  });
 }
 
 function fmtTime(value?: null | string) {
@@ -905,6 +910,7 @@ async function loadData(options?: {
       ip_delete_history_page_size: planPageState.ip_delete_history.pageSize,
       ip_delete_page: planPageState.ip_delete.current,
       ip_delete_page_size: planPageState.ip_delete.pageSize,
+      keyword: keyword.value.trim() || undefined,
       limit: requestLimit,
       server_delete_page: planPageState.server_delete.current,
       server_delete_page_size: planPageState.server_delete.pageSize,
@@ -928,6 +934,17 @@ async function loadData(options?: {
 
 async function toggleVisibleField(key: string, checked: boolean) {
   visibleColumnState[key] = checked;
+  await loadData();
+}
+
+async function searchPlans() {
+  resetPlanPages();
+  await loadData();
+}
+
+async function resetSearch() {
+  keyword.value = '';
+  resetPlanPages();
   await loadData();
 }
 
@@ -976,6 +993,15 @@ onMounted(() => {
       <Card :loading="loading">
         <template #title>
           <Space wrap>
+            <Input.Search
+              v-model:value="keyword"
+              allow-clear
+              class="plans-search"
+              placeholder="搜索 IP / 用户 / 订单号 / 备注"
+              size="small"
+              @search="searchPlans"
+            />
+            <Button size="small" @click="resetSearch">重置</Button>
             <Button size="small" @click="goBack">返回代理列表</Button>
             <Button size="small" :loading="loading" @click="loadData()">
               刷新
@@ -1119,7 +1145,7 @@ onMounted(() => {
           :data-source="lastRunFailures"
           :pagination="tablePagination"
           :row-key="rowKey"
-          :scroll="{ x: 900 }"
+          :scroll="dueTableScroll"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'error'">
@@ -2100,7 +2126,7 @@ onMounted(() => {
         :data-source="lastRunFailures"
         :pagination="tablePagination"
         :row-key="rowKey"
-        :scroll="{ x: 900 }"
+        :scroll="dueTableScroll"
         size="small"
       >
         <template #bodyCell="{ column, record }">
@@ -2165,6 +2191,10 @@ onMounted(() => {
   gap: 10px;
   align-items: center;
   margin-bottom: 12px;
+}
+
+.plans-search {
+  width: 280px;
 }
 
 .plan-field-switch-label {

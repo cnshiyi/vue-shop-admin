@@ -1392,6 +1392,7 @@ export async function getDashboardLifecyclePlansApi(
     ip_delete_history_page_size?: number;
     ip_delete_page?: number;
     ip_delete_page_size?: number;
+    keyword?: string;
     limit?: number;
     server_delete_page?: number;
     server_delete_page_size?: number;
